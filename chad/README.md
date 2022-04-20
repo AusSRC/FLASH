@@ -20,18 +20,18 @@ sudo mv /var/lib/postgresql/12/main /var/lib/postgresql/12/main.bak
 ```bash
 data_directory = '/mnt/db/postgresql/12/main'
 ```
-## Restart db:
+ - Restart db:
 ```bash
 sudo systemctl start postgresql
 sudo systemctl status postgresql
 ```
 
-## change to chad-main directory and run:
+ - change to chad-main directory and run:
 ```python
 python3 build_chad.py --rebuild
 ```
 
-## Create startup script /etc/chad/chad.sh:
+ - Create startup script /etc/chad/chad.sh:
 
 ```bash
 #!/bin/bash
@@ -40,12 +40,12 @@ export FLASK_DEBUG=1
 /usr/local/bin/flask run -h `ip -o route get to 8.8.8.8 | sed -n 's/.*src \([0-9.]\+\).*/\1/p' ` -p 80
 ```
 
-## set user permissions:
+ - set user permissions:
 ```bash
 sudo chmod a+x /etc/chad/chad.sh
 ```
 
-## Create systemd script /etc/systemd/system/chad.service:
+ - Create systemd script /etc/systemd/system/chad.service:
 ```bash
 [Unit]
 Description= CHAD database frontend service
@@ -61,7 +61,7 @@ WantedBy=multi-user.target
 ```
 
 
-## Enable and start service:
+ - Enable and start service:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable chad.service
