@@ -253,7 +253,7 @@ def find_components(source_id):
 @app.route('/<source_id>/source')
 def find_source(source_id):
     id = db.search_exact("racs_island", "source_id", source_id)
-    return redirect(url_for('show', id=id[0], table="racs_island"))
+    return redirect(url_for('show', id=id[0][0], table="racs_island"))
 
 ###################################################################################################
 ###########                            DISPLAY FUNCTIONS                             ##############
