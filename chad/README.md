@@ -11,30 +11,43 @@ chad-main/modules directory.
 
 ## point postgres to external drive (optional)
  - we have a 10TB volume mounted at /mnt/db/
-```sudo systemctl stop postgresql
+```bash
+sudo systemctl stop postgresql
 sudo rsync -av /var/lib/postgresql /mnt/db
-sudo mv /var/lib/postgresql/12/main /var/lib/postgresql/12/main.bak```
+sudo mv /var/lib/postgresql/12/main /var/lib/postgresql/12/main.bak
+```
  - edit /etc/postgresql/12/main/postgresql.conf:
-```data_directory = '/mnt/db/postgresql/12/main'```
+```bash
+data_directory = '/mnt/db/postgresql/12/main'
+```
 ## Restart db:
-```sudo systemctl start postgresql
-sudo systemctl status postgresql```
+```bash
+sudo systemctl start postgresql
+sudo systemctl status postgresql
+```
 
 ## change to chad-main directory and run:
-```python3 build_chad.py --rebuild```
+```python
+python3 build_chad.py --rebuild
+```
 
 ## Create startup script /etc/chad/chad.sh:
 
-```#!/bin/bash
+```bash
+#!/bin/bash
 export FLASK_APP=/home/ubuntu/chad/chad-main/frontend/chad
 export FLASK_DEBUG=1
-/usr/local/bin/flask run -h `ip -o route get to 8.8.8.8 | sed -n 's/.*src \([0-9.]\+\).*/\1/p' ` -p 80```
+/usr/local/bin/flask run -h `ip -o route get to 8.8.8.8 | sed -n 's/.*src \([0-9.]\+\).*/\1/p' ` -p 80
+```
 
 ## set user permissions:
-```sudo chmod a+x /etc/chad/chad.sh```
+```bash
+sudo chmod a+x /etc/chad/chad.sh
+```
 
 ## Create systemd script /etc/systemd/system/chad.service:
-```[Unit]
+```bash
+[Unit]
 Description= CHAD database frontend service
 After=multi-user.target
 
@@ -44,10 +57,13 @@ Restart=always
 ExecStart=/etc/chad/chad.sh
 
 [Install]
-WantedBy=multi-user.target```
+WantedBy=multi-user.target
+```
 
 
 ## Enable and start service:
-```sudo systemctl daemon-reload
+```bash
+sudo systemctl daemon-reload
 sudo systemctl enable chad.service
-sudo systemctl start chad.service```
+sudo systemctl start chad.service
+```
