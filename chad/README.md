@@ -1,8 +1,8 @@
-# Set up for system version (all users on ubuntu):
-# Rather than following INSTALL_REQ:
+# Set up for system version (all users on ubuntu) rather than following INSTALL_REQ:
+```bash
 umask 022
-
 sudo pip install psycopg2-binary numpy astropy astroquery scipy flask
+```
 
 ## Database setup
 Once postgresql is installed, set a password for the postgres user, modify /etc/postgres/12/main/pg_hba.conf 
@@ -31,7 +31,7 @@ sudo systemctl status postgresql
 python3 build_chad.py --rebuild
 ```
 
- - Create startup script /etc/chad/chad.sh:
+## Create startup script /etc/chad/chad.sh:
 
 ```bash
 #!/bin/bash
@@ -61,7 +61,7 @@ WantedBy=multi-user.target
 ```
 
 
- - Enable and start service:
+## Enable and start service:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable chad.service
