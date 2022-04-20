@@ -1,4 +1,4 @@
-# Set up for system version (all users on ubuntu) rather than following INSTALL_REQ:
+# Set up for Production version (rather than following INSTALL_REQ):
 ```bash
 umask 022
 sudo pip install psycopg2-binary numpy astropy astroquery scipy flask
