@@ -6,7 +6,7 @@ sudo pip install psycopg2-binary numpy astropy astroquery scipy flask
 
 ## Database setup
 Once postgresql is installed, set a password for the postgres user, modify /etc/postgres/12/main/pg_hba.conf 
-to allow md5 method (instead of peer) for the postges user, and edit the password set in the files in the 
+to allow md5 method (instead of peer) for the postgres user, and edit the password set in the files in the 
 chad-main/modules directory.
 
 ## point postgres to external drive (optional)
@@ -26,6 +26,7 @@ sudo systemctl start postgresql
 sudo systemctl status postgresql
 ```
 
+## Build chad database
  - change to chad-main directory and run:
 ```python
 python3 build_chad.py --rebuild
