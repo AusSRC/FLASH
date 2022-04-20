@@ -1,0 +1,45 @@
+/* Style sheet for the about page */
+
+/* Side navigation bar */
+.sidenav {
+    width: 220px;
+    position: fixed;
+    top: 140px;
+    left: 10px;
+    background-color: #d7d7d7;
+    padding: 0px;
+    font-size: 16px;
+}
+
+.sidenav a {
+    padding: 10px;
+    text-decoration: none;
+    color: #505050;
+    display: block;
+}
+
+.sidenav a:hover {
+    background-color: #e9e9e9
+}
+
+/* Override content style from main.css */
+.content {
+    display: inline-block;
+    margin-top: 0px;
+    margin-left: 250px;
+    margin-right: 50px;
+    line-height: 1.5;
+}
+
+/* Other content style */
+.author {
+    color: #505050;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+figcaption {
+    text-align: center;
+    color:#505050;
+    font-size: 12px;
+}

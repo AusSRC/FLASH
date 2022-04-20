@@ -1,0 +1,93 @@
+<!--Summary page for a source. When new surveys are added, this page needs to be updated. 
+    Option needs to be added to the Aladin survey selector. If the survey is not in Aladin Lite by default, 
+    it also needs to be added by HiPS ID/url as in RACS example-->
+
+{% extends "base.html" %}
+{% block title %}Source details{% endblock %}
+{% block content %}
+    <h2>{{ dicts[0]["name"] }}</h2>
+    RA: {{ dicts[0]["ra"] }}&#176; DEC: {{ dicts[0]["dec"] }}&#176;
+    <br>
+    {% if tables[0] == "racs_component" %}
+        Total flux gaussian: {{ dicts[0]["total_flux_gaussian"] }}mJy <br>
+        Total flux source: {{ dicts[0]["total_flux_source"] }}mJy
+    {% else %}
+        Total flux: {{ dicts[0]["total_flux_source"] }}mJy
+    {% endif %}
+    <br>
+    [<a href="{{url_for('show', id=dicts[0]['id'], table=tables[0])}}">View More</a>]
+    <br>
+    <br>
+    <!-- Display some basic information from all other tables -->
+    {% for i in range(dicts | length) if i != 0 %}
+        <b>{{ tables[i] | capitalize }} entry:</b><br>
+        Name: <a href="{{url_for('show', id=dicts[i]['id'], table=tables[i])}}">{{ dicts[i]["name"] }}</a> <br>
+        RA: {{ dicts[i]["ra"] }}&#176;, DEC: {{ dicts[i]["dec"] }}&#176;<br>
+        Angular distance: {{ dicts[i]["angdist"] | round(3) }}"<br>
+        Match confidence: {{ (dicts[i]["confidence"] * 100) | round(2) }}%<br>
+        <!-- Make a WISE colour-colour plot if the data exists -->
+        {% if tables[i] == "allwise" and wise_plot != None and wise_plot[0] != None and wise_plot[1] != None %}
+        <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+
+            <image href="/static/images/base_wise.png" x="0" y="0" width="100%" height="100%"/>
+            <!-- plot points -->
+            <g id="plot-layer">
+                <!-- in this scale, (0,0) is at (110, 312). To get to (1, 1) (148, 237), travel (+38, -75) -->
+                <circle
+                    cx="{{ 110 + 38 * wise_plot[0] }}"
+                    cy="{{ 312 - 75 * wise_plot[1] }}"
+                    r="4"
+                    fill="hsl(270, 100%, 50%)"
+                />
+        </svg>
+        {% endif %}
+        <br>
+    {% endfor %}
+
+    <!-- display Aladin Lite in webpage. Will need to be modified if adding new surveys -->
+    <link rel="stylesheet" href="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.css" /> 
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.1.min.js" charset="utf-8"></script>
+
+    <div class="aladin-viewer">
+    <!-- Selector to change displayed survey -->
+    Select survey: 
+    <select name="survey" id="survey">
+        <option value="P/RACS">RACS</option>
+        {% if "allwise" in tables %}
+        <option value="P/allWISE/color">allWISE</option>
+        {% endif %}
+        {% if "rosat_2rxs" in tables %}
+        <option value="P/ROSAT">ROSAT</option>
+        {% endif %}
+        {% if "fermi_4fgl" in tables %}
+        <option value="P/Fermi/color">Fermi</option>
+        {% endif %}
+        {% if "xmm4_dr9" in tables %}
+        <option value="P/XMM/PN/color">XMM</option>
+        {% endif %}
+        {% if "sdss" in tables %}
+        <option value="P/SDSS9/color">SDSS</option>
+        {% endif %}
+        <!-- Add more survey options here -->
+    </select>
+
+    <div id="aladin-lite-div" style="width:400px;height:400px;"></div>
+    <script type="text/javascript" src="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
+    <script type="text/javascript">
+        var target = "{{ dicts[0]['ra'] }}" + " " + "{{ dicts[0]['dec'] }}"
+        var aladin = A.aladin('#aladin-lite-div', {fov:0.2, target: target, showLayersControl: false, showGotoControl: false});
+
+        // Add any non-standard survey with HiPS ID and url
+        // Available surveys are at aladin.unistra.fr/hips/list
+        aladin.createImageSurvey("P/RACS", "RACS", "http://casda.csiro.au/hips/RACS/low/I/", "equatorial", 10, {imgFormat: 'png'})
+        aladin.createImageSurvey("P/ROSAT", "ROSAT", "http://cade.irap.omp.eu/documents/Ancillary/4Aladin/RASS", "equatorial", 10, {imgFormat: 'jpg'})
+        aladin.createImageSurvey("P/XMM/PN/color", "XMM PN colored", "http://saada.unistra.fr/PNColor", "equatorial", 7, {imgFormat: 'png'})
+
+        // Set up the viewer, displaying RACS by default
+        aladin.setImageSurvey("P/RACS")
+        $('select').on('change', function() {
+            aladin.setImageSurvey(this.value);
+        });
+    </script>
+    </div>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Source details{% endblock %}
+{% block content %}
+    <h3>Source name:</h3>
+    <body>{{ source['name'] }}</body>
+
+    <h3>Position: </h3>
+    <table>
+        <tr> 
+            <th>RA [deg]</th>
+            <th>Dec [deg]</th>
+            <th>Error ellipse semimajor [deg]</th>
+            <th>Error ellipse semiminor [deg]</th>
+            <th>Error ellipse position angle [deg]</th>
+        </tr>
+        <tr>
+            <td>{{ source['ra'] }}</td>
+            <td>{{ source['dec'] }}</td>
+            <td>{{ source['amaj95'] }}</td>
+            <td>{{ source['bmin95'] }}</td>
+            <td>{{ source['pa95'] }}</td>
+        </tr>
+    </table>
+    <br>
+    Angular distance from RACS source <a href="{{url_for('show', id=source['id'], table=match_tables[0])}}">{{ racs_match }}</a>: {{ source['angdist'] | round(3) }}"
+    <br>
+    Match confidence: {{ (source['confidence']*100)|round(2) }}%
+
+    <h3>Flux information:</h3>
+    <table>
+        <tr>
+            <th>Integral photon flux 1-100GeV [ph/cm2/s]</th>
+            <th>Energy flux from 100MeV-100GeV [mW/m2]</th>
+            <th>Spectral type</th>
+        </tr>
+        <tr>
+            <td>{{ source['f1000i'] }}{% if source['e_f1000i'] != None %}+/-{{ source['e_f1000i'] }}{% endif %}</td>
+            <td>{{ source['ef100'] }}{% if source['e_ef100'] != None %}+/-{{ source['e_ef100'] }}{% endif %}</td>
+            <td>{{ source['mod'] }}</td>
+        </tr>
+    </table>
+    <br>
+    <table>
+        <tr>
+            <th>Integral photon flux 50-100MeV [ph/cm2/s]</th>
+            <th>Integral photon flux 100-300MeV [ph/cm2/s]</th>
+            <th>Integral photon flux 300MeV-1GeV [ph/cm2/s]</th>
+        </tr>
+        <tr>
+            <td>{{ source['f50'] }}</td>
+            <td>{{ source['f100'] }}</td>
+            <td>{{ source['f300'] }}</td>
+        </tr>
+    </table>
+    <br>
+    <table>
+        <tr>
+            <th>Integral photon flux 1-3GeV [ph/cm2/s]</th>
+            <th>Integral photon flux 3-10GeV [ph/cm2/s]</th>
+            <th>Integral photon flux 10-30GeV [ph/cm2/s]</th>
+            <th>Integral photon flux 30-300GeV [ph/cm2/s]</th>
+        </tr>
+        <tr>
+            <td>{{ source['f1000'] }}</td>
+            <td>{{ source['f3000'] }}</td>
+            <td>{{ source['f10000'] }}</td>
+            <td>{{ source['f30000'] }}</td>
+        </tr>
+    </table>
+
+    <!-- Image Viewer -->
+    <div class="aladin-viewer2">
+    <link rel="stylesheet" href="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.css" /> 
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.1.min.js" charset="utf-8"></script>
+    <div id="aladin-lite-div" style="width:400px;height:400px;"></div>
+    <script type="text/javascript" src="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
+    <script type="text/javascript">
+        var target = "{{ source['ra'] }}" + " " + "{{ source['dec'] }}"
+        var aladin = A.aladin('#aladin-lite-div', {survey: "P/Fermi/color", fov:1, target: target, showLayersControl: false, showGotoControl: false});
+    </script>
+    </div>
+
+    <br>
+    <a href="{{url_for('show_summary', id=source['id']), table=racs_table[5:]}}">Summary Page</a><br><br>
+    Other tables matching this source:<br>
+    <body>
+        {% for table in match_tables %}
+            <a href="{{url_for('show', id=source['id'], table=table)}}"> {{ table | capitalize}} </a> <br>
+        {% endfor %}
+    </body>
+    
+{% endblock %}

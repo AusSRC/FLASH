@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Source details{% endblock %}
+{% block content %}
+    <h3>Source name:</h3>
+    <body>{{ source['name'] }}</body>
+
+    <h3>Position: </h3>
+    <table>
+        <tr> 
+            <th>RA [deg]</th>
+            <th>Dec [deg]</th>
+        </tr>
+        <tr>
+            <td>{{ source['ra'] }}</td>
+            <td>{{ source['dec'] }}</td>
+        </tr>
+    </table>
+    <br>
+    Angular distance from RACS source <a href="{{url_for('show', id=source['id'], table=match_tables[0])}}">{{ racs_match }}</a>: {{ source['angdist'] | round(3) }}"
+    <br>
+    Match confidence: {{ (source['confidence']*100)|round(2) }}%
+
+    <h3>Flux information:</h3>
+    <table>
+        <tr>
+            <th>Mean flux in 0.2-12keV band [mW/m2]</th>
+            <th>Hardness ratio bands 1,2</th>
+            <th>Hardness ratio bands 2,3</th>
+            <th>Hardness ratio bands 3,4</th>
+            <th>Hardness ratio bands 4,5</th>
+        </tr>
+        <tr>
+            <td>{{ source['flux8'] }}{% if source['e_flux8'] != None %}+/-{{ source['e_flux8'] }}{% endif %}</td>
+            <td>{{ source['hr1'] }}</td>
+            <td>{{ source['hr2'] }}</td>
+            <td>{{ source['hr3'] }}</td>
+            <td>{{ source['hr4'] }}</td>
+        </tr>
+    </table>
+    Energy bands are:<br>
+    1 = 0.2 - 0.5keV<br>
+    2 = 0.5 - 1.0keV<br>
+    3 = 1.0 - 2.0keV<br>
+    4 = 2.0 - 4.5keV<br>
+    5 = 4.5 - 12.0keV<br>
+
+    <h3>Shape information:</h3>
+    <table>
+        <tr>
+            <th>Total band extent [arcsec] </th>
+        </tr>
+        <tr>
+            <td>{{ source["ext"] }}</td>
+        </tr>
+    </table>
+
+    <!-- Image viewer -->
+    <link rel="stylesheet" href="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.css" /> 
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.1.min.js" charset="utf-8"></script>
+    <div id="aladin-lite-div" style="width:400px;height:400px;"></div>
+    <script type="text/javascript" src="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
+    <script type="text/javascript">
+        var target = "{{ source['ra'] }}" + " " + "{{ source['dec'] }}"
+        var aladin = A.aladin('#aladin-lite-div', {fov:0.2, target: target, showGotoControl: false});
+        
+        aladin.createImageSurvey("P/XMM/PN/color", "XMM PN colored", "http://saada.unistra.fr/PNColor", "equatorial", 7, {imgFormat: 'png'})
+        
+        // Set up the viewer, displaying RACS by default
+        aladin.setImageSurvey("P/XMM/PN/color")
+    </script>
+
+    <br>
+    <a href="{{url_for('show_summary', id=source['id'], table=racs_table[5:])}}">Summary Page</a><br><br>
+    Other tables matching this source:<br>
+    <body>
+        {% for table in match_tables %}
+            <a href="{{url_for('show', id=source['id'], table=table)}}"> {{ table | capitalize}} </a> <br>
+        {% endfor %}
+    </body>
+    
+{% endblock %}

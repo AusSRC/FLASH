@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %} CHAD {% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% block stylesheets %} {% endblock %}
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1><b>CHAD</b></h1>
+            <div class="header-text">
+            <h3><b>Consolidated HI Absorption Database</b></h3>
+            </div>
+        </div>
+    </header>
+    <div class="navbar">
+        {% block navbar %}
+        <a href="{{ url_for('home') }}">Home</a>
+        <a href="{{ url_for('about') }}"> About </a>
+        {% endblock %}
+    </div>
+    <div class="content">
+    {% block content %}
+    {% endblock %}
+    </div>
+</body>
+</html>

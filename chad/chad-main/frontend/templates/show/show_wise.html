@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Source details{% endblock %}
+{% block content %}
+    <h3>Source name:</h3>
+    <body>{{ source['name'] }}</body>
+
+    <h3>Position: </h3>
+    <table>
+        <tr> 
+            <th>RA [deg]</th>
+            <th>Dec [deg]</th>
+            <th>Unc maj axis ["]</th>
+            <th>Unc min axis ["]</th>
+            <th>Unc ellipse pos angle [deg]</th>
+        </tr>
+        <tr>
+            <td>{{ source['ra'] }}</td>
+            <td>{{ source['dec'] }}</td>
+            <td>{{ source['eemaj'] }}</td>
+            <td>{{ source['eemin'] }}</td>
+            <td>{{ source['eepa'] }}</td>
+        </tr>
+    </table>
+    <br>
+    Angular distance from RACS source <a href="{{url_for('show', id=source['id'], table=match_tables[0])}}">{{ racs_match }}</a>: {{ source['angdist'] | round(3) }}"
+    <br>
+    Match confidence: {{ (source['confidence']*100)|round(2) }}%
+
+    <h3>Flux information:</h3>
+    <table>
+        <tr>
+            <th>W1 mag</th>
+            <th>W2 mag</th>
+            <th>W3 mag</th>
+            <th>W4 mag</th>
+            <th>J mag</th>
+            <th>H mag</th>
+            <th>K mag</th>
+        </tr>
+        <tr>
+            <td>{{ source['w1mag'] }}{% if source['e_w1mag'] != None %}+/-{{ source['e_w1mag'] }}{% endif %}</td>
+            <td>{{ source['w2mag'] }}{% if source['e_w2mag'] != None %}+/-{{ source['e_w2mag'] }}{% endif %}</td>
+            <td>{{ source['w3mag'] }}{% if source['e_w3mag'] != None %}+/-{{ source['e_w3mag'] }}{% endif %}</td>
+            <td>{{ source['w4mag'] }}{% if source['e_w4mag'] != None %}+/-{{ source['e_w4mag'] }}{% endif %}</td>
+            <td>{{ source['jmag'] }}{% if source['e_jmag'] != None %}+/-{{ source['e_jmag'] }}{% endif %}</td>
+            <td>{{ source['hmag'] }}{% if source['e_hmag'] != None %}+/-{{ source['e_hmag'] }}{% endif %}</td>
+            <td>{{ source['kmag'] }}{% if source['e_kmag'] != None %}+/-{{ source['e_kmag'] }}{% endif %}</td>
+        </tr>
+    </table>
+    {% if source['w1mag'] != None and source['w2mag'] != None and source['w3mag'] != None %}
+        <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+
+            <!-- <rect id="background" x="0" y="0" width="100%" height="100%" fill="hsl(0, 0%, 50%)"/> -->
+            <image href="/static/images/base_wise.png" x="0" y="0" width="100%" height="100%"/>
+            <!-- plot points -->
+            <g id="plot-layer">
+                <!-- in this scale, (0,0) is at (110, 312). To get to (1, 1) (148, 237), travel (+38, -75) -->
+                <circle
+                    cx="{{ 110 + 38 * (source['w2mag']-source['w3mag']) }}"
+                    cy="{{ 312 - 75 * (source['w1mag']-source['w2mag']) }}"
+                    r="4"
+                    fill="hsl(270, 100%, 50%)"
+                />
+        </svg>
+    {% endif %}
+    <!-- Image Viewer -->
+    <div class="aladin-viewer2">
+    <link rel="stylesheet" href="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.css" /> 
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.1.min.js" charset="utf-8"></script>
+    <div id="aladin-lite-div" style="width:400px;height:400px;"></div>
+    <script type="text/javascript" src="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
+    <script type="text/javascript">
+        var target = "{{ source['ra'] }}" + " " + "{{ source['dec'] }}"
+        var aladin = A.aladin('#aladin-lite-div', {survey: "P/allWISE/color", fov:0.2, target: target, showLayersControl: false, showGotoControl: false});
+    </script>
+    </div>
+
+    <br>
+    <a href="{{url_for('show_summary', id=source['id'], table=racs_table[5:])}}">Summary Page</a><br><br>
+    Other tables matching this source:<br>
+    <body>
+        {% for table in match_tables %}
+            <a href="{{url_for('show', id=source['id'], table=table)}}"> {{ table | capitalize}} </a> <br>
+        {% endfor %}
+    </body>
+    
+{% endblock %}

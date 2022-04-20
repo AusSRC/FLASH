@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Search results {% endblock %}
+{% block content %}
+    <h2>Search results for catalogue {{ search_params['table'] }}</h2>
+    {% if 'name' in search_params %}
+        Name: {{ search_params['name'] }} <br>
+    {% endif %}
+    {% if 'ra' in search_params %}
+        RA: {{ search_params['ra'] }}&#176;, DEC: {{ search_params['dec'] }}&#176;
+        {%- if 'radius' in search_params -%}
+        , radius: {{ search_params['radius'] }}'
+        {% endif %}
+    {% endif %}
+    
+    <table>
+        {% with name, ra, dec, ang_dist = results %}
+        {% if name | length > 0 %}
+        <tr>
+            <th>Source Name</th>
+            <th>RA [&#176;]</th>
+            <th>DEC [&#176;]</th>
+            {% if ang_dist != None %}
+            <th>Angular distance {% if 'name' in search_params %}["]{% else %}[']{% endif %}</th>
+            {% endif %}
+        </tr>
+        {% endif %}
+        
+        {% for i in range(name | length) %}
+            <tr>
+                <td><a href="{{url_for('show_summary', id=ids[i], table=search_params['table'][5:])}}">{{ name[i] }}</a></td>
+                <td>{{ ra[i] }}</td>
+                <td>{{ dec[i] }}</td>
+                {% if ang_dist != None %}<td>{{ ang_dist[i] }}</td>{% endif %}
+            </tr>
+        {% endfor %}
+        {% if name | length == 0 %}
+            <br><br>
+            No matches found!
+        {% endif %}
+        {% endwith %}
+    </table>
+
+    {% if trunc == True %}
+        Only showing first 100 results
+    {% endif %}
+{% endblock %}

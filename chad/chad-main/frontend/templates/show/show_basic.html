@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %} Source details {% endblock %}
+{% block content %}
+    <h3>Source name:</h3>
+    <body>{{ source['name'] }}</body>
+
+    <h3>Position: </h3>
+    <table>
+        <tr> 
+            <th>RA [deg]</th>
+            <th>Dec [deg]</th>
+        </tr>
+        <tr>
+            <td>{{ source['ra'] }}</td>
+            <td>{{ source['dec'] }}</td>
+        </tr>
+    </table>
+    <br>
+    Angular distance from RACS source <a href="{{url_for('show', id=source['id'], table=match_tables[0])}}">{{ racs_match }}</a>: {{ source['angdist'] | round(3) }}"
+    <br>
+    Match confidence: {{ (source['confidence']*100)|round(2) }}%
+
+    <h3>Table entry: </h3>
+    {% with keys = source.keys() | list %}
+    {% for i in range((source | length) // 6 + 1) %}
+    <table>
+        <tr>
+            {% for key in keys[(i-1)*6:i*6] if (key != "name" and key != "ra" and key != "dec" and key != "angdist" and key != "id") %}
+                <th>{{ key | e }}</th>
+            {% endfor %}
+        </tr>
+        <tr>
+            {% for key in keys[(i-1)*6:i*6] if (key != "name" and key != "ra" and key != "dec" and key != "angdist" and key != "id") %}
+                <td>{{ source[key] | e }}</td>
+            {% endfor %}
+        </tr>
+    </table>
+    <br>
+    {% endfor %}
+    {% with mod = (source | length) % 6 %}
+    <table>
+        <tr>
+            {% for key in keys[-mod-1:] if (key != "name" and key != "ra" and key != "dec" and key != "angdist" and key != "id") %}
+                <th>{{ key }}</th>
+            {% endfor %}
+        </tr>
+        <tr>
+            {% for key in keys[-mod-1:] if (key != "name" and key != "ra" and key != "dec" and key != "angdist" and key != "id") %}
+                <td>{{ source[key] }}</td>
+            {% endfor %}
+        </tr>
+    </table>
+    {% endwith %}
+    {% endwith %}
+
+    <br><br>
+    <a href="{{url_for('show_summary', id=source['id'], table=racs_table[5:])}}">Summary Page</a><br><br>
+    Other tables matching this source:<br>
+    <body>
+        {% for table in match_tables %}
+            <a href="{{url_for('show', id=source['id'], table=table)}}"> {{ table | capitalize}} </a> <br>
+        {% endfor %}
+    </body>
+    
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %} About CHAD {% endblock %}
+
+{% block navbar %}
+    <a href="{{ url_for('home') }}">Home</a>
+    <a class="active" href="{{ url_for('about') }}"> About </a>
+{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/about.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="sidenav">
+    <a href="#overview">Overview & Background</a>
+    <a href="#base-catalogue">Base Catalogue Suitability</a>
+    <a href="#crossmatching">Crossmatching</a>
+    <a href="#database-construction">Database Construction</a>
+</div>
+<h3 id="overview">Overview & Background</h3>
+<p>The Consolidated HI Absorption Database (CHAD) was created to aid in building a multi-wavelength picture of 
+radio sources that will be detected as part of the First Large Absorption Survey in HI (FLASH), looking for hydrogen
+absorption towards radio galaxies across the southern sky. Previous searches have targeted subsets of the radio
+galaxy population, or specifically explored either low (z &lt; 0.3) or high (z &gt; 1.7) redshifts, but FLASH will 
+carry out its search over the whole sky and specifically target previously poorly-explored intermediate redshifts 
+of 0.4-1.0.</p>
+
+<p>The scale of FLASH means that there will be a very large number of new detections that need to be assessed. 
+Previously, the FLASH team manually built a multiwavelength picture of particular galaxies hosting H1 absorption
+detection, by individually querying relevant catalogues or data services to answer specific questions about a 
+particular source's properties. It will be important to make this process more efficient and streamlined to prepare
+for the full FLASH survey, which is the motivation behind the creation of CHAD. </p>
+
+<p>CHAD is a database that contains, as a base, a catalogue of RACS sources. This is because RACS is a complete survey 
+in radio, that matches very well to detected FLASH sources (based on FLASH pilot survey data, when the peak flux is 
+limited to &gt; 25mJy/beam, the component catalogues have a 99.57% match rate, and the island catalogues have a
+97.92% match rate. See Base Catalogue Suitability for more detail on this process). Other selected multi-wavelength
+catalogues can then be crossmatched to RACS, and these crossmatched sources are also added to the database. The aim 
+is to include only multi-wavelength data relevant to the assessment of FLASH sources. This multi-wavelength 
+information can then be easily accessed for any particular radio source necessary. </p>
+
+Currently, CHAD has tables for:
+<ul>
+    {% for table in tables %}
+    <li>{{ table }}</li>
+    {% endfor %}
+</ul>
+
+<h3 id="base-catalogue">Base Catalogue Suitability</h3>
+<p>The first step in constructing CHAD was to determine the suitability of the proposed base catalogue, RACS. This was
+done by crossmatching the RACS catalogue with data from the FLASH pilot survey, and investigating how closely the
+catalogues were matched. To determine the matching radius, the two catalogues were first matched up to a 50" 
+angular separation. Then, the RACS data was offset by 1' and matched again, to compare the two histograms of
+angular separation, as shown below in Figure 1. This showed that a matching radius of 10" would be appropriate for 
+crossmatching.</p>
+
+<figure>
+    <img src="/static/images/flash_racs_hist.png" class="center image"/>
+    <figcaption>Figure 1: Angular separation of matches between FLASH and RACS with normal and offset catalogues.</figcaption>
+</figure>
+
+<p>After matching the catalogues, we can calculate that only ~30% of all sources successfully match. However, on plotting
+the peak flux of the source against the proportion that is matched, as well as the number of unmatched galaxies 
+against peak flux, as seen in Figure 2, we can see that this is only due to sources with low peak flux. Since FLASH 
+will only be able to detect H1 absorption in sources brighter than ~40mJy, this does not present a significant
+issue. Limiting the flux to be &gt;25mJy and recalculating the matched proportion, we find that 99.57% of FLASH
+components are matched, and 97.92% of islands are matched, indicating that RACS will be a suitable base catalogue
+for FLASH sources. </p>
+
+<figure>
+    <img src="/static/images/flash_racs_component.png" class="center"/>
+    <img src="/static/images/flash_racs_island.png" class="center"/>
+    <figcaption>Figure 2: Matching completeness as a function of source peak flux for component (top) and 
+        island (bottom) catalogues. 
+    </figcaption>
+</figure>
+
+<h3 id="crossmatching">Crossmatching</h3>
+A key part of CHAD is the crossmatching process with catalogues in other wavelengths. This crossmatching is done
+using XMatch, assuming that the requested import catalogue is available. This allows us to easily get a crossmatch 
+between RACS and another catalogue with matches determined based on angular distance. However, since the focus of 
+CHAD is to automate this process as much as possible, it is important to be able to esimate the quality of the 
+matches to cull low confidence matches. This way, only an upper limit guess of the matching radius needs to be 
+provided, and CHAD will automatically determine if matches are acceptable or not, making the process of adding
+catalogues much simpler. 
+
+The confidence level of a match is estimated by first finding the density of the sources in the import catalogue, 
+and using that to estimate the number of coincidental matches we would expect to find in a small range around 
+a particular radius given a uniformly random distribution of points. Then, this is compared to the number of matches
+that were actually found in the same interval. Beyond a certain radius, we would expect comparable numbers of matches
+for the random data as to the true data, indicating that matches beyond that radius are not trustworthy. 1 minus 
+the proportion of random matches to actual matches is used as the confidence level. By default, the minimum allowed 
+confidence is 40%. 
+
+<h3 id="database-construction">Database Construction</h3>
+<p>There are three steps to constructing CHAD: rebuilding, crossmatching, and adding tables. It is not necessary
+to run all steps when updating CHAD. For example, when adding a new survey, CHAD does not need to be fully rebuilt,
+so only the crossmatching and adding surveys steps need to be run. Crossmatching will also skip already processed
+surveys unless told otherwise. </p>
+
+<p>In the rebuilding stage, the database is first dropped if it exists. Then, the input RACS tables are read in 
+and added to the database. In the crossmatching stage, the requested import catalogues are read in. Then using XMatch,
+the table is crossmatched to either the island or component RACS catalogue at some preliminary angular separation.
+Finally, the results are culled based on the confidence of the match to some minimum confidence level (by default
+40%). For more details on the calculation of this confidence, see the Crossmatching section. In the final 
+adding surveys stage, a new table for the survey is created within CHAD and values from the crossmatch table are 
+added. </p>
+<br>
+<div class="author">CHAD was created by Louisa Canepa as part of the CSIRO Vacation Student program, working closely with Lan Tran and
+    the FLASH team under the supervision of Vanessa Moss. </div>
+{% endblock %}

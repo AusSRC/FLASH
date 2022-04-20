@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Source details{% endblock %}
+{% block content %}
+    <h3>Source name:</h3>
+    <body>{{ source['name'] }}</body>
+
+    <h3>Position: </h3>
+    <table>
+        <tr> 
+            <th>RA [deg]</th>
+            <th>Dec [deg]</th>
+            <th>Galactic lon, lat [deg]</th>
+        </tr>
+        <tr>
+            <td>{{ source['ra'] }}+/-{{ source['e_ra'] }}</td>
+            <td>{{ source['dec'] }}+/-{{ source['e_dec'] }}</td>
+            <td>{{ source['gal_lon'] }}, {{source['gal_lat'] }}</td>
+        </tr>
+    </table>
+
+    <h3>Flux information:</h3>
+    <table>
+        <tr>
+            {% if table == "racs_component" %}
+            <th>Total flux gaussian [mJy]</th>
+            {% endif %}
+            <th>Total flux source [mJy]</th>
+            <th>Peak flux [mJy]</th>
+        </tr>
+        <tr>
+            {% if table == "racs_component" %}
+            <td>{{ source['total_flux_gaussian'] }}+/-{{ source['e_total_flux_gaussian'] }}</td>
+            {% endif %}
+            <td>{{ source['total_flux_source'] }}+/-{{ source['e_total_flux_source'] }}</td>
+            <td>{{ source['peak_flux'] }}+/-{{ source['e_peak_flux'] }}</td>
+        </tr>
+    </table>
+
+    <h3>Source shape:</h3>
+    <table>
+        <tr>
+            <th>Major axis ["]</th>
+            <th>Minor axis ["]</th>
+            <th>Position angle [deg]</th>
+        </tr>
+        <tr>
+            <td>{{ source['maj'] }}+/-{{ source['e_maj'] }}</td>
+            <td>{{ source['min'] }}+/-{{ source['e_min'] }}</td>
+            <td>{{ source['pa'] }}+/-{{ source['e_pa'] }}</td>
+        </tr>
+        <tr>
+            <th>Deconvolved maj axis ["]</th>
+            <th>Deconvolved min axis ["]</th>
+            <th>Deconvolved pa [deg]</th>
+        </tr>
+        <tr>
+            <td>{{ source['dc_maj'] }}+/-{{ source['e_dc_maj'] }}</td>
+            <td>{{ source['dc_min'] }}+/-{{ source['e_dc_min'] }}</td>
+            <td>{{ source['dc_pa'] }}+/-{{ source['e_dc_pa'] }}</td>
+        </tr>
+    </table>
+    <br>
+    {% if table == "racs_island" %}
+        Number of Gaussian components: {{ source['n_gaus'] }} [<a href="{{url_for('find_components', source_id=source['source_id'])}}">View</a>]
+    {% else %}
+        [<a href="{{url_for('find_source', source_id=source['source_id'])}}">View island</a>]
+    {% endif %}
+    <br><br>
+
+    <!-- Image viewer -->
+    <link rel="stylesheet" href="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.css" /> 
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.1.min.js" charset="utf-8"></script>
+    <div id="aladin-lite-div" style="width:400px;height:400px;"></div>
+    <script type="text/javascript" src="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
+    <script type="text/javascript">
+        var target = "{{ source['ra'] }}" + " " + "{{ source['dec'] }}"
+        var aladin = A.aladin('#aladin-lite-div', {fov:0.2, target: target, showLayersControl: false, showGotoControl: false});
+        
+        aladin.createImageSurvey("P/RACS", "RACS", "http://casda.csiro.au/hips/RACS/low/I/", "equatorial", 10, {imgFormat: 'png'})
+        
+        // Set up the viewer, displaying RACS by default
+        aladin.setImageSurvey("P/RACS")
+    </script>
+    <br>
+    {% if match_tables | length > 0 %}
+    <a href="{{url_for('show_summary', id=source['id'], table=table[5:])}}">Summary Page</a><br><br>
+    Other tables matching this source:<br>
+    <body>
+        {% for table in match_tables %}
+            <a href="{{url_for('show', id=source['id'], table=table)}}"> {{ table | capitalize}} </a> <br>
+        {% endfor %}
+    </body>
+    {% endif %}
+
+{% endblock %}

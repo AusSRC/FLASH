@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Source details{% endblock %}
+{% block content %}
+    <h3>Source name:</h3>
+    <body>{{ source['name'] }}</body>
+
+    <h3>Position: </h3>
+    <table>
+        <tr> 
+            <th>RA [deg]</th>
+            <th>Dec [deg]</th>
+            <th>Unc maj axis ["]</th>
+            <th>Unc min axis ["]</th>
+            <th>Unc ellipse pos angle [deg]</th>
+        </tr>
+        <tr>
+            <td>{{ source['ra'] }}</td>
+            <td>{{ source['dec'] }}</td>
+            <td>{{ source['errhalfmaj'] }}</td>
+            <td>{{ source['errhalfmin'] }}</td>
+            <td>{{ source['errposang'] }}</td>
+        </tr>
+    </table>
+    <br>
+    Angular distance from RACS source <a href="{{url_for('show', id=source['id'], table=match_tables[0])}}">{{ racs_match }}</a>: {{ source['angdist'] | round(3) }}"
+    <br>
+    Match confidence: {{ (source['confidence']*100)|round(2) }}%
+
+    <h3>Object Type:</h3>
+    {% if source['class'] == 3 %}Galaxy,
+    {% elif source['class'] == 6 %}Star, 
+    {% else %}Unknown
+    {% endif %}
+    {% if source['mode'] == 1 %} Primary {% else %} Secondary {% endif %}Source
+
+    <h3>Flux information:</h3>
+    <table>
+        <tr>
+            <th>U Magnitude [mag]</th>
+            <th>G Magnitude [mag]</th>
+            <th>R Magnitude [mag]</th>
+            <th>I Magnitude [mag]</th>
+            <th>Z Magnitude [mag]</th>
+        </tr>
+        <tr>
+            <td>{{ source['umag'] }}{% if source['e_umag'] != None %}+/-{{ source['e_umag'] }}{% endif %}</td>
+            <td>{{ source['gmag'] }}{% if source['e_gmag'] != None %}+/-{{ source['e_gmag'] }}{% endif %}</td>
+            <td>{{ source['rmag'] }}{% if source['e_rmag'] != None %}+/-{{ source['e_rmag'] }}{% endif %}</td>
+            <td>{{ source['imag'] }}{% if source['e_imag'] != None %}+/-{{ source['e_imag'] }}{% endif %}</td>
+            <td>{{ source['zmag'] }}{% if source['e_zmag'] != None %}+/-{{ source['e_zmag'] }}{% endif %}</td>
+        </tr>
+    </table>
+
+    <h3>Redshift:</h3>
+    <table>
+    <tr>
+        <th>Spectroscopic Redshift</th>
+        <th>Photometric Redshift</th>
+        <th>Average redshift of nearest neighbours</th>
+    </tr>
+    <tr>
+        <td>{{ source['zsp'] }}{% if source['e_zsp'] != None %}+/-{{ source['e_zsp'] }}{% endif %}</td>
+        <td>{{ source['zph'] }}{% if source['e_zph'] != None %}+/-{{ source['e_zph'] }}{% endif %}</td>
+        <td>{{ source['avg_zph'] }}</td>
+    </tr>
+    </table>
+
+    <h3>Proper Motion:</h3>
+    <table>
+    <tr>
+        <th>Along RA [mas/yr]</th>
+        <th>Along Dec [mas/yr]</th>
+    </tr>
+    <tr>
+        <td>{{ source['pmra'] }}{% if source['e_pmra'] != None %}+/-{{ source['e_pmra'] }}{% endif %}</td>
+        <td>{{ source['pmde'] }}{% if source['e_pmde'] != None %}+/-{{ source['e_pmde'] }}{% endif %}</td>
+    </tr>
+    </table>
+
+    <!-- Image Viewer -->
+    <div class="aladin-viewer2">
+    <link rel="stylesheet" href="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.css" /> 
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.1.min.js" charset="utf-8"></script>
+    <div id="aladin-lite-div" style="width:400px;height:400px;"></div>
+    <script type="text/javascript" src="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
+    <script type="text/javascript">
+        var target = "{{ source['ra'] }}" + " " + "{{ source['dec'] }}"
+        var aladin = A.aladin('#aladin-lite-div', {survey: "P/SDSS9/color", fov:0.2, target: target, showLayersControl: false, showGotoControl: false});
+    </script>
+    </div>
+
+    <br>
+    <a href="{{url_for('show_summary', id=source['id'], table=racs_table[5:])}}">Summary Page</a><br><br>
+    Other tables matching this source:<br>
+    <body>
+        {% for table in match_tables %}
+            <a href="{{url_for('show', id=source['id'], table=table)}}"> {{ table | capitalize}} </a> <br>
+        {% endfor %}
+    </body>
+    
+{% endblock %}

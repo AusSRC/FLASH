@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %} CHAD Home {% endblock %}
+{% block navbar %}
+    <a class="active" href="{{ url_for('home') }}">Home</a>
+    <a href="{{ url_for('about') }}">About</a>
+{% endblock %}
+{% block content %}
+    <h3>
+        Position Search
+    </h3>
+    <body>
+        Search for all objects within a specified radius of RA and DEC. 
+        Input an RA, DEC (in degrees or hh:mm:ss and dd:mm:ss), a search radius (in arcminutes), and the catalogue 
+        type. Optionally, specify extra search constraints. 
+    </body>
+
+    <form action="{{url_for('results')}}" method=POST name="pos_search">
+        <label for="ra">RA: </label>
+        <input type="text" name="ra" size="10">
+        <label for="dec">DEC: </label>
+        <input type="text" name="dec" size="10">
+        <label for="radius"> Search radius: </label>
+        <input type="text" name="radius" size="5">
+        <label for="cattype">Catalogue type: </label>
+        <select name="cattype">
+            <option value="component">component</option>
+            <option value="island">island</option>
+        </select>
+        <br>
+        <input type="checkbox" id="flux" name="flux">
+        <label for="flux">Select only sources brighter than </label>
+        <input type="text" name="min_flux" size="4">mJy
+        <br>
+        <input type="checkbox" id="forcematch" name="forcematch">
+        <label for="forcematch">Select only sources with matches in </label>
+        <select name="forcematch_table" id="forcematch_table">
+            {% for table in other_tables %}
+            <option value="{{ table }}">{{ table }}</option>
+            {% endfor %}
+        </select>
+        <br>
+        <input type="submit" value="Search">
+    </form>
+
+    <body>
+        {% if search_error == "pos" %}
+        Invalid search, please try again!
+        {% endif %}
+    </body>
+    <br>
+    <h3>Closest Source Search</h3>
+    Search for the closest source to a specified RA and DEC, without specifying a search radius. 
+    Input an RA and DEC (in degrees or hh:mm:ss and dd:mm:ss), and the catalogue type. Optionally, specify extra 
+    search constraints.
+
+    <form action="{{url_for('result_closest')}}" method=POST name="close">
+        <label for="ra">RA: </label>
+        <input type="text" name="ra" size="10">
+        <label for="dec">DEC: </label>
+        <input type="text" name="dec" size="10">
+        <label for="cattype">Catalogue type: </label>
+        <select name="cattype">
+            <option value="component">component</option>
+            <option value="island">island</option>
+        </select>
+        <br>
+        <input type="checkbox" id="flux" name="flux">
+        <label for="flux">Select only sources brighter than </label>
+        <input type="text" name="min_flux" size="4">mJy
+        <br>
+        <input type="checkbox" id="forcematch" name="forcematch">
+        <label for="forcematch">Select only sources with matches in </label>
+        <select name="forcematch_table" id="forcematch_table">
+            {% for table in other_tables %}
+            <option value="{{ table }}">{{ table }}</option>
+            {% endfor %}
+        </select>
+        <br>
+        <input type="submit" value="Search">
+    </form>
+
+    <body>
+        {% if search_error == "closest" %}
+        Invalid search, please try again!
+        {% endif %}
+    </body>
+    <br>
+    <h3>Search by name</h3>
+    Search for a known object by name. Given name is resolved using Sesame. 
+    <form action="{{url_for('result_name')}}" method=POST name="name">
+        <label for="name">Source Name: </label>
+        <input type="text" name="name" size="10">
+        <label for="cattype">Catalogue type: </label>
+        <select name="cattype">
+            <option value="component">component</option>
+            <option value="island">island</option>
+        </select>
+        <br>
+        <input type="submit" value="Search">
+    </form>
+
+    <body>
+        {% if search_error == "name" %}
+        Could not resolve name!
+        {% endif %}
+    </body>
+    <br>
+{% endblock %}

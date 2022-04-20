@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Source details{% endblock %}
+{% block content %}
+    <h3>Source name:</h3>
+    <body>{{ source['name'] }}</body>
+
+    <h3>Position: </h3>
+    <table>
+        <tr> 
+            <th>RA [deg]</th>
+            <th>Dec [deg]</th>
+        </tr>
+        <tr>
+            <td>{{ source['ra'] }}</td>
+            <td>{{ source['dec'] }}</td>
+        </tr>
+    </table>
+    <br>
+    Angular distance from RACS source <a href="{{url_for('show', id=source['id'], table=match_tables[0])}}">{{ racs_match }}</a>: {{ source['angdist'] | round(3) }}"
+    <br>
+    Match confidence: {{ (source['confidence']*100)|round(2) }}%
+
+    <h3>Flux information:</h3>
+    <table>
+        <tr>
+            <th>Background-corrected Source counts</th>
+            <th>Hardness ratio 1 value</th>
+            <th>Hardness ratio 2 value</th>
+        </tr>
+        <tr>
+            <td>{{ source['cts'] }}{% if source['e_cts'] != None %}+/-{{ source['e_cts'] }}{% endif %}</td>
+            <td>{{ source['hr1'] }}{% if source['e_hr1'] != None %}+/-{{ source['e_hr1'] }}{% endif %}</td>
+            <td>{{ source['hr2'] }}{% if source['e_hr2'] != None %}+/-{{ source['e_hr2'] }}{% endif %}</td>
+        </tr>
+    </table>
+
+    <!-- Image Viewer -->
+    <div class="aladin-viewer2">
+    <link rel="stylesheet" href="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.css" /> 
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.1.min.js" charset="utf-8"></script>
+    <div id="aladin-lite-div" style="width:400px;height:400px;"></div>
+    <script type="text/javascript" src="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
+    <script type="text/javascript">
+        var target = "{{ source['ra'] }}" + " " + "{{ source['dec'] }}"
+        var aladin = A.aladin('#aladin-lite-div', {fov:6, target: target, showLayersControl: false, showGotoControl: false});
+        aladin.setImageSurvey(aladin.createImageSurvey("P/ROSAT", "ROSAT", "http://cade.irap.omp.eu/documents/Ancillary/4Aladin/RASS", "equatorial", 10, {imgFormat: 'jpg'}))
+    </script>
+    </div>
+
+    <br>
+    <a href="{{url_for('show_summary', id=source['id'], table=racs_table[5:])}}">Summary Page</a><br><br>
+    Other tables matching this source:<br>
+    <body>
+        {% for table in match_tables %}
+            <a href="{{url_for('show', id=source['id'], table=table)}}"> {{ table | capitalize}} </a> <br>
+        {% endfor %}
+    </body>
+    
+{% endblock %}
