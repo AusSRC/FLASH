@@ -31,7 +31,8 @@ sudo systemctl status postgresql
 python3 build_chad.py --rebuild
 ```
 
-## Create startup script /etc/chad/chad.sh:
+## Create startup scripts 
+ - /etc/chad/chad.sh:
 
 ```bash
 #!/bin/bash
