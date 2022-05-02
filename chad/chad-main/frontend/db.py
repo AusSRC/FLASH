@@ -12,8 +12,10 @@ Outputs:
     - conn: connection (needed to close connection after execution)
     - cur: cursor (needed to execute queries)
 """
+passwd = "aussrc"
+
 def connect():
-    conn = psycopg2.connect("dbname=chad user=postgres password=hello")
+    conn = psycopg2.connect("dbname=chad user=postgres password=%s" % passwd)
     cur = conn.cursor()
     return conn, cur
 
