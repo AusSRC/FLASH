@@ -13,7 +13,7 @@ from . import functions as f
 import glob
 import numpy as np
 
-passwd = "hello"
+passwd = "aussrc"
 
 def addsurveys():
 

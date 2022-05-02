@@ -10,7 +10,7 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from astropy.io import ascii
 from . import functions as f
 
-passwd = "hello" # Update with password for user postgres
+passwd = "aussrc" # Update with password for user postgres
 
 def rebuild():
 	
