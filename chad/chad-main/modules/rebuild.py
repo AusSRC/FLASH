@@ -21,7 +21,7 @@ def rebuild():
 	cur.execute("DROP DATABASE IF EXISTS chad;")
 	conn.commit()
 	cur.execute("CREATE DATABASE chad;")
-	conn = psycopg2.connect("host=localhost dbname=chad user=postgres password=hello")
+	conn = psycopg2.connect("host=localhost dbname=chad user=postgres password=%s" % passwd)
 	cur = conn.cursor()
 	
 	# Add the base catalogue to CHAD
@@ -68,6 +68,6 @@ def add_master(cur, name = "racs"):
 				cur.execute(query + values + ")", tuple(map(str, d[i])))
 
 		# Also need a table to keep track of which surveys are matched to which RACS catalogue
-		cur.execute("CREATE TABLE match_info(match_table TEXT, racs_table TEXT)")
+		cur.execute("CREATE TABLE IF NOT EXISTS match_info(match_table TEXT, racs_table TEXT)")
 
 	return
