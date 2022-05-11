@@ -76,7 +76,7 @@ def results():
     results = db.cone_search(ra, dec, radius, table, min_flux = min_flux, force_match = force_match)
     
     trunc = False
-    if len(results) == 100: # Only return the first 100 results
+    if len(results) >= 100: # Only return the first 100 results
         trunc = True
 
     # Find the columns necessary for results display
@@ -92,7 +92,7 @@ def results():
         # Find source ra and dec
         ra_idx = colnames.index([x for x in colnames if "ra" in x][0])
         source_ra = [x[ra_idx] for x in results]
-        dec_idx = colnames.index([x for x in colnames if "de" in x][0])
+        dec_idx = colnames.index([x for x in colnames if "de" in x and "ra" not in x][0])
         source_dec = [x[dec_idx] for x in results]
         ids = [x[0] for x in results]
         ang_dist = [round(x[-1]*60, 2) for x in results]
@@ -108,6 +108,8 @@ def results():
     search_params['dec'] = dec
     search_params['radius'] = radius
     search_params['table'] = table
+    if force_match:
+        search_params['name'] = force_match
 
     return render_template("results.html", search_params=search_params, results=(name, source_ra, source_dec, ang_dist), ids=ids, trunc = trunc)
 

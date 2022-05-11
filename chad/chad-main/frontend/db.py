@@ -93,9 +93,10 @@ def cone_search(ra, dec, radius, cat, min_flux = None, force_match = None):
         cur.execute(sql.SQL("SELECT {}.*, DEGREES(ACOS(SIN(RADIANS(dec))*SIN(%s)+\
                     COS(RADIANS(dec))*COS(%s)*COS(RADIANS(ra)-%s))) FROM {} INNER JOIN {} ON {}.id = {}.id WHERE \
                     ACOS(SIN(RADIANS(dec))*SIN(%s)+COS(RADIANS(dec))*COS(%s)*\
-                    COS(RADIANS(ra)-%s)) < %s" + flux_constraint + " ORDER BY ACOS(SIN(RADIANS(dec))*SIN(%s)+\
+                    COS(RADIANS(ra)-%s)) < %s" + flux_constraint + "GROUP BY {}.id \
+                    ORDER BY ACOS(SIN(RADIANS(dec))*SIN(%s)+\
                     COS(RADIANS(dec))*COS(%s)*COS(RADIANS(ra)-%s))").format(sql.Identifier(cat), sql.Identifier(cat), \
-                    sql.Identifier(force_match), sql.Identifier(cat), sql.Identifier(force_match)), values)
+                    sql.Identifier(force_match), sql.Identifier(cat), sql.Identifier(force_match), sql.Identifier(cat)), values)
     else:
         cur.execute(sql.SQL("SELECT *, DEGREES(ACOS(SIN(RADIANS(dec))*SIN(%s)+COS(RADIANS(dec))*COS(%s)*\
                     COS(RADIANS(ra)-%s))) FROM {} WHERE ACOS(SIN(RADIANS(dec))*SIN(%s)+COS(RADIANS(dec))*COS(%s)*\
