@@ -3,7 +3,7 @@
 {% block content %}
     <h2>Search results for catalogue {{ search_params['table'] }}</h2>
     {% if 'name' in search_params %}
-        Name: {{ search_params['name'] }} <br>
+        Matched to: {{ search_params['name'] }} <br>
     {% endif %}
     {% if 'ra' in search_params %}
         RA: {{ search_params['ra'] }}&#176;, DEC: {{ search_params['dec'] }}&#176;
@@ -20,7 +20,7 @@
             <th>RA [&#176;]</th>
             <th>DEC [&#176;]</th>
             {% if ang_dist != None %}
-            <th>Angular distance {% if 'name' in search_params %}["]{% else %}[']{% endif %}</th>
+            <th>Angular distance {% if 'name' in search_params %}[']{% else %}[']{% endif %}</th>
             {% endif %}
         </tr>
         {% endif %}
