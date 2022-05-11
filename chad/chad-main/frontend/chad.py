@@ -290,7 +290,7 @@ def show_summary(id, table):
         dicts[i]["name"] = name_candidates[0]
         colnames = db.colnames(tables[i])
         dicts[i]["ra"] = entries[i][colnames.index([x for x in colnames if "ra" in str(x).lower()][0])]
-        dicts[i]["dec"] = entries[i][colnames.index([x for x in colnames if "de" in str(x).lower()][0])]
+        dicts[i]["dec"] = entries[i][colnames.index([x for x in colnames if "de" in str(x).lower() and "ra" not in str(x).lower()][0])]
         
         # Add all the other table data into the dictionary
         table_dict = dict(zip(colnames, entries[i]))
