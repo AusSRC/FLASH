@@ -3,10 +3,10 @@
 {% block content %}
     <h2>Search results for catalogue {{ search_params['table'] }}</h2>
     {% if 'name' in search_params %}
-        Matched to: {{ search_params['name'] }} <br>
+    <h3>Matched to: {{ search_params['name'] }} </h3>
     {% endif %}
     {% if 'ra' in search_params %}
-        RA: {{ search_params['ra'] }}&#176;, DEC: {{ search_params['dec'] }}&#176;
+    <b><i>Search params:</i></b> RA: {{ search_params['ra'] }}&#176;, DEC: {{ search_params['dec'] }}&#176;
         {%- if 'radius' in search_params -%}
         , radius: {{ search_params['radius'] }}'
         {% endif %}
@@ -16,6 +16,7 @@
         {% with name, ra, dec, ang_dist = results %}
         {% if name | length > 0 %}
         <tr>
+	    <th>Rank</th>
             <th>Source Name</th>
             <th>RA [&#176;]</th>
             <th>DEC [&#176;]</th>
@@ -27,6 +28,7 @@
         
         {% for i in range(name | length) %}
             <tr>
+		<td>{{i+1}}</td>
                 <td><a href="{{url_for('show_summary', id=ids[i], table=search_params['table'][5:])}}">{{ name[i] }}</a></td>
                 <td>{{ ra[i] }}</td>
                 <td>{{ dec[i] }}</td>
