@@ -67,7 +67,7 @@ def add_master(cur, name = "racs"):
 				
 				cur.execute(query + values + ")", tuple(map(str, d[i])))
 
-		# Also need a table to keep track of which surveys are matched to which RACS catalogue
-		cur.execute("CREATE TABLE IF NOT EXISTS match_info(match_table TEXT, racs_table TEXT)")
+	# Also need a table to keep track of which surveys are matched to which RACS catalogue
+	cur.execute("CREATE TABLE IF NOT EXISTS match_info(match_table TEXT, racs_table TEXT)")
 
 	return

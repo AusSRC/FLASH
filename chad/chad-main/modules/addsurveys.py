@@ -32,8 +32,10 @@ def addsurveys():
     cur.execute('CREATE TABLE match_info(match_table TEXT, racs_table TEXT)')
 
     # Process one survey at a time
+    added_tables = []
     for survey in surveys:
         name = survey["survey"]
+        print("Processing survey ",name)
         table_name = name.lower().replace(" ", "_")
         if table_name[0].isdigit() == True:
             print("Table name cannot start with a digit!")
@@ -59,6 +61,7 @@ def addsurveys():
         for i, file in enumerate(csvs):
             # Read in the table
             print("Reading in Table %s (%s)..." % (name, file))
+            added_tables.append(name)
             table = ascii.read(file)
             #print(table.keys())
 
@@ -132,4 +135,4 @@ def addsurveys():
 
     # Commit the changes back to the database
     conn.commit()
-    print("Done!")
+    print("Done! Tables added:",added_tables)
