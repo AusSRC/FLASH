@@ -83,7 +83,7 @@ def add_survey_status(cur, name = "survey_status"):
     res = requests.get(url=url)
     csvdata = res.content.decode("utf-8").lower().splitlines()
     headers = csvdata.pop(0).split(',')
-    sql_command = "CREATE TABLE survey_status ("
+    sql_command = "CREATE TABLE IF NOT EXISTS survey_status ("
     sql_command = sql_command + "type TEXT, survey TEXT PRIMARY KEY, vizier_code TEXT, angular_sep INT, global_density FLOAT, status TEXT, relevant_columns TEXT, sourced_from TEXT);"
     cur.execute(sql_command)
     for line in csvdata:
