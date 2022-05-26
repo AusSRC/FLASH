@@ -12,6 +12,14 @@ from astropy.io import ascii
 from . import functions as f
 
 passwd = "aussrc" # Update with password for user postgres
+conn = None
+try:
+    conn = psycopg2.connect("host=localhost dbname=chad user=postgres password=%s" % passwd)
+except:
+    conn = psycopg2.connect("host=localhost dbname=postgres user=postgres password=%s" % passwd)
+conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+cur = conn.cursor()
+
 
 def rebuild():
     
@@ -28,11 +36,11 @@ def rebuild():
     # Add the base catalogue to CHAD
     print("Adding base catalogue to CHAD...")
     add_master(cur, name = "racs") # If master table is something different, change name
+    conn.commit()        
 
     # Add the status of the surveys from the Google spreadsheet
-    add_survey_status(cur)
+    add_survey_status(cur,name = "survey_status")
 
-    conn.commit()        
     print("Done rebuild")
 
     return
@@ -77,13 +85,14 @@ def add_master(cur, name = "racs"):
     return
 
 # Add the survey status from the Google spreadsheet as a table to the db
-def add_survey_status(cur, name = "survey_status"):
+def add_survey_status(cur = cur, name = "survey_status"):
     sheet_id = "1KLFRPpbS_4AlsBKz2iguSdLRWLZvBEj9jjhR3SHVimU"
     url = "https://docs.google.com/spreadsheets/d/%s/export?exportFormat=csv" % sheet_id
     res = requests.get(url=url)
     csvdata = res.content.decode("utf-8").lower().splitlines()
     headers = csvdata.pop(0).split(',')
-    sql_command = "CREATE TABLE IF NOT EXISTS survey_status ("
+    cur.execute("DROP TABLE %s" % name)
+    sql_command = "CREATE TABLE %s (" % (name)
     sql_command = sql_command + "type TEXT, survey TEXT PRIMARY KEY, vizier_code TEXT, angular_sep INT, global_density FLOAT, status TEXT, relevant_columns TEXT, sourced_from TEXT);"
     cur.execute(sql_command)
     for line in csvdata:
@@ -91,7 +100,8 @@ def add_survey_status(cur, name = "survey_status"):
         for i,val in enumerate(data):
             if val == '-':
                 data[i] = "NULL"
-        sql_command = "INSERT INTO survey_status VALUES ('%s','%s','%s',%s,%s,'%s','%s','%s');" % (data[0],data[1],data[2],data[3],data[4],data[5],data[6],url)
+        sql_command = "INSERT INTO %s VALUES ('%s','%s','%s',%s,%s,'%s','%s','%s');" % (name,data[0],data[1],data[2],data[3],data[4],data[5],data[6],url)
         cur.execute(sql_command)
+    conn.commit()
     return 
 

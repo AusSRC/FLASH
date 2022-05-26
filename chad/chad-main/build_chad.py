@@ -56,6 +56,8 @@ def main():
 
     if args.addsurveys == True:
         print("Importing surveys into CHAD...")
+        # Re-import the survey status data from the google spreadsheets: TBD - this will be editable from the GUI
+        rebuild.add_survey_status()
         addsurveys.addsurveys()
 
 if __name__ == "__main__":
