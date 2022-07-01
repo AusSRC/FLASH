@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %} CHAD Admin {% endblock %}
+{% block navbar %}
+    <a href="{{ url_for('home') }}">Home</a>
+    <a href="{{ url_for('about') }}">About</a>
+    <a class="active" href="{{ url_for('admin') }}">Admin</a>
+{% endblock %}
+{% block content %}
+    <h2>
+        CHAD Administration Panel
+    </h2>
+    <br>
+    <body>
+	    <br>
+		<b><i> Select an action: </i></b>
+		<br><br>
+		<form action="{{url_for('db_task')}}" method=POST name="db_action">
+			<fieldset>
+				<legend>Survey Data Actions</legend>
+			<div><i>This action will display current surveys known to CHAD and their crossmatch status:</i><br>
+	    	<input type="radio" id="View" name="task" value="view">
+			<label for="View">View/set surveys status' and import into CHAD</label><br><br></div>
+			<div><i>This action will run crossmatching against all surveys marked as 'import':</i><br>
+	    	<input type="radio" id="Cross" name="task" value="crossmatch">
+			<label for="Cross">Re-run crossmatching</label><br><br></div>
+			<div><i>This action will add new surveys to the database for future crossmatching:</i><br>
+	    	<input type="radio" id="Add" name="task" value="add">
+			<label for="Add">Add survey</label><br><br></div>
+			<div><i>This action will rebuild the entire CHAD database:</i><br>
+	    	<input type="radio" id="Build" name="task" value="build">
+			<label for="Build">Re-build CHAD (you probably DON'T want to do this!)</label><br><br></div>
+			</fieldset><br><br>
+			<input type="submit" value="Submit">
+		</form>
+
+    </body>
+
+{% endblock %}
+

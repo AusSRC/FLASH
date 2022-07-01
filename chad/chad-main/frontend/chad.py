@@ -27,6 +27,12 @@ def about():
     tables = db.get_tables()
     return render_template("about.html", tables=tables) 
 
+# Admin page
+@app.route('/admin')
+def admin():
+    tables = db.get_tables()
+    return render_template("admin.html", tables=tables) 
+
 ###################################################################################################
 #########                                 SEARCH FUNCTIONS                        #################
 ###################################################################################################
@@ -257,27 +263,53 @@ def find_source(source_id):
     id = db.search_exact("racs_island", "source_id", source_id)
     return redirect(url_for('show', id=id[0][0], table="racs_island"))
 
+# Functions for Admin tasks
+@app.route('/db-task', methods=["POST", "GET"])
+def db_task():
+    task = None
+    if request.method == 'GET':
+        return redirect(url_for("home"))
+    try:
+        task = request.form["task"]
+    except:
+        return redirect(url_for("home"))
+        if task == "view":
+            #return render_template("survey_table.html")
+            pass
+        elif task == "crossmatch":
+            #return render_template("run_xmatch.html")
+            pass
+        elif task == "add":
+            #return render_template("add_survey.html")
+            pass
+        elif task == "build":
+            #return render_template("rebuild_chad.html")
+            pass
+        else:
+            pass
+    return redirect(url_for("home"))
+
 ###################################################################################################
-###########                            DISPLAY FUNCTIONS                             ##############
+###########                            display functions                             ##############
 ###################################################################################################
 
-# Show summary information from a particular source
+# show summary information from a particular source
 @app.route('/summary/<table>/<int:id>')
 def show_summary(id, table):
-    # Get entry from racs table
+    # get entry from racs table
     table = "racs_" + table
 
-    # Find other tables with this id
+    # find other tables with this id
     tables = [table]
     other_tables = db.get_matches(id, table)
 
     if len(other_tables) > 0:
         tables = tables + other_tables
     else:
-        # If this source is in no other tables, redirect straight to the RACS show page
+        # if this source is in no other tables, redirect straight to the racs show page
         return redirect(url_for("show", id = id, table = tables[0]))
 
-    # Get all table entries for this source
+    # get all table entries for this source
     entries = []
     for t in tables:
         entries.append(db.search_id(id, t))
