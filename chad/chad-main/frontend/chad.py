@@ -1,11 +1,42 @@
 # Main application file for CHAD frontend
 # L. Canepa
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, Response, redirect, url_for
+from functools import wraps
 import db
 from astropy.coordinates import SkyCoord
 from astropy.coordinates.name_resolve import NameResolveError
 
+ADMIN = 'admin'
+ADMINPASS = 'chadly'
+
 app = Flask(__name__)
+
+###################################################################################################
+#########                                 Password-protect pages                  #################
+###################################################################################################
+def check_auth(username,password):
+    return username == ADMIN and password == ADMINPASS
+
+def authenticate():
+    """Sends a 401 response that enables basic auth"""
+    return Response(
+    'Could not verify your access level for that URL.\n'
+    'You have to login with proper credentials', 401,
+    {'WWW-Authenticate': 'Basic realm="Login Required"'})
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated
+
+###################################################################################################
+#########                                 Main pages                              #################
+###################################################################################################
+
 
 # Main landing page
 @app.route('/')
@@ -29,6 +60,7 @@ def about():
 
 # Admin page
 @app.route('/admin')
+@requires_auth
 def admin():
     tables = db.get_tables()
     return render_template("admin.html", tables=tables) 
