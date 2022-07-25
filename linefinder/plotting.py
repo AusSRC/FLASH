@@ -163,19 +163,20 @@ def bestfit_spectrum(options,source,model):
                 ax1.plot(x_data, y_line[j], color='g', linestyle='--',zorder=0)
                 truth = [np.abs(y_line[j])==np.max(np.abs(y_line[j]))]
                 comp_index = np.where(ymax_sort == ymax[j])
-                ax1.text(x_data[truth]-1.*x_diff,np.max(y_contsub),'%d'%(comp_index[0]+1),color='g',fontsize=font_size-2)
+                ax1.text(np.mean(x_data[truth])-1.*x_diff,np.max(y_contsub),'%d'%(comp_index[0]+1),color='g',fontsize=font_size-2)
+
 
         # Add evidence value to plot
         if model.output.ndetections != 0:
             if options.plot_evidence:
-                plt.suptitle(r'$R = %0.2f \pm %0.2f$' % (mode_evidence, mode_evidence_err),
+                plt.suptitle(r'$ln(B) = %0.2f \pm %0.2f$' % (mode_evidence, mode_evidence_err),
                              x=0.65, y=(0.2*y_ratio + 1)/(1+y_ratio), horizontalalignment='left', fontsize=font_size-2)
 
         # Add additional vertical and horizontal lines
         if options.plot_restframe != 'none':
             ax1.vlines(0.0,y1_min,y1_max,colors='k',linestyle=':')
             ax2.vlines(0.0,y2_min,y2_max,colors='k',linestyle=':')
-        else:
+        elif 'z' in source.info:
             ax1.vlines(float(source.info['z'])/1e3,y1_min,y1_max,colors='k',linestyle=':')
             ax2.vlines(float(source.info['z'])/1e3,y2_min,y2_max,colors='k',linestyle=':')
         ax1.axhline(color='k', linestyle=':', zorder=0)
@@ -189,7 +190,7 @@ def bestfit_spectrum(options,source,model):
             ax2.set_xlabel(r"$v\,[\mathrm{km}\,\mathrm{s}^{-1}]$", fontsize=font_size)
             # ax2.set_xlabel(r'$\mathrm{Relative}\,\mathrm{Gas}\,\mathrm{Velocity}\,(\mathrm{km}\,\mathrm{s}^{-1})$', fontsize=font_size)
         elif options.x_units == 'optvel':
-            ax2.set_xlabel(r"$cz\,[\mathrm{km}\,\mathrm{s}^{-1}]$", fontsize=font_size)
+            ax2.set_xlabel(r"$v\,[\mathrm{km}\,\mathrm{s}^{-1}]$", fontsize=font_size)
         else:        
             ax2.set_xlabel(r"$z$", fontsize=font_size)
         if (options.y_units == 'mJy') or (options.y_units == 'Jy'):
@@ -315,6 +316,7 @@ def posterior_plot(options,source,model):
 
             # Adjust figure size
             fig.tight_layout()
+
 
             # Save figure to file
             fig.savefig(options.out_root+'_line_'+str(plot_index+1)+'_absorption_posterior.pdf')
