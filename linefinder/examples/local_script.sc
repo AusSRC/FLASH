@@ -1,4 +1,4 @@
-/usr/bin/env python $FINDER/flash_finder.py \
+/usr/bin/env python3 $FINDER/flash_finder.py \
 --x_units 'optvel' \
 --y_units 'mJy' \
 --out_path $FINDER'/examples/chains' \
@@ -11,3 +11,4 @@
 --param_out 'median' \
 --plot_switch \
 #--mmodal \
+--mpi_switch \

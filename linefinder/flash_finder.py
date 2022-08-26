@@ -27,6 +27,7 @@ from conversions import *
 from initialize import *
 from fitting import *
 from output import *
+from time import time
 
 # Switch off warnings
 warnings.simplefilter("ignore")
@@ -44,6 +45,7 @@ if options.mpi_switch:
     mpi_size = mpi_comm.Get_size()
     mpi_rank = mpi_comm.Get_rank()
 
+starttime = time()
 # Determine if CPU should do the following
 if (mpi_rank == 0) or (not options.init_MPI):
     
@@ -109,8 +111,8 @@ if (mpi_rank == 0) or (not options.init_MPI):
 
     # Loop program over each source spectral data 
     source_count = 0
+    print("looping over sources")
     for line in source_list:
-
         # Increment source count
         source_count += 1
 
@@ -219,4 +221,5 @@ if (mpi_rank == 0) or (not options.init_MPI):
             # Make plot of best-fitting spectrum for each mode
             bestfit_spectrum(options,source,model)
 
-
+timed = time() - starttime
+print(f"Linefinder took {timed:.2f} sec")
