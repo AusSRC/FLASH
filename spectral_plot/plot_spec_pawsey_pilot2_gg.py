@@ -11,7 +11,7 @@
 #   Modified by Gordon German (GWHG) Oct 2022:
 #       Refactored component processing in main into processComponent()
 #       Added path templates
-#       Added threading
+#       Added multiprocessing
 ##################################################
 
 import os
@@ -34,12 +34,11 @@ import argparse
 #import numpy.ma as ma
 
 # GWHG
-from multiprocessing import pool
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from time import time
-# Number of threads requested
-NUMTHREADS = 25
+# Number of cores requested
+NUMCORES = 25 
 # channel multiplier for freq arrays - GWHG:
 REPEAT = 54
 
@@ -49,8 +48,8 @@ CatalogueTemplate = 'data/catalogues/selavy-image.i*.SB%s.cont.*taylor.0.restore
 SpecHduTemplate = 'data/sourceSpectra/%s/SourceSpectra/spec_*.fits'
 ContCubeTemplate = 'data/contcubes/%s/spectra/spectrum_contcube_SB%s_component_%s.txt'
 NoiseTemplate = 'data/noise/%s/NoiseSpectra/noise_SB%s_component_%s.fits'
-OutputTemplate1 = 'outputsGG1/%s/spectra_ascii/'
-OutputTemplate2 = 'outputsGG1/%s/spectra_plots/'
+OutputTemplate1 = 'outputs/%s/spectra_ascii/'
+OutputTemplate2 = 'outputs/%s/spectra_plots/'
 AsciiTemplate1 = OutputTemplate1 + 'SB%s_component_%s_opd.dat'
 AsciiTemplate2 = OutputTemplate1 + 'SB%s_component_%s_flux.dat'
 PlotTemplate = OutputTemplate2 + 'SB%s_component_%s_opd.png'
@@ -365,9 +364,10 @@ def processComponent(sbid,filename,compid,cat_dict):
         dataopd=dataflux/(flux_pk)  ##just flux ratio - i.e. not in per cent
         freq.append(nu)
         chan.append(i)
-        flux.append(dataflux) # - GWHG the list version is needed by the plotting functions
+        flux.append(dataflux)
         z.append(hi_rest/nu-1.0)
         opd_approx.append(dataopd)
+    #fluxnp = fluxnp[1:] # - GWHG - drop the repeated 1st element
     #find corresponding contcube spectra
     ##
     ##
@@ -403,7 +403,6 @@ def processComponent(sbid,filename,compid,cat_dict):
             contflux_freq+=[i]*54     ##multiply each entry by 54 to get same number of channels, surely not the best way to do this!
         for i in np.arange(0,len(flux)):
             opd.append(flux[i]/contflux_freq[i])
- 
     #find corresponding noise spectra 
     try:
         noisehdu = fits.open(NoiseTemplate%(sbid,sbid,compno))
@@ -497,7 +496,6 @@ for sbid in sbid_list:
     noise_cat=Table(names=('id','ra','dec'),dtype=('S4', 'f8', 'f8'))
 
     ##Finding flux_pk to calc rough opd:
-    #catalogue=glob.glob('/group/askap/FLASH/Pilot2/casda/catalogues/selavy-image.i*.SB%s.cont.*taylor.0.restored*.components.xml'%(sbid))
     catalogue=glob.glob(CatalogueTemplate % sbid) # GWHG
     table = votable.parse_single_table(catalogue[0])
     cat = table.array
@@ -540,14 +538,7 @@ for sbid in sbid_list:
 #        opd_approx=[i/peak_flux for i in flux]
 
     source_list=glob.glob(SpecHduTemplate%sbid)
-    threadpool = pool.ThreadPool(processes=NUMTHREADS)
-    with ProcessPoolExecutor(NUMTHREADS) as exe:
+    with ProcessPoolExecutor(NUMCORES) as exe:
         _ = [exe.submit(processComponent,sbid,filename,compid,cat_dict) for filename in source_list]
-    #for filename in source_list:    
-        #processComponent(sbid,filename,compid,cat_dict)   
-    #    r = threadpool.apply_async(processComponent,(sbid,filename,compid,cat_dict))
-    #    robjs.append(r)
 
-#dummy = [result.get() for result in robjs]
-
-print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs')    
+print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs')   # 1440s for SB34571 
