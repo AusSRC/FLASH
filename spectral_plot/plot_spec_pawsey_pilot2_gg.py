@@ -37,12 +37,22 @@ import argparse
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from time import time
+import tarfile
+import S3Object as S3
+import json
+from get_access_keys import *
+
+##define constants:
+hi_rest=1420.40575177
+c=2.99792458e5
+
 # Number of cores requested
 NUMCORES = 25 
-# channel multiplier for freq arrays - GWHG:
-REPEAT = 54
+# Name for tarball of results
+TARPATH = '/mnt/shared/flash_test/data/outputs/%s' # 'root' directory for tarring operation - GWHG
+TARNAME = 'SB%s_output_plots_and_ascii.tar.gz'   # Template for tarball name - GWHG
 
-# DATA PATHS - GWHG
+# DATA PATHS relative to CWD - GWHG
 GlobTemplate = 'data/sourceSpectra/3*'
 CatalogueTemplate = 'data/catalogues/selavy-image.i*.SB%s.cont.*taylor.0.restored*.components.xml'
 SpecHduTemplate = 'data/sourceSpectra/%s/SourceSpectra/spec_*.fits'
@@ -59,6 +69,8 @@ PlotTemplate2 = OutputTemplate2 + 'SB%s_component_%s_flux.png'
 parser = argparse.ArgumentParser()
 parser.add_argument('--sbid', default='', type=str,
                     help='set input SBID')
+parser.add_argument('--sbids', nargs='+', default='all', type=str,
+                    help='set multiple input SBIDs')
 options = parser.parse_args()
 
 
@@ -333,6 +345,30 @@ def calc_specindex(I_0,alpha,beta,v0):
 ##############################################################################################################
 ##############################################################################################################
 
+def tardirectory(path,name):
+    ''' Create tarball of directories and files '''
+    count = 0
+    with tarfile.open(name, "w:gz") as thandle:
+        for root, dirs, files in os.walk(path):
+            for f in files:
+                thandle.add(os.path.join(root,f))
+                count += 1
+    return count
+
+##############################################################################################################
+##############################################################################################################
+
+def sendTar2Objstore(pathname,tarname,certfile,endpoint,project,bucket):
+    ''' Store a tarball on the Acacia objectstore '''
+    pathname = pathname + '/' + tarname
+    print(f'fulltarname: {fulltarname}, pathname: {pathname}')
+    (access_id,secret_id,quota) = get_access_keys(certfile,endpoint,project)
+    obj = S3.OsS3FitsObject(bucket,tarname,access_id,secret_id,endpoint)
+    obj.uploadLargeFile(pathname,tarname)
+
+##############################################################################################################
+##############################################################################################################
+
 def processComponent(sbid,filename,compid,cat_dict):
     #compno=filename.split('_')[-1].strip('.fits') # GWHG - this will not work for all filenames as strip() also removes chars multiple times
     compno=os.path.splitext(filename.split('_')[-1])[0]
@@ -367,7 +403,6 @@ def processComponent(sbid,filename,compid,cat_dict):
         flux.append(dataflux)
         z.append(hi_rest/nu-1.0)
         opd_approx.append(dataopd)
-    #fluxnp = fluxnp[1:] # - GWHG - drop the repeated 1st element
     #find corresponding contcube spectra
     ##
     ##
@@ -467,25 +502,26 @@ def processComponent(sbid,filename,compid,cat_dict):
     if not os.path.exists(plotfile):
         make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flux)        
 
-####################################################################################################################
-###################################################### Start main program ##########################################
+#################################################################################################################
+###################################################### Start main program #######################################
 
+numfiles = 0
+sbid_list = []
 starttime = time()
-##define constants:
-hi_rest=1420.40575177
-c=2.99792458e5
+print(f'sbid: {options.sbid}, sbids: {options.sbids}')
+if options.sbid:
+    sbid_list=[options.sbid]   
+elif options.sbids:
+    sbid_list=options.sbids
 
-if options.sbid=='all':
+# Default override
+if options.sbid=='all' or options.sbids=='all':
     sbid_lst=glob.glob(GlobTemplate) # - GWHG
     sbid_list = [sbid.split("/")[-1] for sbid in sbid_lst] # - GWHG
-    print(sbid_list)
-else:
-    sbid_list=[options.sbid]    
 
 robjs = []
-
 for sbid in sbid_list:
-    print(f'SB{sbid}')
+    print(f'SB: {sbid}')
     #create output directory for plots - GWHG
     Path(OutputTemplate1%sbid).mkdir(parents=True,exist_ok=True)
     Path(OutputTemplate2%sbid).mkdir(parents=True,exist_ok=True)
@@ -515,30 +551,26 @@ for sbid in sbid_list:
         if float(flux_pk)>50.:
             noise_cat.add_row((compno, ra, dec))
 
-    ## for plotting all spectra:
-
-##OLD VERSION FROM POST-PROCESSED PILOT 1 DATA:
-#    source_list=glob.glob('%s/spectra_contsub/spectrum_cont*.txt'%sbid)
-#    for filename in source_list:
-#        compno = filename.split('_')[-1].strip('.txt')
-#
-#        spectrum=ascii.read(filename,comment='#')
-#    
-#        peak_flux=cat_dict[compno][3]
-#        compname=str(cat_dict[compno][0]).strip("b'")
-#        ra=cat_dict[compno][1]
-#        dec=cat_dict[compno][2]
-#        alpha_src=cat_dict[compno][4]
-#        curv_src=cat_dict[compno][5]
-#        #print(compname,ra,dec,peak_flux)
-#        chan=spectrum['chan']
-#        freq=spectrum['freq(MHz)']
-#        flux=spectrum['flux(Jy)']
-#        z=[hi_rest/float(nu)-1.0 for nu in freq]
-#        opd_approx=[i/peak_flux for i in flux]
-
+    ## Process each component file in source_list
     source_list=glob.glob(SpecHduTemplate%sbid)
     with ProcessPoolExecutor(NUMCORES) as exe:
         _ = [exe.submit(processComponent,sbid,filename,compid,cat_dict) for filename in source_list]
 
-print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs')   # 1440s for SB34571 
+
+#################################################################################################################
+################ Optional tarring and storing to Acacia of per SBID results #####################################
+
+    print('Tarring results')
+    numfiles += tardirectory(TARPATH%(sbid),TARNAME%(sbid))
+
+    # Store on objectstore
+    print('Sending to objectstore')
+    fulltarname = os.getcwd() + '/' + TARNAME%(sbid)
+    endpoint = "https://projects.pawsey.org.au"
+    project = "ja3"
+    bucket = "flash"
+    certfile = "certs.json"
+    sendTar2Objstore(os.getcwd(),TARNAME%(sbid),certfile,endpoint,project,bucket)
+    print(f'tarball stored to Acacia for SB{sbid}')
+
+print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs, num files = {numfiles}')   # 1640s for SB34571 
