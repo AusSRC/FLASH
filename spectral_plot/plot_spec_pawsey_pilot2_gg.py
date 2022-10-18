@@ -46,11 +46,12 @@ from get_access_keys import *
 hi_rest=1420.40575177
 c=2.99792458e5
 
-# Number of cores requested
+# Number of cores requested - GWHG
 NUMCORES = 25 
 # Name for tarball of results
-TARPATH = '/mnt/shared/flash_test/data/outputs/%s' # 'root' directory for tarring operation - GWHG
+TARPATH = '/mnt/shared/flash_test/outputs/%s' # 'root' directory for tarring operation - GWHG
 TARNAME = 'SB%s_output_plots_and_ascii.tar.gz'   # Template for tarball name - GWHG
+PLOT = True # Generate the plots - GWHG
 
 # DATA PATHS relative to CWD - GWHG
 GlobTemplate = 'data/sourceSpectra/3*'
@@ -95,7 +96,8 @@ def make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flu
     
     #make nice fonts
     #rc('text', usetex=True)
-    rc('font',**{'family':'serif','serif':['serif'],'size':10})
+    #rc('font',**{'family':'serif','serif':['serif'],'size':10})
+    rc('font',**{'size':10}) # 'serif' not available on Nimbus- GWHG
             
     fig.subplots_adjust(wspace=0,hspace=fig_pad)
     plt.rc('xtick',labelsize='6')
@@ -206,7 +208,8 @@ def make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flu
     
     #make nice fonts
     #rc('text', usetex=True)
-    rc('font',**{'family':'serif','serif':['serif'],'size':10})
+    #rc('font',**{'family':'serif','serif':['serif'],'size':10})
+    rc('font',**{'size':10}) # 'serif' not available on Nimbus- GWHG
             
     fig.subplots_adjust(wspace=0,hspace=fig_pad)
     plt.rc('xtick',labelsize='6')
@@ -354,14 +357,11 @@ def tardirectory(path,name):
                 thandle.add(os.path.join(root,f))
                 count += 1
     return count
-
 ##############################################################################################################
 ##############################################################################################################
 
 def sendTar2Objstore(pathname,tarname,certfile,endpoint,project,bucket):
     ''' Store a tarball on the Acacia objectstore '''
-    pathname = pathname + '/' + tarname
-    print(f'fulltarname: {fulltarname}, pathname: {pathname}')
     (access_id,secret_id,quota) = get_access_keys(certfile,endpoint,project)
     obj = S3.OsS3FitsObject(bucket,tarname,access_id,secret_id,endpoint)
     obj.uploadLargeFile(pathname,tarname)
@@ -499,16 +499,17 @@ def processComponent(sbid,filename,compid,cat_dict):
     #if peak_flux>0.5:
     ##skip over sources already done
     plotfile=PlotTemplate%(sbid,sbid,compno)
-    if not os.path.exists(plotfile):
+    if not os.path.exists(plotfile) and PLOT:
         make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flux)        
 
 #################################################################################################################
 ###################################################### Start main program #######################################
 
 numfiles = 0
+numcomponents = 0
 sbid_list = []
 starttime = time()
-print(f'sbid: {options.sbid}, sbids: {options.sbids}')
+print(f'Started with sbid: {options.sbid}, sbids: {options.sbids}')
 if options.sbid:
     sbid_list=[options.sbid]   
 elif options.sbids:
@@ -522,7 +523,7 @@ if options.sbid=='all' or options.sbids=='all':
 robjs = []
 for sbid in sbid_list:
     print(f'SB: {sbid}')
-    #create output directory for plots - GWHG
+    #create output directory for plots and ascii files - GWHG
     Path(OutputTemplate1%sbid).mkdir(parents=True,exist_ok=True)
     Path(OutputTemplate2%sbid).mkdir(parents=True,exist_ok=True)
 
@@ -554,6 +555,7 @@ for sbid in sbid_list:
     ## Process each component file in source_list
     source_list=glob.glob(SpecHduTemplate%sbid)
     with ProcessPoolExecutor(NUMCORES) as exe:
+        numcomponents += 1
         _ = [exe.submit(processComponent,sbid,filename,compid,cat_dict) for filename in source_list]
 
 
@@ -573,4 +575,4 @@ for sbid in sbid_list:
     sendTar2Objstore(os.getcwd(),TARNAME%(sbid),certfile,endpoint,project,bucket)
     print(f'tarball stored to Acacia for SB{sbid}')
 
-print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs, num files = {numfiles}')   # 1640s for SB34571 
+print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs, num components = {numcomponents), num output files = {numfiles}')   # 1640s for SB34571 
