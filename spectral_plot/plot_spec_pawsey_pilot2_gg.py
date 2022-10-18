@@ -364,13 +364,13 @@ def sendTar2Objstore(pathname,tarname,certfile,endpoint,project,bucket):
     ''' Store a tarball on the Acacia objectstore '''
     (access_id,secret_id,quota) = get_access_keys(certfile,endpoint,project)
     obj = S3.OsS3FitsObject(bucket,tarname,access_id,secret_id,endpoint)
-    obj.uploadLargeFile(pathname,tarname)
+    obj.uploadLargeFile(pathname,tarname,progress=False)
 
 ##############################################################################################################
 ##############################################################################################################
 
 def processComponent(sbid,filename,compid,cat_dict):
-    #compno=filename.split('_')[-1].strip('.fits') # GWHG - this will not work for all filenames as strip() also removes chars multiple times
+    #compno=filename.split('_')[-1].strip('.fits') # GWHG - this will not work for all filenames as strip() also removes chars multiple times, eg '15f.fits' will become '15', not '15f'
     compno=os.path.splitext(filename.split('_')[-1])[0]
     print(f'    Processing {sbid} component {compno}, compid {compid}')
     try:
@@ -554,8 +554,8 @@ for sbid in sbid_list:
 
     ## Process each component file in source_list
     source_list=glob.glob(SpecHduTemplate%sbid)
+    numcomponents += len(source_list)
     with ProcessPoolExecutor(NUMCORES) as exe:
-        numcomponents += 1
         _ = [exe.submit(processComponent,sbid,filename,compid,cat_dict) for filename in source_list]
 
 
