@@ -42,6 +42,9 @@ import S3Object as S3
 import json
 from get_access_keys import *
 
+#############################################################################################################
+######################################### USER EDIT SECTION #################################################
+
 ##define constants:
 hi_rest=1420.40575177
 c=2.99792458e5
@@ -51,10 +54,12 @@ NUMCORES = 25
 # Name for tarball of results
 TARPATH = '/mnt/shared/flash_test/outputs/%s' # 'root' directory for tarring operation - GWHG
 TARNAME = 'SB%s_output_plots_and_ascii.tar.gz'   # Template for tarball name - GWHG
+
 PLOT = True # Generate the plots - GWHG
+ARCHIVE = True # tar and push results to Acacia - GWHG
 
 # DATA PATHS relative to CWD - GWHG
-GlobTemplate = 'data/sourceSpectra/3*'
+GlobTemplate = 'data/sourceSpectra/*'
 CatalogueTemplate = 'data/catalogues/selavy-image.i*.SB%s.cont.*taylor.0.restored*.components.xml'
 SpecHduTemplate = 'data/sourceSpectra/%s/SourceSpectra/spec_*.fits'
 ContCubeTemplate = 'data/contcubes/%s/spectra/spectrum_contcube_SB%s_component_%s.txt'
@@ -66,10 +71,27 @@ AsciiTemplate2 = OutputTemplate1 + 'SB%s_component_%s_flux.dat'
 PlotTemplate = OutputTemplate2 + 'SB%s_component_%s_opd.png'
 PlotTemplate2 = OutputTemplate2 + 'SB%s_component_%s_flux.png'
 
+# Optional objectstore (Acacia) credentials - GWHG
+#
+# output data can optionally be tarred up and stored to the Acacia objectstore,
+# one tarball per sbid:
+certfile = "certs.json" # json file holding user/project keys for Acacia access
+endpoint = "https://projects.pawsey.org.au" # URL address of Acacia
+project = "ja3"  # project owning the storage quota space on Acacia
+bucket = "flash" # bucket ("directory") to store to
+storepath = 'pilot2_outputs' # where the tarball will be relative to the above 'bucket' on Acacia
+
+#############################################################################################################
+#############################################################################################################
+
 # Set user options and defaults
 parser = argparse.ArgumentParser()
+
+# Deprecated - use '--sbids' instead - GWHG
 parser.add_argument('--sbid', default='', type=str,
                     help='set input SBID')
+
+# Allows for one or multiple sbids on command line - GWHG
 parser.add_argument('--sbids', nargs='+', default='all', type=str,
                     help='set multiple input SBIDs')
 options = parser.parse_args()
@@ -360,19 +382,34 @@ def tardirectory(path,name):
 ##############################################################################################################
 ##############################################################################################################
 
-def sendTar2Objstore(pathname,tarname,certfile,endpoint,project,bucket):
+def sendTar2Objstore(sbid,localpath,storepath,certfile,endpoint,project,bucket):
     ''' Store a tarball on the Acacia objectstore '''
+    # The file we want to upload is fully defined in the local filesystem by:
+    #       localpath + TARNAME%(sbid)
+    # The object it will become on the objectstore is:
+    #       project + '/' + bucket + '/' + storepath + '/' + TARNAME%(sbid)
+    #
+    # The 'storepath' complication is added because you can't have buckets within buckets,
+    # but you often want to mimic that construct. So 'storepath' is just a string made to look
+    # like a subdirectory path, eg "myPretendDirectory/myPretendSubdirectory"
+
+    localname = TARNAME%(sbid)
+    objname = storepath+'/'+localname
     (access_id,secret_id,quota) = get_access_keys(certfile,endpoint,project)
-    obj = S3.OsS3FitsObject(bucket,tarname,access_id,secret_id,endpoint)
-    obj.uploadLargeFile(pathname,tarname,progress=False)
+    obj = S3.OsS3FitsObject(bucket,objname,access_id,secret_id,endpoint)
+    obj.uploadLargeFile(localpath,localname,progress=False)
 
 ##############################################################################################################
 ##############################################################################################################
 
 def processComponent(sbid,filename,compid,cat_dict):
-    #compno=filename.split('_')[-1].strip('.fits') # GWHG - this will not work for all filenames as strip() also removes chars multiple times, eg '15f.fits' will become '15', not '15f'
+    #compno=filename.split('_')[-1].strip('.fits') 
+    # GWHG - the above will not work for all filenames as strip() also removes chars multiple times, 
+    # eg '15f.fits' will become '15', not '15f'
+    # So do it like this:
     compno=os.path.splitext(filename.split('_')[-1])[0]
     print(f'    Processing {sbid} component {compno}, compid {compid}')
+
     try:
         spechdu = fits.open(filename) # - GWHG
     except:
@@ -509,16 +546,14 @@ numfiles = 0
 numcomponents = 0
 sbid_list = []
 starttime = time()
-print(f'Started with sbid: {options.sbid}, sbids: {options.sbids}')
-if options.sbid:
-    sbid_list=[options.sbid]   
-elif options.sbids:
-    sbid_list=options.sbids
-
+print(f'Started with sbids: {options.sbids}')
 # Default override
-if options.sbid=='all' or options.sbids=='all':
+if options.sbids=='all':
     sbid_lst=glob.glob(GlobTemplate) # - GWHG
     sbid_list = [sbid.split("/")[-1] for sbid in sbid_lst] # - GWHG
+else:
+    sbid_list=options.sbids
+
 
 robjs = []
 for sbid in sbid_list:
@@ -555,24 +590,23 @@ for sbid in sbid_list:
     ## Process each component file in source_list
     source_list=glob.glob(SpecHduTemplate%sbid)
     numcomponents += len(source_list)
+
+    # Spawn off each source for processing in parallel (upt to number of cores) - GWHG
     with ProcessPoolExecutor(NUMCORES) as exe:
         _ = [exe.submit(processComponent,sbid,filename,compid,cat_dict) for filename in source_list]
 
 
 #################################################################################################################
-################ Optional tarring and storing to Acacia of per SBID results #####################################
+################ Optional tarring and storing to Acacia of per SBID results  - GWHG #############################
 
-    print('Tarring results')
-    numfiles += tardirectory(TARPATH%(sbid),TARNAME%(sbid))
+    if ARCHIVE:
+        print('Tarring results')
+        numfiles += tardirectory(TARPATH%(sbid),TARNAME%(sbid))
 
-    # Store on objectstore
-    print('Sending to objectstore')
-    fulltarname = os.getcwd() + '/' + TARNAME%(sbid)
-    endpoint = "https://projects.pawsey.org.au"
-    project = "ja3"
-    bucket = "flash"
-    certfile = "certs.json"
-    sendTar2Objstore(os.getcwd(),TARNAME%(sbid),certfile,endpoint,project,bucket)
-    print(f'tarball stored to Acacia for SB{sbid}')
+        # Store on objectstore
+        print('Sending to objectstore')
+        localpath = os.getcwd() # where the tarball is on local drive - GWHG
+        sendTar2Objstore(sbid,localpath,storepath,certfile,endpoint,project,bucket)
+        print(f'tarball stored to Acacia for SB{sbid}')
 
-print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs, num components = {numcomponents), num output files = {numfiles}')   # 1640s for SB34571 
+print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs, num components = {numcomponents}, num output files = {numfiles}')   # 1640s for SB34571 
