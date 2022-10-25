@@ -34,13 +34,13 @@ import argparse
 #import numpy.ma as ma
 
 # GWHG
-from concurrent.futures import ProcessPoolExecutor
-from pathlib import Path
 from time import time
-import tarfile
-import S3Object as S3
-import json
-from get_access_keys import *
+from concurrent.futures import ProcessPoolExecutor # for parallelisation
+from pathlib import Path # for tarring
+import tarfile           # for tarring
+import S3Object as S3    # functions to access Acacia
+import json                     # for reading Acacia certs file
+from get_access_keys import *   # for reading Acacia certs file
 
 #############################################################################################################
 ######################################### USER EDIT SECTION #################################################
