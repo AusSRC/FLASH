@@ -56,6 +56,7 @@ TARPATH = '/mnt/shared/flash_test/outputs/%s' # 'root' directory for tarring ope
 TARNAME = 'SB%s_output_plots_and_ascii.tar.gz'   # Template for tarball name - GWHG
 
 PLOT = True # Generate the plots - GWHG
+ASCII = True # Generate ascii files for linefinder - GWHG
 ARCHIVE = True # tar and push results to Acacia - GWHG
 
 # DATA PATHS relative to CWD - GWHG
@@ -530,7 +531,8 @@ def processComponent(sbid,filename,compid,cat_dict):
                 noiseopd.append(dataopdnoise)
     
     ##Make outputs for FLASHfinder. Overwrites previous files everytime it is rerun.
-    write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd)
+    if ASCII:
+        write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd)
     
     ##only plot bright sources because it takes too long. Can use this as a way to skip over the plotting step. 
     #if peak_flux>0.5:
