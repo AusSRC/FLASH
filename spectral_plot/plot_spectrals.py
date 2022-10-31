@@ -551,9 +551,13 @@ def processComponent(sbid,filename,compid,cat_dict):
 numfiles = 0
 numcomponents = 0
 sbid_list = []
-starttime = time()
-print(f'Started with sbids: {options.sbids}')
 
+# Check the number of cores is realistic: - GWHG
+NUMCORES = NUMCORES if NUMCORES < (os.cpu_count()-1) else (os.cpu_count()-2)
+
+starttime = time()
+print(f'Started with sbids: {options.sbids}, number cores: {NUMCORES}')
+sys.exit()
 # Default override
 if options.sbids=='all':
     sbid_lst=glob.glob(GlobTemplate) # - GWHG
