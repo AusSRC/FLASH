@@ -10,4 +10,4 @@
 
 export LD_LIBRARY_PATH=/mnt/shared/flash_test/lib:$LD_LIBRARY_PATH
 module load python/3.9.1
-python3 plot_spec_pawsey_pilot2_gg.py --sbids $1 $2
+python3 plot_spectral.py --sbids $1 $2
