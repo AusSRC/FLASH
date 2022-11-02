@@ -33,14 +33,14 @@ from astropy import units as u
 import argparse
 #import numpy.ma as ma
 
-# Added by GWHG
+# GWHG
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 from time import time
-from concurrent.futures import ProcessPoolExecutor  # for parallelisation
-from pathlib import Path                            # for tarring
-import tarfile                                      # for tarring
-import S3Object as S3                               # functions to access Acacia
-import json                                         # for reading Acacia certs file
-from get_access_keys import *                       # for reading Acacia certs file
+import tarfile
+import S3Object as S3
+import json
+from get_access_keys import *
 
 #############################################################################################################
 ######################################### USER EDIT SECTION #################################################
@@ -50,13 +50,13 @@ hi_rest=1420.40575177
 c=2.99792458e5
 
 # Number of cores requested - GWHG
-NUMCORES = 25 
-PLOT = True         # Generate the plots - GWHG
-ASCII = True        # Generate ascii files for linefinder - GWHG
-ARCHIVE = True      # tar and push results to Acacia - GWHG
+NUMCORES = 25
 
-# DATA PATHS relative to CWD - GWHG
-GlobTemplate = 'data/sourceSpectra/*'
+PLOT = True # Generate the plots - GWHG
+ARCHIVE = True # tar and push results to Acacia - GWHG
+
+# DATA PATH templates relative to CWD - GWHG
+GlobTemplate = 'data/sourceSpectra/3*'
 CatalogueTemplate = 'data/catalogues/selavy-image.i*.SB%s.cont.*taylor.0.restored*.components.xml'
 SpecHduTemplate = 'data/sourceSpectra/%s/SourceSpectra/spec_*.fits'
 ContCubeTemplate = 'data/contcubes/%s/spectra/spectrum_contcube_SB%s_component_%s.txt'
@@ -68,29 +68,28 @@ AsciiTemplate2 = OutputTemplate1 + 'SB%s_component_%s_flux.dat'
 PlotTemplate = OutputTemplate2 + 'SB%s_component_%s_opd.png'
 PlotTemplate2 = OutputTemplate2 + 'SB%s_component_%s_flux.png'
 
-# Output data can optionally be tarred up and stored to the Acacia objectstore,
-# one tarball per sbid:
-TARPATH = '/mnt/shared/flash_test/outputs/%s'   # 'root' directory for tarring operation - GWHG
-TARNAME = 'SB%s_output_plots_and_ascii.tar.gz'  # Template for tarball name - GWHG
+# Variables for optional tarring of output results
+TARPATH = '/mnt/shared/flash_test/outputs/%s' # 'root' directory for tarring operation - GWHG
+TARNAME = 'SB%s_output_plots_and_ascii.tar.gz'   # Template for tarball name - GWHG
 
-# Optional objectstore (Acacia) credentials - GWHG
-certfile = "certs.json"                     # json file holding user/project keys for Acacia access
-endpoint = "https://projects.pawsey.org.au" # URL address of Acacia
-project = "ja3"                             # project owning the storage quota space on Acacia
-bucket = "flash"                            # bucket ("directory") to store to
-storepath = 'pilot2_outputs'                # where the tarball will be relative to the above 'bucket' on Acacia
+# Variables for optional storage to Acacia objectstore
+localtarpath = os.getcwd() # where the tarball is on local drive - GWHG
+endpoint = "https://projects.pawsey.org.au"
+project = "ja3"
+bucket = "flash"
+certfile = "certs.json"
+storepath = 'pilot2_outputs' # where the tarball will be relative to the bucket - GWHG
 
 #############################################################################################################
 #############################################################################################################
 
-# Set user options and defaults
+# Set command line options and defaults
 parser = argparse.ArgumentParser()
 
-# Deprecated - use '--sbids' instead - GWHG
+# This is deprecated - use '--sbids' instead - GWHG
 parser.add_argument('--sbid', default='', type=str,
                     help='set input SBID')
 
-# Allows for one or multiple sbids on command line - GWHG
 parser.add_argument('--sbids', nargs='+', default='all', type=str,
                     help='set multiple input SBIDs')
 options = parser.parse_args()
@@ -120,7 +119,7 @@ def make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flu
     #make nice fonts
     #rc('text', usetex=True)
     #rc('font',**{'family':'serif','serif':['serif'],'size':10})
-    rc('font',**{'size':10}) # 'serif' not available on Nimbus, use default - GWHG
+    rc('font',**{'size':10}) # 'serif' not available on Nimbus- GWHG
             
     fig.subplots_adjust(wspace=0,hspace=fig_pad)
     plt.rc('xtick',labelsize='6')
@@ -232,7 +231,7 @@ def make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flu
     #make nice fonts
     #rc('text', usetex=True)
     #rc('font',**{'family':'serif','serif':['serif'],'size':10})
-    rc('font',**{'size':10}) # 'serif' not available on Nimbus, use default - GWHG
+    rc('font',**{'size':10}) # 'serif' not available on Nimbus- GWHG
             
     fig.subplots_adjust(wspace=0,hspace=fig_pad)
     plt.rc('xtick',labelsize='6')
@@ -347,9 +346,7 @@ def write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd):
     data_all = Table([chan,freq,z,flux,noiseflux,opd,noiseopd], names=['chan','freq(MHz)','redshift','flux(Jy)','noise(Jy)','opd','opdnoise'])
     data_flux = Table([freq,flux,noiseflux], names=['freq(MHz)','flux(Jy)','noise(Jy)'])
     data_opd = Table([freq,opd,noiseopd], names=['freq(MHz)','opd','opdnoise'])
-
     #ascii.write(data_all, '%s/spectra_plots/ascii_format/spectrum_contsub_SB%s_component_%s.txt'%(sbid,sbid,compno), include_names=['chan','freq(MHz)','redshift','flux(Jy)','noise(Jy)','opd','opdnoise'], format='commented_header', comment='#', delimiter=' ',overwrite=True)
-
     ascii.write(data_flux, AsciiTemplate2%(sbid,sbid,compno), include_names=['freq(MHz)','flux(Jy)','noise(Jy)'], format='commented_header', comment='#', delimiter=' ',overwrite=True)
     
     ascii.write(data_opd, AsciiTemplate1%(sbid,sbid,compno), include_names=['freq(MHz)','opd','opdnoise'], format='commented_header', comment='#', delimiter=' ',overwrite=True)
@@ -406,15 +403,11 @@ def sendTar2Objstore(sbid,localpath,storepath,certfile,endpoint,project,bucket):
 ##############################################################################################################
 
 def processComponent(sbid,filename,compid,cat_dict):
+    #compno=filename.split('_')[-1].strip('.fits') # GWHG - this will not work for all filenames as strip() also removes chars multiple times, eg '15f.fits' will become '15', not '15f'
 
-    #compno=filename.split('_')[-1].strip('.fits')
- 
-    # GWHG - the above will not work for all filenames as strip() also removes chars multiple times, 
-    # eg '15f.fits' will become '15', not '15f'
-    # So do it like this:
+    # Do this instead:
     compno=os.path.splitext(filename.split('_')[-1])[0]
     print(f'    Processing {sbid} component {compno}, compid {compid}')
-
     try:
         spechdu = fits.open(filename) # - GWHG
     except:
@@ -535,12 +528,11 @@ def processComponent(sbid,filename,compid,cat_dict):
                 noiseopd.append(dataopdnoise)
     
     ##Make outputs for FLASHfinder. Overwrites previous files everytime it is rerun.
-    if ASCII:
-        write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd)
+    write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd)
     
     ##only plot bright sources because it takes too long. Can use this as a way to skip over the plotting step. 
     #if peak_flux>0.5:
-    ##skip over sources if already done
+    ##skip over sources already done
     plotfile=PlotTemplate%(sbid,sbid,compno)
     if not os.path.exists(plotfile) and PLOT:
         make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flux)        
@@ -557,7 +549,6 @@ NUMCORES = NUMCORES if NUMCORES < (os.cpu_count()-1) else (os.cpu_count()-2)
 
 starttime = time()
 print(f'Started with sbids: {options.sbids}, number cores: {NUMCORES}')
-sys.exit()
 # Default override
 if options.sbids=='all':
     sbid_lst=glob.glob(GlobTemplate) # - GWHG
@@ -565,6 +556,8 @@ if options.sbids=='all':
 else:
     sbid_list=options.sbids
 
+
+robjs = []
 for sbid in sbid_list:
     print(f'SB: {sbid}')
     #create output directory for plots and ascii files - GWHG
@@ -599,13 +592,12 @@ for sbid in sbid_list:
     ## Process each component file in source_list
     source_list=glob.glob(SpecHduTemplate%sbid)
     numcomponents += len(source_list)
-
-    # Spawn off each source for processing in parallel (up to number of cores) - GWHG
     with ProcessPoolExecutor(NUMCORES) as exe:
         _ = [exe.submit(processComponent,sbid,filename,compid,cat_dict) for filename in source_list]
 
 
-################ Optional tarring and storing to Acacia of per SBID results  - GWHG #############################
+#################################################################################################################
+################ Optional tarring and storing to Acacia of per SBID results #####################################
 
     if ARCHIVE:
         print('Tarring results')
@@ -613,9 +605,7 @@ for sbid in sbid_list:
 
         # Store on objectstore
         print('Sending to objectstore')
-        localpath = os.getcwd() # where the tarball is on local drive - GWHG
-        sendTar2Objstore(sbid,localpath,storepath,certfile,endpoint,project,bucket)
+        sendTar2Objstore(sbid,localtarpath,storepath,certfile,endpoint,project,bucket)
         print(f'tarball stored to Acacia for SB{sbid}')
 
-#################################################################################################################
 print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs, num components = {numcomponents}, num output files = {numfiles}')   # 1640s for SB34571 
