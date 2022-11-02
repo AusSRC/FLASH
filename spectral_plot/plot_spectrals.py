@@ -53,6 +53,7 @@ c=2.99792458e5
 NUMCORES = 25
 
 PLOT = True # Generate the plots - GWHG
+ASCII = True # Generate the ascii files for the linefinder - GWHG
 ARCHIVE = True # tar and push results to Acacia - GWHG
 
 # DATA PATH templates relative to CWD - GWHG
@@ -528,7 +529,8 @@ def processComponent(sbid,filename,compid,cat_dict):
                 noiseopd.append(dataopdnoise)
     
     ##Make outputs for FLASHfinder. Overwrites previous files everytime it is rerun.
-    write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd)
+    if ASCII:
+        write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd)
     
     ##only plot bright sources because it takes too long. Can use this as a way to skip over the plotting step. 
     #if peak_flux>0.5:
