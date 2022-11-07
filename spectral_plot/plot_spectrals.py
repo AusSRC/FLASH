@@ -552,12 +552,14 @@ NUMCORES = NUMCORES if NUMCORES < (os.cpu_count()-1) else (os.cpu_count()-2)
 starttime = time()
 print(f'Started with sbids: {options.sbids}, number cores: {NUMCORES}')
 # Default override
-if options.sbids=='all':
+if options.sbids=='all' or options.sbid=='all':
     sbid_lst=glob.glob(GlobTemplate) # - GWHG
     sbid_list = [sbid.split("/")[-1] for sbid in sbid_lst] # - GWHG
 else:
-    sbid_list=options.sbids
-
+    if options.sbid:
+        sbid_list = [options.sbid]
+    else:
+        sbid_list=options.sbids
 
 robjs = []
 for sbid in sbid_list:
