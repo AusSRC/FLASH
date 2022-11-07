@@ -91,7 +91,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--sbid', default='', type=str,
                     help='set input SBID')
 
-parser.add_argument('--sbids', nargs='+', default='all', type=str,
+parser.add_argument('--sbids', nargs='+', default='', type=str,
                     help='set multiple input SBIDs')
 options = parser.parse_args()
 
