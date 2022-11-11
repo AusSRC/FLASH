@@ -413,6 +413,7 @@ def processComponent(sbid,filename,compid,cat_dict):
         spechdu = fits.open(filename) # - GWHG
     except:
         print("Can't find spectrum for %s" %compno)
+        return
     f0=spechdu[0].header['CRVAL4']
     df=spechdu[0].header['CDELT4']
     askapspec = spechdu[0].data  
