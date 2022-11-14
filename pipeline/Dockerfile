@@ -5,6 +5,8 @@ RUN apt update &&apt install -y \
 	curl \
 	vim \
 	sudo \
+    openmpi-common \
+    libopenmpi-dev \
 	python3 python3-scipy python3-pip \
 	python3-matplotlib python3-progressbar \
 	python3-ipython \
@@ -13,7 +15,7 @@ RUN apt update &&apt install -y \
 	libatlas3-base libatlas-base-dev \
 	cmake build-essential git gfortran 
 
-RUN pip3 install astropy corner
+RUN pip3 install astropy corner mpi4py
 
 RUN adduser --disabled-password --gecos "" flash
 ENV HOME="/home/flash"
