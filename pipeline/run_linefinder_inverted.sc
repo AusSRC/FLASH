@@ -30,4 +30,4 @@ export MATPLOTLIBRC=$HOME/.local/lib/python3.10/site-packages/matplotlib/
 --small_plots \
 --detection_limit 0. \
 --mmodal \
---mpi_switch \
+--invert_spectra \
