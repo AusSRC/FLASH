@@ -21,6 +21,7 @@ export MATPLOTLIBRC=$HOME/.local/lib/python3.10/site-packages/matplotlib/
 --y_units 'abs' \
 --out_path $FINDER'/testing/chains' \
 --data_path $FINDER'/testing/data/33616/spectra_ascii' \
+--sourcelog 'sources1.log' \
 --model_path $FINDER/'model.txt' \
 --nlive 1000 \
 --channel_function 'none' \

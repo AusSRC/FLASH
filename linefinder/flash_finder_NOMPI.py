@@ -175,8 +175,8 @@ print('*************************************************************************
 
 # Read source information from file or list spectra in directory
 source_list = Table()
-if os.path.exists(options.data_path+'sources.log'):
-    source_list = ascii.read(options.data_path+'sources.log',format='commented_header',comment='#')
+if os.path.exists(options.data_path+'/'+options.sourcelog):
+    source_list = ascii.read(options.data_path+'/'+options.sourcelog,format='commented_header',comment='#')
 else:
     source_list['name'] = glob(options.data_path+'/*opd.dat')
     index = 0
@@ -197,16 +197,11 @@ model.input.generate_model(options,source)
 initialize_resultsfile(options,model,os.getpid())
 
 if PROCESS:
-    # Distribute source list amongst processors
-#    list_chunks = [[] for _ in range(NUMCORES)]
-#    for i, list_chunk in enumerate(source_list):
-#        list_chunks[i % NUMCORES].append(list_chunk)
 
     # Loop program over each source spectral data 
-#    source_count = 0
     print("looping over sources")
     with ProcessPoolExecutor(NUMCORES) as exe:
         _ = [exe.submit(processSource,line,sourcenum,sourcenum) for sourcenum,line in enumerate(source_list)]
 
 timed = time() - starttime
-print(f"Linefinder took {timed:.2f} sec")
+print(f"Linefinder took {timed:.2f} sec for {len(source_list)} components")
