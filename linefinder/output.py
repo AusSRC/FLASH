@@ -3,10 +3,10 @@ from conversions import *
 from fitting import *
 
 # Initialize the summary file containing the results
-def initialize_resultsfile(options,model):
+def initialize_resultsfile(options,model,suffix:
 
     # Set path to results file
-    results_file = options.out_path + '/results.dat'
+    results_file = options.out_path + ('/results_%s.dat'%suffix)
 
     # Open file for writing
     f = open(results_file,'w')

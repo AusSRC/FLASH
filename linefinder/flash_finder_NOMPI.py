@@ -194,7 +194,7 @@ print('\nInitializing output results file.\n')
 source = Source()
 model = Model()
 model.input.generate_model(options,source)
-initialize_resultsfile(options,model)
+initialize_resultsfile(options,model,os.getpid())
 
 if PROCESS:
     # Distribute source list amongst processors
