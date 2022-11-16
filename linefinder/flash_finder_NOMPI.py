@@ -55,6 +55,8 @@ starttime = time()
 def processSource(line,source_count,proc_num):
     ''' one process per source is run under a ProcessPoolExecutor '''
 
+    
+
     # Initialize source object
     source = Source()
 
@@ -79,6 +81,7 @@ def processSource(line,source_count,proc_num):
     # Initialize and generate model object
     model = Model()
     model.input.generate_model(options,source)
+    initialize_resultsfile(options,model,os.getpid())
 
     # Calculate the null evidence
     empty = np.zeros(source.spectrum.ndata)
@@ -147,7 +150,7 @@ def processSource(line,source_count,proc_num):
         print(f"\nProcess {proc_num}, Source {source.info['name']}: {model.output.ndetections} spectral lines detected\n")
 
     # Write results to file
-    write_resultsfile(options,source,model)
+    write_resultsfile(options,source,model,os.getpid())
 
     # Make grahpical output
     if options.plot_switch:
@@ -175,8 +178,8 @@ print('*************************************************************************
 
 # Read source information from file or list spectra in directory
 source_list = Table()
-if os.path.exists(options.data_path+'sources.log'):
-    source_list = ascii.read(options.data_path+'sources.log',format='commented_header',comment='#')
+if os.path.exists(options.data_path+'/'+options.sourcelog):
+    source_list = ascii.read(options.data_path+'/'+options.sourcelog,format='commented_header',comment='#')
 else:
     source_list['name'] = glob(options.data_path+'/*opd.dat')
     index = 0
@@ -194,19 +197,13 @@ print('\nInitializing output results file.\n')
 source = Source()
 model = Model()
 model.input.generate_model(options,source)
-initialize_resultsfile(options,model)
 
 if PROCESS:
-    # Distribute source list amongst processors
-#    list_chunks = [[] for _ in range(NUMCORES)]
-#    for i, list_chunk in enumerate(source_list):
-#        list_chunks[i % NUMCORES].append(list_chunk)
 
     # Loop program over each source spectral data 
-#    source_count = 0
     print("looping over sources")
     with ProcessPoolExecutor(NUMCORES) as exe:
         _ = [exe.submit(processSource,line,sourcenum,sourcenum) for sourcenum,line in enumerate(source_list)]
 
 timed = time() - starttime
-print(f"Linefinder took {timed:.2f} sec")
+print(f"Linefinder took {timed:.2f} sec for {len(source_list)} components")

@@ -3,10 +3,10 @@ from conversions import *
 from fitting import *
 
 # Initialize the summary file containing the results
-def initialize_resultsfile(options,model):
+def initialize_resultsfile(options,model,suffix):
 
     # Set path to results file
-    results_file = options.out_path + '/results.dat'
+    results_file = options.out_path + ('/results_%s.dat'%suffix)
 
     # Open file for writing
     f = open(results_file,'w')
@@ -56,10 +56,10 @@ def initialize_resultsfile(options,model):
     f.close()
 
 # Write results to the summary file
-def write_resultsfile(options,source,model):
+def write_resultsfile(options,source,model,suffix):
 
     # Open results file for appending
-    results_file = options.out_path + '/results.dat'
+    results_file = options.out_path + ('/results_%s.dat'%suffix)
     f = open(results_file, 'a')
         
     # Loop over detection modes
