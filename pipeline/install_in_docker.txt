@@ -1,0 +1,78 @@
+# Load latest ubuntu image and run
+sudo docker run -i -t ubuntu:latest /bin/bash
+
+# do basic update:
+% apt update && apt upgrade
+% apt install curl vim
+
+# Create flash user
+% apt install sudo
+% adduser flash
+# passwd = aussrc
+% usermod -aG sudo flash
+
+% exit
+
+# Find images:
+% docker ps -l
+
+# commit image:
+sudo docker commit bda620a8e5da ubuntu:flash
+
+# Rerun as flash user with host filesystem attached:
+sudo docker run -v /mnt/shared/flash_test:/mnt/shared --user flash -it ubuntu:flash
+
+# untar flash tarball:
+% cd
+% sudo cp -R /mnt/shared/* .
+% tar -zxvf flash.tar.gz
+% sudo chown -R flash:flash *
+
+# General and PyMultinest dependencies:
+% cd PyMultiNest
+% apt install python3 python3-scipy python3-pip
+% apt install python3-matplotlib
+% apt install python3-progressbar
+% apt install python3-ipython
+% apt install libblas-dev
+% apt install liblapack-dev
+% apt install libatlas3-base libatlas-base-dev
+% apt install cmake
+% apt install build-essential git gfortran
+% pip3 install astropy
+% pip3 install corner
+
+# Build Multinest
+% cd Multinest/build
+% rm -R CMake* src
+% cmake ..
+% make
+% cd ../
+% cp lib/* /usr/local/lib
+% export LD_LIBRARY_PATH=/mnt/shared/PyMultiNest/MultiNest/lib:$LD_LIBRARY_PATH
+
+# test with:
+% cd ../
+% python3 pymultinest_demo.py
+
+# test flashfinder
+% cd ../linefinder/examples
+# Edit "set_local_env.sh" to suit and add to user's .bashrc. Then:
+% source ~/.bashrc
+% sh local_script.sc
+
+% exit
+
+# save your image:
+sudo docker ps -l
+sudo docker commit <container_id> ubuntu:flash
+
+# now can run without the mounted host files:
+sudo docker run  -it --user flash ubuntu:flash
+
+# Above done in Dockerfile - mount data to /data, outputs to /outputs:
+docker login --username=gordonwh
+sudo docker run -v /mnt/shared/flash_test/data/spectra/ascii_format:/data --user flash -it gordonwh/flashfinder
+sudo docker run -v /home/ger063/src/flash_data/testing/test_run/data/33616/spectra_ascii:/data -v /home/ger063/src/flash_data/testing/test_run/chains:/outputs --user flash -it ubuntu:flashfinder
+
+
