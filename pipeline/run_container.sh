@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name=flashfinder
-#SBATCH --output=/mnt/shared/flash/logs/finder_output_%j.log
-#SBATCH --error=/mnt/shared/flash/logs/finder_error_%j.log
+#SBATCH --output=$1/outputs/logs/finder_output_%j.log
+#SBATCH --error=$1/outputs/logs/finder_error_%j.log
 #SBATCH -N 1 # nodes
 #SBATCH -n 1 # tasks
 #SBATCH --cpus-per-task 28
