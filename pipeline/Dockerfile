@@ -21,9 +21,8 @@ RUN adduser --disabled-password --gecos "" flash
 ENV HOME="/home/flash"
 
 COPY flash.tar.gz $HOME
-RUN mkdir /data /outputs
+RUN mkdir /data
 VOLUME /data
-VOLUME /outputs
 
 WORKDIR $HOME
 RUN tar -zxvf flash.tar.gz
@@ -33,10 +32,6 @@ WORKDIR $HOME/PyMultiNest/MultiNest/build/
 RUN rm -R CMake* src
 RUN cmake ..
 RUN make
-WORKDIR $HOME/PyMultiNest/MultiNest/
-RUN cp lib/* /usr/local/lib
-ENV LD_LIBRARY_PATH=/mnt/shared/PyMultiNest/MultiNest/lib:$LD_LIBRARY_PATH
-
 
 WORKDIR $HOME
 

@@ -1,15 +1,20 @@
+#!/bin/bash
+
+# Set path to FLASH code
+FLASHHOME=/home/flash/FLASH
+export FLASHHOME
+
 # Set path to FLASH FINDER
-export FINDER=/home/flash/linefinder/ 
+FINDER=$FLASHHOME/linefinder 
+export FINDER
 
 # Set path to MULTINEST
-export MULTINEST=/home/flash/PyMultiNest/MultiNest/
+export MULTINEST=$FLASHHOME/PyMultiNest/MultiNest
 
 # Set path to PYMULTINEST
-export PYMULTINEST=/home/flash/PyMultiNest/
+export PYMULTINEST=$FLASHHOME/PyMultiNest
 
 # Add MultiNest library to dynamic library path
 export DYLD_LIBRARY_PATH=$MULTINEST/lib:${DYLD_LIBRARY_PATH}
 export LD_LIBRARY_PATH=$MULTINEST/lib:${LD_LIBRARY_PATH}
 
-# Set path to Matplotlib set up
-#export MATPLOTLIBRC=$HOME/.local/lib/python3.10/site-packages/matplotlib/

@@ -49,7 +49,7 @@ sudo docker run -v /mnt/shared/flash_test:/mnt/shared --user flash -it ubuntu:fl
 % cmake ..
 % make
 % cd ../
-% cp lib/* /usr/local/lib
+% sudo cp lib/* /usr/local/lib
 % export LD_LIBRARY_PATH=/mnt/shared/PyMultiNest/MultiNest/lib:$LD_LIBRARY_PATH
 
 # test with:
@@ -61,6 +61,10 @@ sudo docker run -v /mnt/shared/flash_test:/mnt/shared --user flash -it ubuntu:fl
 # Edit "set_local_env.sh" to suit and add to user's .bashrc. Then:
 % source ~/.bashrc
 % sh local_script.sc
+
+# make dirs for mounting external data:
+% sudo mkdir /config
+% sudo mkdir /data
 
 % exit
 
@@ -75,7 +79,9 @@ docker push aussrc/flashfinder
 # now can run without the mounted host files:
 sudo docker run  -it --user flash aussrc/flashfinder
 
-# Above done in Dockerfile - mount data to /data, outputs to /outputs:
+# Above done in Dockerfile 
+
+# Rerun with - mount data to /data, config to /config:
 docker run -v /home/ger063/src/flash_data/testing/test_run/data/33616/spectra_ascii:/data -v /home/ger063/src/flash_data/testing/test_run/chains:/outputs --user flash -it aussrc/flashfinder
 
 # Or with an entrypoint:
@@ -91,9 +97,16 @@ module load singularity
 singularity build linefinder.sif docker://aussrc/flashfinder
 
 # run a shell:
-singularity shell --bind /mnt/shared/flash/data:/data,/mnt/shared/flash/outputs:/outputs linefinder.sif
+singularity shell --bind /mnt/shared/flash/data:/data,/mnt/shared/flash/config:/config linefinder.sif
+
+# run a command in the container:
+singularity exec --bind /mnt/shared/flash/data1:/data,/mnt/shared/flash/config1:/config linefinder.sif /home/flash/FLASH/pipeline/run_linefinder_absorption.sh
 
 "Linefinder took 498.66 sec for 4 components"
+
+##############################################################################
+#  Concatenate all results files but only include header from 1st file:
+find . -type f -name "results_*.dat" -exec awk 'NR==1 || FNR>1' {} + > 'results_all.txt'
 
 
 

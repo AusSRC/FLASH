@@ -1,19 +1,25 @@
+#!/bin/bash
+
+# Set path to FLASH code
+FLASHHOME=/home/flash/src/FLASH
+export FLASHHOME
+
 # Set path to FLASH FINDER
-FINDER=$HOME/src/FLASH/linefinder 
+FINDER=$FLASHHOME/linefinder
 export FINDER
 
 # Set path to MULTINEST
-export MULTINEST=$HOME/src/FLASH/PyMultinest/MultiNest
+export MULTINEST=$FLASHHOME/PyMultiNest/MultiNest
 
 # Set path to PYMULTINEST
-export PYMULTINEST=$HOME/src/FLASH/PyMultinest
+export PYMULTINEST=$FLASHHOME/PyMultiNest
 
 # Add MultiNest library to dynamic library path
 export DYLD_LIBRARY_PATH=$MULTINEST/lib:${DYLD_LIBRARY_PATH}
 export LD_LIBRARY_PATH=$MULTINEST/lib:${LD_LIBRARY_PATH}
 
 # Set path to Matplotlib set up
-export MATPLOTLIBRC=$HOME/.local/lib/python3.10/site-packages/matplotlib/
+#export MATPLOTLIBRC=/home/flash/.local/lib/python3.10/site-packages/matplotlib/
 
 /usr/bin/env python3 $FINDER/flash_finder_NOMPI.py \
 --x_units 'frequency' \
