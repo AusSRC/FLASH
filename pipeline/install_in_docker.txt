@@ -27,6 +27,7 @@ sudo docker run -v /mnt/shared/flash_test:/mnt/shared --user flash -it ubuntu:fl
 % sudo cp -R /mnt/shared/* .
 % tar -zxvf flash.tar.gz
 % sudo chown -R flash:flash *
+% sudo chmod -R a+rx *
 
 # General and PyMultinest dependencies:
 % cd PyMultiNest
@@ -39,8 +40,8 @@ sudo docker run -v /mnt/shared/flash_test:/mnt/shared --user flash -it ubuntu:fl
 % apt install libatlas3-base libatlas-base-dev
 % apt install cmake
 % apt install build-essential git gfortran
-% pip3 install astropy
-% pip3 install corner
+% sudo pip3 install astropy
+% sudo pip3 install corner
 
 # Build Multinest
 % cd Multinest/build
@@ -65,14 +66,34 @@ sudo docker run -v /mnt/shared/flash_test:/mnt/shared --user flash -it ubuntu:fl
 
 # save your image:
 sudo docker ps -l
-sudo docker commit <container_id> ubuntu:flash
+sudo docker commit <container_id> aussrc/flashfinder
+
+# Push to DockerHub repo:
+docker login --username=gordonwh # passwd = dh#....15
+docker push aussrc/flashfinder
 
 # now can run without the mounted host files:
-sudo docker run  -it --user flash ubuntu:flash
+sudo docker run  -it --user flash aussrc/flashfinder
 
 # Above done in Dockerfile - mount data to /data, outputs to /outputs:
-docker login --username=gordonwh
-sudo docker run -v /mnt/shared/flash_test/data/spectra/ascii_format:/data --user flash -it gordonwh/flashfinder
-sudo docker run -v /home/ger063/src/flash_data/testing/test_run/data/33616/spectra_ascii:/data -v /home/ger063/src/flash_data/testing/test_run/chains:/outputs --user flash -it ubuntu:flashfinder
+docker run -v /home/ger063/src/flash_data/testing/test_run/data/33616/spectra_ascii:/data -v /home/ger063/src/flash_data/testing/test_run/chains:/outputs --user flash -it aussrc/flashfinder
+
+# Or with an entrypoint:
+docker run --entrypoint $HOME/FLASH/pipeline/run_linefinder_absorption.sh -v /home/ger063/src/flash_data/testing/test_run/data/33616/spectra_ascii:/data -v /home/ger063/src/flash_data/testing/test_run/chains:/outputs --user flash -it aussrc/flashfinder
+
+"Linefinder took 595.80 sec for 4 components"
+#################################################################################
+############ RUN IN SINGULARITY ################################################
+
+# Build the sif
+
+module load singularity
+singularity build linefinder.sif docker://aussrc/flashfinder
+
+# run a shell:
+singularity shell --bind /mnt/shared/flash/data:/data,/mnt/shared/flash/outputs:/outputs linefinder.sif
+
+"Linefinder took 498.66 sec for 4 components"
+
 
 

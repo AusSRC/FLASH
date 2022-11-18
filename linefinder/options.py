@@ -18,8 +18,8 @@ parser.add_argument('--corr_switch',action='store_true', default=False,
                     help='account for correlation in the noise')
 parser.add_argument('--data_path', default=os.getcwd()+'/data/', type=str,
                     help='full path to the data directory')
-parser.add_argument('--sourcelog', default='source.log', type=str,
-                    help='name of sources log in data directory')
+parser.add_argument('--sourcelog', default='/config/sources.log', type=str,
+                    help='name of sources log in config directory')
 parser.add_argument('--detection_limit', default=1., type=float,
                     help='set detection limit based on the natural logarithm of the Bayes factor (i.e. ln(B_det/B_null).')
 parser.add_argument('--efr', default=0.3, type=float,
@@ -34,7 +34,7 @@ parser.add_argument('--mask_path', default=os.getcwd()+'/mask.txt', type=str,
                     help='full path to data mask file')
 parser.add_argument('--mmodal', action='store_true', default=False,
                     help='mmodal parameter used in MultiNest')
-parser.add_argument('--model_path', default=os.getcwd()+'/model.txt', type=str,
+parser.add_argument('--model_path', default='/config/model.txt', type=str,
                     help='full path to model file')
 parser.add_argument('--mpi_switch',action='store_true', default=False,
                     help='use MPI functionality')

@@ -178,8 +178,8 @@ print('*************************************************************************
 
 # Read source information from file or list spectra in directory
 source_list = Table()
-if os.path.exists(options.data_path+'/'+options.sourcelog):
-    source_list = ascii.read(options.data_path+'/'+options.sourcelog,format='commented_header',comment='#')
+if os.path.exists(options.sourcelog):
+    source_list = ascii.read(options.sourcelog,format='commented_header',comment='#')
 else:
     source_list['name'] = glob(options.data_path+'/*opd.dat')
     index = 0
