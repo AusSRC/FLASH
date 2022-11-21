@@ -1,5 +1,5 @@
 #!/bin/bash
-source /home/flash/FLASH/pipeline/set_local_env.sh
+source ./set_local_env.sh
 
 # Set path to Matplotlib set up
 #export MATPLOTLIBRC=/home/flash/.local/lib/python3.10/site-packages/matplotlib/
@@ -20,6 +20,5 @@ source /home/flash/FLASH/pipeline/set_local_env.sh
 --detection_limit 0. \
 --mmodal \
 
-find . -type f -name "results_*.dat" -exec awk 'NR==1 || FNR>1' {} + > 'results_all.txt'
 
 

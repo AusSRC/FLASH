@@ -65,7 +65,7 @@ def processSource(line,source_count,proc_num):
     source.info = line
 
     # Report source name 
-    print(f"\nProcess {proc_num}: WOrking on Source {source.info['name']}\n")
+    print(f"\nProcess {proc_num}: Working on Source {source.info['name']}\n")
 
     # Assign output root name
     options.out_root = '%s/%s' % (options.out_path,source.info['name'])
