@@ -109,4 +109,5 @@ singularity exec --bind /mnt/shared/flash/data1:/data,/mnt/shared/flash/config1:
 find . -type f -name "results_*.dat" -exec awk 'NR==1 || FNR>1' {} + > 'results_all.txt'
 
 
+find /data -type f -name "results_*.dat" -exec awk 'NR==1 || FNR>1' {} + > '/data/results$$_inverted_all.txt'
 

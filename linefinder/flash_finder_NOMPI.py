@@ -49,6 +49,40 @@ PROCESS = True
 
 starttime = time()
 
+
+##############################################################################################################################
+##############################################################################################################################
+
+
+def checkOptionsOverride(options,filename="/config/linefinder.ini"):
+    ''' Check if any of the command-line arguments are to be over-ridden'''
+
+    with open(filename) as f:
+        for line in f:
+            # Ignore comments
+            if line.startswith("#") or not line.strip():
+                continue
+            # spilt and strip whitespace
+            attr,val = line.split(":")
+            attr = attr.strip()
+            val = val.strip()
+
+            # process values - check if boolean, int, float or string
+            if val == "True":
+                setattr(options,attr,True)
+            elif val == "False":
+                setattr(options,attr,False)
+            else:
+                try:
+                    val = int(val)
+                except ValueError:
+                    try:
+                        val = float(val)
+                    except ValueError:
+                        pass
+                setattr(options,attr,val)
+    return options
+
 ##############################################################################################################################
 ##############################################################################################################################
 
@@ -175,6 +209,9 @@ print('Python program to use MultiNest for spectral-line detection and modelling
 print('')
 print('Copyright 2018 James R. Allison. All rights reserved.')
 print('******************************************************************************\n')
+
+# Check if default command line args have changed in config file:
+options = checkOptionsOverride(options)
 
 # Read source information from file or list spectra in directory
 source_list = Table()

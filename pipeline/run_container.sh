@@ -11,6 +11,7 @@ sbatch <<EOT
 #SBATCH --mem=75G
 
 module load singularity/3.8.6
+mkdir -p "$2"/outputs/logs
 echo "Started with $1: $2, $3"
 singularity exec --bind "$2":/data,"$3":/config linefinder.sif /home/flash/FLASH/pipeline/run_linefinder_$1.sh
 
