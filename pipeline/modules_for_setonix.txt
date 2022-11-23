@@ -8,6 +8,9 @@ module load py-astropy/5.1
 module use /home/ger063/modules/corner/modulefiles
 module load corner
 
+# For singularity:
+module load singularity/3.8.6
+
 # Presigned url for linefinder container:
 https://projects.pawsey.org.au/flash/linefinder.sif?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=2mMLdlnIv0OP1xn7xUbv24pQG8k%3D&Expires=1669875859
 # retrieve with:
