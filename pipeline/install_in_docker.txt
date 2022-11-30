@@ -42,6 +42,8 @@ sudo docker run -v /mnt/shared/flash_test:/mnt/shared --user flash -it ubuntu:fl
 % apt install build-essential git gfortran
 % sudo pip3 install astropy
 % sudo pip3 install corner
+% sudo pip3 install boto3
+% sudo pip3 install requests
 
 # Build Multinest
 % cd Multinest/build
@@ -91,7 +93,7 @@ docker run --entrypoint $HOME/FLASH/pipeline/run_linefinder_absorption.sh -v /ho
 #################################################################################
 ############ RUN IN SINGULARITY ################################################
 
-# Build the sif
+# Build the sif - you may need to set SINGULARITY_DOCKER_USERNAME and SINGULARITY_DOCKER_PASSWORD
 
 module load singularity
 singularity build linefinder.sif docker://aussrc/flashfinder
