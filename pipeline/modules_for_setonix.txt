@@ -1,4 +1,4 @@
-# For cli work:
+# For command line work on Setonix:
 module load miniocli/2022-10-29T10-09-23Z
 module load python/3.9.15
 module load py-boto3/1.18.12
@@ -11,6 +11,13 @@ module load corner
 # For singularity:
 module load singularity/3.8.6
 
+##########################################################################################
+# Below are the presigned URLs for downloading the container and scripts from Acacia.
+#
+# Please note these are subject to change and the latest versions are always at:
+# https://aussrc.atlassian.net/wiki/spaces/FLASH/pages/1432059970/Containerised+FlashFinder+Non-MPI+on+Setonix
+##########################################################################################
+
 # Presigned url for linefinder container:
 https://projects.pawsey.org.au/flash/linefinder.sif?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=WnLGGw%2BWZ%2Bu8wDgQFLgLIMFezD0%3D&Expires=1670042050
 
@@ -18,9 +25,8 @@ https://projects.pawsey.org.au/flash/linefinder.sif?AWSAccessKeyId=cdeab391c04c4
 curl -X GET "https://projects.pawsey.org.au/flash/linefinder.sif?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=WnLGGw%2BWZ%2Bu8wDgQFLgLIMFezD0%3D&Expires=1670042050" --output linefinder.sif
 
 # Presigned URL for setonix scripts:
-https://projects.pawsey.org.au/flash/setonix_scripts.tar.gz?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=NpWyjN98rp%2BSnO%2BJyz61HGzR8AE%3D&Expires=1670042800
+https://projects.pawsey.org.au/flash/setonix_scripts.tar.gz?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=1rbzodAilbW3bg5Gjq03256%2Fy2A%3D&Expires=1670638354
 
 # retrieve with:
-curl -X GET "https://projects.pawsey.org.au/flash/setonix_scripts.tar.gz?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=NpWyjN98rp%2BSnO%2BJyz61HGzR8AE%3D&Expires=1670042800" --output setonix_scripts.tar.gz
-
+curl -X GET "https://projects.pawsey.org.au/flash/setonix_scripts.tar.gz?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=1rbzodAilbW3bg5Gjq03256%2Fy2A%3D&Expires=1670638354" --output setonix_scripts.tar.gz
 

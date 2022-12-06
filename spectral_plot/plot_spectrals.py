@@ -34,6 +34,8 @@ import argparse
 #import numpy.ma as ma
 
 # GWHG
+# paths for running within the container:
+sys.path.append("/config")
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from time import time
@@ -45,41 +47,8 @@ from get_access_keys import *
 #############################################################################################################
 ######################################### USER EDIT SECTION #################################################
 
-##define constants:
-hi_rest=1420.40575177
-c=2.99792458e5
-
-# Number of cores requested - GWHG
-NUMCORES = 25
-
-PLOT = True # Generate the plots - GWHG
-ASCII = True # Generate the ascii files for the linefinder - GWHG
-ARCHIVE = True # tar and push results to Acacia - GWHG
-
-# DATA PATH templates relative to CWD - GWHG
-GlobTemplate = 'data/sourceSpectra/3*'
-CatalogueTemplate = 'data/catalogues/selavy-image.i*.SB%s.cont.*taylor.0.restored*.components.xml'
-SpecHduTemplate = 'data/sourceSpectra/%s/SourceSpectra/spec_*.fits'
-ContCubeTemplate = 'data/contcubes/%s/spectra/spectrum_contcube_SB%s_component_%s.txt'
-NoiseTemplate = 'data/noise/%s/NoiseSpectra/noise_SB%s_component_%s.fits'
-OutputTemplate1 = 'outputs/%s/spectra_ascii/'
-OutputTemplate2 = 'outputs/%s/spectra_plots/'
-AsciiTemplate1 = OutputTemplate1 + 'SB%s_component_%s_opd.dat'
-AsciiTemplate2 = OutputTemplate1 + 'SB%s_component_%s_flux.dat'
-PlotTemplate = OutputTemplate2 + 'SB%s_component_%s_opd.png'
-PlotTemplate2 = OutputTemplate2 + 'SB%s_component_%s_flux.png'
-
-# Variables for optional tarring of output results
-TARPATH = '/mnt/shared/flash_test/outputs/%s' # 'root' directory for tarring operation - GWHG
-TARNAME = 'SB%s_output_plots_and_ascii.tar.gz'   # Template for tarball name - GWHG
-
-# Variables for optional storage to Acacia objectstore
-localtarpath = os.getcwd() # where the tarball is on local drive - GWHG
-endpoint = "https://projects.pawsey.org.au"
-project = "ja3"
-bucket = "flash"
-certfile = "certs.json"
-storepath = 'pilot2_outputs' # where the tarball will be relative to the bucket - GWHG
+# See config.py for most user-edit attributes
+from config import *
 
 #############################################################################################################
 #############################################################################################################
@@ -348,6 +317,8 @@ def write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd):
     data_flux = Table([freq,flux,noiseflux], names=['freq(MHz)','flux(Jy)','noise(Jy)'])
     data_opd = Table([freq,opd,noiseopd], names=['freq(MHz)','opd','opdnoise'])
     #ascii.write(data_all, '%s/spectra_plots/ascii_format/spectrum_contsub_SB%s_component_%s.txt'%(sbid,sbid,compno), include_names=['chan','freq(MHz)','redshift','flux(Jy)','noise(Jy)','opd','opdnoise'], format='commented_header', comment='#', delimiter=' ',overwrite=True)
+    if DEBUG:
+        print(f"Writing ASCII {AsciiTemplate2%(sbid,sbid,compno)}")
     ascii.write(data_flux, AsciiTemplate2%(sbid,sbid,compno), include_names=['freq(MHz)','flux(Jy)','noise(Jy)'], format='commented_header', comment='#', delimiter=' ',overwrite=True)
     
     ascii.write(data_opd, AsciiTemplate1%(sbid,sbid,compno), include_names=['freq(MHz)','opd','opdnoise'], format='commented_header', comment='#', delimiter=' ',overwrite=True)
@@ -408,7 +379,7 @@ def processComponent(sbid,filename,compid,cat_dict):
 
     # Do this instead:
     compno=os.path.splitext(filename.split('_')[-1])[0]
-    print(f'    Processing {sbid} component {compno}, compid {compid}')
+    print(f'----> {sbid} component {compno}, compid {compid}')
     try:
         spechdu = fits.open(filename) # - GWHG
     except:
@@ -507,11 +478,11 @@ def processComponent(sbid,filename,compid,cat_dict):
             noise_cat.remove_row(int(idx))
             catalog = SkyCoord(ra=noise_cat['ra']*u.degree, dec=noise_cat['dec']*u.degree)
             idx, d2d, d3d = c.match_to_catalog_sky(catalog)
-            print(noise_cat[idx][0],d2d.to(u.arcmin),"away")
+            print("Using ",noise_cat[idx][0],d2d.to(u.arcmin),"away")
             noise_compno=noise_cat[idx][0]
             noisehdu = fits.open(NoiseTemplate%(sbid,sbid,noise_compno))
         else:
-            print(noise_cat[idx][0],d2d.to(u.arcmin),"away")
+            print("Found ",noise_cat[idx][0],d2d.to(u.arcmin),"away")
             noise_compno=noise_cat[idx][0]
             noisehdu = fits.open(NoiseTemplate%(sbid,sbid,noise_compno))
             f0=noisehdu[0].header['CRVAL4']
@@ -564,7 +535,7 @@ else:
 
 robjs = []
 for sbid in sbid_list:
-    print(f'SB: {sbid}')
+    print(f'SB: {sbid} {OutputTemplate1%sbid}')
     #create output directory for plots and ascii files - GWHG
     Path(OutputTemplate1%sbid).mkdir(parents=True,exist_ok=True)
     Path(OutputTemplate2%sbid).mkdir(parents=True,exist_ok=True)
@@ -597,8 +568,12 @@ for sbid in sbid_list:
     ## Process each component file in source_list
     source_list=glob.glob(SpecHduTemplate%sbid)
     numcomponents += len(source_list)
-    with ProcessPoolExecutor(NUMCORES) as exe:
-        _ = [exe.submit(processComponent,sbid,filename,compid,cat_dict) for filename in source_list]
+    if NUMCORES==1:
+        for filename in source_list:
+            processComponent(sbid,filename,compid,cat_dict)
+    else:
+        with ProcessPoolExecutor(NUMCORES) as exe:
+            _ = [exe.submit(processComponent,sbid,filename,compid,cat_dict) for filename in source_list]
 
 
 #################################################################################################################
