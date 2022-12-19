@@ -439,7 +439,7 @@ def processComponent(sbid,filename,compid,cat_dict):
         ##for sbids without contcubes (13298/15873)
         ##Calculate spectral index based on continuum catalogue:
         curv_src=0.0 ##didn't fit curvature in pilot-1 processing. Default set to -99.        
-        if alpha_src=='-99.0':
+        if alpha_src==-99.0:
             alpha_src==-0.7
         flux_cont=calc_specindex(float(peak_flux),float(alpha_src),curv_src,float(nu_0))
         for i in flux_cont:
