@@ -34,15 +34,13 @@ import argparse
 #import numpy.ma as ma
 
 # GWHG
-# paths for running within the container:
+# config path when running within a container:
 sys.path.append("/config")
+
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from time import time
 import tarfile
-import S3Object as S3
-import json
-from get_access_keys import *
 
 #############################################################################################################
 ######################################### USER EDIT SECTION #################################################
@@ -52,6 +50,11 @@ from config import *
 
 #############################################################################################################
 #############################################################################################################
+if ARCHIVE:
+    # modules required to interface with objectstore:
+    import S3Object as S3
+    import json
+    from get_access_keys import *
 
 # Set command line options and defaults
 parser = argparse.ArgumentParser()

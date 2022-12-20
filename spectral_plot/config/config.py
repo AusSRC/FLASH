@@ -5,14 +5,12 @@
 #   GWH German, CSIRO, Nov 2022
 #
 #   This module is called by "plot_spectrals.py", which expects it to exist 
-#   in the working directory
+#   in the working directory, or in a mounted /config directory (for containers).
 #
 #####################################################################################
 import os
 import sys
 
-NUMCORES = os.cpu_count()-2
-NUMCORES = 1
 ##define constants:
 hi_rest=1420.40575177
 c=2.99792458e5
@@ -21,13 +19,14 @@ PLOT = True # Generate the plots - GWHG
 ASCII = True # Generate the ascii files for the linefinder - GWHG
 ARCHIVE = False # tar and push results to Acacia - GWHG
 DEBUG = False
+NUMCORES = 32 # Number of cores requested for multiprocessing - this will be limited to max available.
 
 # DATA PATH templates - absolute
 GlobTemplate = '/data/sourceSpectra/4*'
 CatalogueTemplate = '/data/sourceSpectra/catalogues/selavy-image.i*.SB%s.cont.*taylor.0.restored*.components.xml'
 SpecHduTemplate = '/data/sourceSpectra/%s/spec_*.fits'
 ContCubeTemplate = '/data/contcubes/%s/spectrum_contcube_SB%s_component_%s.txt'
-NoiseTemplate = '/data/sourceSpectra/noise/%s/noise_SB%s_component_%s.fits'
+NoiseTemplate = '/data/noise/%s/noise_SB%s_component_%s.fits'
 OutputTemplate1 = '/data/sourceSpectra/%s/spectra_ascii/'
 OutputTemplate2 = '/data/sourceSpectra/%s/spectra_plots/'
 AsciiTemplate1 = OutputTemplate1 + 'SB%s_component_%s_opd.dat'
