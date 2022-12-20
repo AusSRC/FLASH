@@ -42,14 +42,14 @@ from pathlib import Path
 from time import time
 import tarfile
 
-#############################################################################################################
-######################################### USER EDIT SECTION #################################################
+#########################################################################################################
+##################################### USER EDIT SECTION #################################################
 
 # See config.py for most user-edit attributes
 from config import *
 
-#############################################################################################################
-#############################################################################################################
+#########################################################################################################
+#########################################################################################################
 if ARCHIVE:
     # modules required to interface with objectstore:
     import S3Object as S3
@@ -67,8 +67,8 @@ parser.add_argument('--sbids', nargs='+', default='', type=str,
                     help='set multiple input SBIDs')
 options = parser.parse_args()
 
-#############################################################################################################
-#############################################################################################################
+#########################################################################################################
+#########################################################################################################
 
 ##func for making spectra plots
 def make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flux):
@@ -311,8 +311,8 @@ def make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flu
 
     return
 
-##############################################################################################################
-##############################################################################################################
+########################################################################################################
+########################################################################################################
 
 ## writing out ascii files for FLASHfinder (add opd + noise in one file)
 def write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd):
@@ -327,8 +327,8 @@ def write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd):
     ascii.write(data_opd, AsciiTemplate1%(sbid,sbid,compno), include_names=['freq(MHz)','opd','opdnoise'], format='commented_header', comment='#', delimiter=' ',overwrite=True)
     return
 
-##############################################################################################################
-##############################################################################################################
+########################################################################################################
+########################################################################################################
 
 def calc_specindex(I_0,alpha,beta,v0):
     S_v=[]
@@ -342,8 +342,8 @@ def calc_specindex(I_0,alpha,beta,v0):
         v_all.append(v)
     return S_v
 
-##############################################################################################################
-##############################################################################################################
+########################################################################################################
+########################################################################################################
 
 def tardirectory(path,name):
     ''' Create tarball of directories and files '''
@@ -354,8 +354,8 @@ def tardirectory(path,name):
                 thandle.add(os.path.join(root,f))
                 count += 1
     return count
-##############################################################################################################
-##############################################################################################################
+########################################################################################################
+########################################################################################################
 
 def sendTar2Objstore(sbid,localpath,storepath,certfile,endpoint,project,bucket):
     ''' Store a tarball on the Acacia objectstore '''
@@ -374,8 +374,8 @@ def sendTar2Objstore(sbid,localpath,storepath,certfile,endpoint,project,bucket):
     obj = S3.OsS3FitsObject(bucket,objname,access_id,secret_id,endpoint)
     obj.uploadLargeFile(localpath,localname,progress=False)
 
-##############################################################################################################
-##############################################################################################################
+########################################################################################################
+########################################################################################################
 
 def processComponent(sbid,filename,compid,cat_dict):
     #compno=filename.split('_')[-1].strip('.fits') # GWHG - this will not work for all filenames as strip() also removes chars multiple times, eg '15f.fits' will become '15', not '15f'
@@ -508,14 +508,14 @@ def processComponent(sbid,filename,compid,cat_dict):
         write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd)
     
     ##only plot bright sources because it takes too long. Can use this as a way to skip over the plotting step. 
-    #if peak_flux>0.5:
-    ##skip over sources already done
-    plotfile=PlotTemplate%(sbid,sbid,compno)
-    if not os.path.exists(plotfile) and PLOT:
-        make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flux)        
+    if peak_flux>PEAKFLUX:
+        ##skip over sources already done
+        plotfile=PlotTemplate%(sbid,sbid,compno)
+        if not os.path.exists(plotfile) and PLOT:
+            make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flux)        
 
-#################################################################################################################
-###################################################### Start main program #######################################
+#######################################################################################################
+############################################ Start main program #######################################
 
 numfiles = 0
 numcomponents = 0
@@ -579,8 +579,8 @@ for sbid in sbid_list:
             _ = [exe.submit(processComponent,sbid,filename,compid,cat_dict) for filename in source_list]
 
 
-#################################################################################################################
-################ Optional tarring and storing to Acacia of per SBID results #####################################
+#######################################################################################################
+###### Optional tarring and storing to Acacia of per SBID results #####################################
 
     if ARCHIVE:
         print('Tarring results')

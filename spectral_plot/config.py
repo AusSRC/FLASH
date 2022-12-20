@@ -16,6 +16,7 @@ hi_rest=1420.40575177
 c=2.99792458e5
 
 PLOT = True # Generate the plots - GWHG
+PEAKFLUX = 0.0 # Only generate the plots if the peak flux is over this value
 ASCII = True # Generate the ascii files for the linefinder - GWHG
 ARCHIVE = False # tar and push results to Acacia - GWHG
 DEBUG = False
