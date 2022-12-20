@@ -24,9 +24,20 @@ https://projects.pawsey.org.au/flash/linefinder.sif?AWSAccessKeyId=cdeab391c04c4
 # retrieve with:
 curl -X GET "https://projects.pawsey.org.au/flash/linefinder.sif?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=WnLGGw%2BWZ%2Bu8wDgQFLgLIMFezD0%3D&Expires=1670042050" --output linefinder.sif
 
-# Presigned URL for setonix scripts:
+# Presigned URL for setonix linefinder scripts:
 https://projects.pawsey.org.au/flash/setonix_scripts.tar.gz?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=1rbzodAilbW3bg5Gjq03256%2Fy2A%3D&Expires=1670638354
 
 # retrieve with:
 curl -X GET "https://projects.pawsey.org.au/flash/setonix_scripts.tar.gz?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=1rbzodAilbW3bg5Gjq03256%2Fy2A%3D&Expires=1670638354" --output setonix_scripts.tar.gz
 
+# Presigned url for spectral_plot container:
+https://projects.pawsey.org.au/flash/spectral_plot.sif?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=TkINJzqsOITAZsoCr2wUyY9OGTI%3D&Expires=1703041065
+
+# retreive with: 
+curl -X GET "https://projects.pawsey.org.au/flash/spectral_plot.sif?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=TkINJzqsOITAZsoCr2wUyY9OGTI%3D&Expires=1703041065" --output spectral_plot.sif
+
+# Presigned url for spectral_plot scripts + config:
+https://projects.pawsey.org.au/flash/setonix_spectral_scripts.tar.gz?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=8JFF43x%2FFwBZYGEro6q3Dks5vk0%3D&Expires=1703041222
+
+# retreive with:
+curl -X GET "https://projects.pawsey.org.au/flash/setonix_spectral_scripts.tar.gz?AWSAccessKeyId=cdeab391c04c41d289fe7e5fcebc8c39&Signature=8JFF43x%2FFwBZYGEro6q3Dks5vk0%3D&Expires=1703041222" --output setonix_spectral_scripts.tar.gz
