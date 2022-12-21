@@ -31,7 +31,7 @@ GlobTemplate = '/data/sourceSpectra/4*' # only used if the sbid value from "run_
 CatalogueTemplate = '/data/sourceSpectra/catalogues/selavy-image.i*.SB%s.cont.*taylor.0.restored*.components.xml' # subdirectory holding the image catalogues
 SpecHduTemplate = '/data/sourceSpectra/%s/spec_*.fits' # the component files for the given sbid
 ContCubeTemplate = '/data/contcubes/%s/spectrum_contcube_SB%s_component_%s.txt' # contcube spectra to calculate optical depth
-NoiseTemplate = '/data/noise/%s/noise_SB%s_component_%s.fits' # the noise cubes
+NoiseTemplate = '/data/sourceSpectra/noise/%s/noise_SB%s_component_%s.fits' # the noise cubes
 OutputTemplate1 = '/data/sourceSpectra/%s/spectra_ascii/' # where to create output ascii files
 OutputTemplate2 = '/data/sourceSpectra/%s/spectra_plots/' # where to create output plot png files
 

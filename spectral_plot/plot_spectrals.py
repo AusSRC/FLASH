@@ -538,7 +538,7 @@ else:
 
 robjs = []
 for sbid in sbid_list:
-    print(f'SB: {sbid} {OutputTemplate1%sbid}')
+    print(f'SB: {sbid} Output to: {OutputTemplate1%sbid}')
     #create output directory for plots and ascii files - GWHG
     Path(OutputTemplate1%sbid).mkdir(parents=True,exist_ok=True)
     Path(OutputTemplate2%sbid).mkdir(parents=True,exist_ok=True)
@@ -591,4 +591,7 @@ for sbid in sbid_list:
         sendTar2Objstore(sbid,localtarpath,storepath,certfile,endpoint,project,bucket)
         print(f'tarball stored to Acacia for SB{sbid}')
 
-print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs, num components = {numcomponents}, num output files = {numfiles}')   # 1640s for SB34571 
+        print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs, num components = {numcomponents}, num output files = {numfiles}')   # 1640s for SB34571 
+    else:
+        print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs, num components = {numcomponents}, num output files = not known')   # 1640s for SB34571 
+        
