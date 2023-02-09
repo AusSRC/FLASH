@@ -8,6 +8,7 @@
 #
 ######################################################################################
 ######################################################################################
+mkdir -p "$1"/outputs/logs
 
 sbatch <<EOT
 #!/bin/bash
@@ -20,7 +21,6 @@ sbatch <<EOT
 #SBATCH --mem=75G
 
 module load singularity/3.8.6
-mkdir -p "$1"/outputs/logs
 echo "Started with $1: $2"
 singularity exec --bind "$1":/data,"$2":/config linefinder.sif /home/flash/FLASH/pipeline/run_linefinder.sh
 

@@ -11,6 +11,11 @@ module load corner
 # For singularity:
 module load singularity/3.8.6
 
+# For python requests:
+module use /software/setonix/current/modules/zen3/gcc/12.1.0/dependencies/
+module load .py-requests/2.25.1-t2rvudo
+
+
 ##########################################################################################
 # Below are the presigned URLs for downloading the container and scripts from Acacia.
 #

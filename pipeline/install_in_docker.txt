@@ -70,6 +70,9 @@ sudo docker run -v /mnt/shared/flash_test:/mnt/shared --user flash -it ubuntu:fl
 
 % exit
 
+# Above if done in Dockerfile can be built with:
+#   docker build -t objectstore ./
+#    
 # save your image:
 sudo docker ps -l
 sudo docker commit <container_id> aussrc/flashfinder
@@ -81,7 +84,9 @@ docker push aussrc/flashfinder
 # now can run without the mounted host files:
 sudo docker run  -it --user flash aussrc/flashfinder
 
-# Above done in Dockerfile 
+# Or to enter container as root:
+docker exec -it -u root aussrc/flashfinder bash
+
 
 # Rerun with - mount data to /data, config to /config:
 docker run -v /home/ger063/src/flash_data/testing/test_run/data/33616/spectra_ascii:/data -v /home/ger063/src/flash_data/testing/test_run/chains:/outputs --user flash -it aussrc/flashfinder
