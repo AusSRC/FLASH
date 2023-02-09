@@ -321,7 +321,7 @@ def write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd):
     data_opd = Table([freq,opd,noiseopd], names=['freq(MHz)','opd','opdnoise'])
     #ascii.write(data_all, '%s/spectra_plots/ascii_format/spectrum_contsub_SB%s_component_%s.txt'%(sbid,sbid,compno), include_names=['chan','freq(MHz)','redshift','flux(Jy)','noise(Jy)','opd','opdnoise'], format='commented_header', comment='#', delimiter=' ',overwrite=True)
     if DEBUG:
-        print(f"Writing ASCII {AsciiTemplate2%(sbid,sbid,compno)}")
+        print(f"---- ----> Writing ASCII {AsciiTemplate2%(sbid,sbid,compno)}")
     ascii.write(data_flux, AsciiTemplate2%(sbid,sbid,compno), include_names=['freq(MHz)','flux(Jy)','noise(Jy)'], format='commented_header', comment='#', delimiter=' ',overwrite=True)
     
     ascii.write(data_opd, AsciiTemplate1%(sbid,sbid,compno), include_names=['freq(MHz)','opd','opdnoise'], format='commented_header', comment='#', delimiter=' ',overwrite=True)
@@ -377,16 +377,17 @@ def sendTar2Objstore(sbid,localpath,storepath,certfile,endpoint,project,bucket):
 ########################################################################################################
 ########################################################################################################
 
-def processComponent(sbid,filename,compid,cat_dict):
-    #compno=filename.split('_')[-1].strip('.fits') # GWHG - this will not work for all filenames as strip() also removes chars multiple times, eg '15f.fits' will become '15', not '15f'
+def processComponent(sbid,specfile,cat_dict):
+    #compno=specfile.split('_')[-1].strip('.fits') # GWHG - this will not work for all filenames as strip() also removes chars multiple times, eg '15f.fits' will become '15', not '15f'
 
     # Do this instead:
-    compno=os.path.splitext(filename.split('_')[-1])[0]
+    compno=os.path.splitext(specfile.split('_')[-1])[0]
+    compid='SB%s_component_%s' % (sbid,compno)
     print(f'----> {sbid} component {compno}, compid {compid}')
     try:
-        spechdu = fits.open(filename) # - GWHG
+        spechdu = fits.open(specfile) # - GWHG
     except:
-        print("Can't find spectrum for %s" %compno)
+        print("----> Can't find spectrum for %s" %compno)
         return
     f0=spechdu[0].header['CRVAL4']
     df=spechdu[0].header['CDELT4']
@@ -439,6 +440,8 @@ def processComponent(sbid,filename,compid,cat_dict):
             opd.append(flux[i]/contflux_freq[i])
 
     else:
+        if DEBUG:
+            print(f'----> Cannot find contcube {contcube_path}')
         ##for sbids without contcubes (13298/15873)
         ##Calculate spectral index based on continuum catalogue:
         curv_src=0.0 ##didn't fit curvature in pilot-1 processing. Default set to -99.        
@@ -449,9 +452,12 @@ def processComponent(sbid,filename,compid,cat_dict):
             contflux_freq+=[i]*54     ##multiply each entry by 54 to get same number of channels, surely not the best way to do this!
         for i in np.arange(0,len(flux)):
             opd.append(flux[i]/contflux_freq[i])
-    #find corresponding noise spectra 
+    #find corresponding noise spectra
+    noisefile = glob.glob(NoiseTemplate%(sbid,sbid,compno))[0]
+    if DEBUG:
+        print(f'----> Noise: Trying to open {noisefile}')
     try:
-        noisehdu = fits.open(NoiseTemplate%(sbid,sbid,compno))
+        noisehdu = fits.open(noisefile)
         f0=noisehdu[0].header['CRVAL4']
         df=noisehdu[0].header['CDELT4']
         noisespec = noisehdu[0].data
@@ -468,26 +474,31 @@ def processComponent(sbid,filename,compid,cat_dict):
             noiseopd.append(dataopdnoise)
                 
     except:
-        print("No noise spectra for %s, find closest bright component (>50mJy)"%compno)
+        if DEBUG:
+            noiseexists = os.path.exists(noisefile)
+            print(f'----> Does {noisefile} exist: {noiseexists}')
+            if noiseexists:
+                print(f'---- ----> {noisefile} exists, "try" loop exited for some other reason')
+        print("----> No noise spectra for %s, find closest bright component (>50mJy)"%compno)
         #find closest match to noise_cat
         c = SkyCoord(ra=ra*u.degree, dec=dec*u.degree)
         catalog = SkyCoord(ra=noise_cat['ra']*u.degree, dec=noise_cat['dec']*u.degree)
         idx, d2d, d3d = c.match_to_catalog_sky(catalog)
         print(noise_cat[idx][0],d2d.to(u.arcmin),"away")
         noise_compno=noise_cat[idx][0]
-        noisepath = NoiseTemplate%(sbid,sbid,noise_compno)
+        noisepath = glob.glob(NoiseTemplate%(sbid,sbid,noise_compno))[0]
         if not os.path.exists(noisepath):
-            print('noise spectra missing for some reason, find next closest source')
+            print(f'----> noise spectra {noisepath} missing for some reason, find next closest source')
             noise_cat.remove_row(int(idx))
             catalog = SkyCoord(ra=noise_cat['ra']*u.degree, dec=noise_cat['dec']*u.degree)
             idx, d2d, d3d = c.match_to_catalog_sky(catalog)
-            print("Using ",noise_cat[idx][0],d2d.to(u.arcmin),"away")
+            print("----> Using ",noise_cat[idx][0],d2d.to(u.arcmin),"away")
             noise_compno=noise_cat[idx][0]
-            noisehdu = fits.open(NoiseTemplate%(sbid,sbid,noise_compno))
+            noisehdu = fits.open(glob.glob(NoiseTemplate%(sbid,sbid,noise_compno))[0])
         else:
-            print("Found ",noise_cat[idx][0],d2d.to(u.arcmin),"away")
+            print("----> Found ",noise_cat[idx][0],d2d.to(u.arcmin),"away")
             noise_compno=noise_cat[idx][0]
-            noisehdu = fits.open(NoiseTemplate%(sbid,sbid,noise_compno))
+            noisehdu = fits.open(glob.glob(NoiseTemplate%(sbid,sbid,noise_compno))[0])
             f0=noisehdu[0].header['CRVAL4']
             df=noisehdu[0].header['CDELT4']
             noisespec = noisehdu[0].data
@@ -512,7 +523,9 @@ def processComponent(sbid,filename,compid,cat_dict):
         ##skip over sources already done
         plotfile=PlotTemplate%(sbid,sbid,compno)
         if not os.path.exists(plotfile) and PLOT:
-            make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flux)        
+            make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flux)  
+    elif DEBUG:
+        print(f'---- ----> No plotfiles. Peak flux too low ({peak_flux})')      
 
 #######################################################################################################
 ############################################ Start main program #######################################
@@ -538,7 +551,8 @@ else:
 
 robjs = []
 for sbid in sbid_list:
-    print(f'SB: {sbid} Output to: {OutputTemplate1%sbid}')
+    if DEBUG:
+        print(f'SB: {sbid} Output to: {OutputTemplate1%sbid}')
     #create output directory for plots and ascii files - GWHG
     Path(OutputTemplate1%sbid).mkdir(parents=True,exist_ok=True)
     Path(OutputTemplate2%sbid).mkdir(parents=True,exist_ok=True)
@@ -572,11 +586,11 @@ for sbid in sbid_list:
     source_list=glob.glob(SpecHduTemplate%sbid)
     numcomponents += len(source_list)
     if NUMCORES==1:
-        for filename in source_list:
-            processComponent(sbid,filename,compid,cat_dict)
+        for specfile in source_list:
+            processComponent(sbid,specfile,cat_dict)
     else:
         with ProcessPoolExecutor(NUMCORES) as exe:
-            _ = [exe.submit(processComponent,sbid,filename,compid,cat_dict) for filename in source_list]
+            _ = [exe.submit(processComponent,sbid,specfile,cat_dict) for specfile in source_list]
 
 
 #######################################################################################################
