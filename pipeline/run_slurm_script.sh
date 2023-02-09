@@ -16,13 +16,17 @@ jid1=$(/bin/bash ./run_container.sh /scratch/ja3/ger063/flash/data4 /scratch/ja3
 jid2=$(/bin/bash ./run_container.sh /scratch/ja3/ger063/flash/data4 /scratch/ja3/ger063/flash/config4)
 jid3=$(/bin/bash ./run_container.sh /scratch/ja3/ger063/flash/data4 /scratch/ja3/ger063/flash/config5)
 
+# dependent collection job:
+jid4=$(sbatch --dependency=afterok:$j1:$j2:$j3 collect_results.sh /scratch/ja3/ger063/flash/data4)
+
 j1=$(echo $jid1 | awk '{print $4}')
 j2=$(echo $jid2 | awk '{print $4}')
 j3=$(echo $jid3 | awk '{print $4}')
+j3=$(echo $jid4 | awk '{print $4}')
 echo "Sumbitted jobs"
 echo $j1
 echo $j2
 echo $j3
+echo $j4
 
-jid4=$(sbatch --dependency=afterok:$j1:$j2:$j3 collect_results.sh /scratch/ja3/ger063/flash/data4)
 
