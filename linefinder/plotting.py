@@ -163,11 +163,7 @@ def bestfit_spectrum(options,source,model):
                 ax1.plot(x_data, y_line[j], color='g', linestyle='--',zorder=0)
                 truth = [np.abs(y_line[j])==np.max(np.abs(y_line[j]))]
                 comp_index = np.where(ymax_sort == ymax[j])
-                #ax1.text(np.mean(x_data[truth])-1.*x_diff,
-                #                    np.max(y_contsub),
-                #                    '%d'%(comp_index[0]+1),
-                #                    color='g',
-                #                    fontsize=font_size-2)
+                ax1.text(np.mean(x_data[truth])-1.*x_diff, np.max(y_contsub), '%d'%(comp_index[0]+1), color='g', fontsize=font_size-2)
 
 
         # Add evidence value to plot

@@ -26,6 +26,8 @@ parser.add_argument('--efr', default=0.3, type=float,
                     help='sampling efficiency used in MultiNest')
 parser.add_argument('--flux_limit', default=1.0e99, type=float,
                     help='maximum possible value for spectral line parametrisation')
+parser.add_argument('--ini_path', default='/config/linefinder.ini', type=str,
+                    help='path to ini config file')
 parser.add_argument('--init_MPI', action='store_true', default=False,
                     help='use MPI in MultiNest')
 parser.add_argument('--invert_spectra', action='store_true', default=False,
@@ -46,6 +48,8 @@ parser.add_argument('--nondet_vel', default=100.0, type=float,
                     help='spectral line FWHM used for non-detections')
 parser.add_argument('--noise_factor', default=1.0, type=float,
                     help='factor by which to multiply the noise in the data')
+parser.add_argument('--numthreads', default=1, type=int, 
+                    help='number of threads to use for data partitioning')
 parser.add_argument('--out_path', default=os.getcwd()+'/chains/', type=str,
                     help='full path to output')
 parser.add_argument('--param_out', choices = ['maxl','median'], default='maxl', type=str,

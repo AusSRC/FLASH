@@ -43,8 +43,6 @@ initialize_directories(options)
 
 # Multiprocessing -GWHG:
 from concurrent.futures import ProcessPoolExecutor
-# Number of cores requested - GWHG
-NUMCORES = os.cpu_count()-2
 PROCESS = True
 
 starttime = time()
@@ -122,7 +120,6 @@ def processSource(line,source_count,proc_num):
     chisq = calculate_chisquared(options,source.spectrum,empty)
     model.output.null.logZ = -0.5*chisq
 
-    # Initialize MultiNest arguments
     mnest_args = initialize_mnest(options,source,model)
 
     # Run pymultinest to fit for continuum only
@@ -200,7 +197,8 @@ def processSource(line,source_count,proc_num):
 
 ##############################################################################################################################
 ############################################ START MAIN PROGRAM ##############################################################
-
+# Number of threads requested for data partitioning - GWHG
+NUMTHREADS = options.numthreads
     
 print('\n\n******************************************************************************')
 print('                                 FLASH FINDER')
@@ -208,10 +206,16 @@ print('')
 print('Python program to use MultiNest for spectral-line detection and modelling')
 print('')
 print('Copyright 2018 James R. Allison. All rights reserved.')
+print('')
+print(f'Number threads for data partition: {NUMTHREADS}')
 print('******************************************************************************\n')
 
 # Check if default command line args have changed in config file:
-options = checkOptionsOverride(options)
+print(f'ini_path = {options.ini_path}')
+if os.path.exists(options.ini_path):
+    options = checkOptionsOverride(options,filename=options.ini_path)
+else:
+    options = checkOptionsOverride(options)
 
 # Read source information from file or list spectra in directory
 source_list = Table()
@@ -239,7 +243,7 @@ if PROCESS:
 
     # Loop program over each source spectral data 
     print("looping over sources")
-    with ProcessPoolExecutor(NUMCORES) as exe:
+    with ProcessPoolExecutor(max_workers=NUMTHREADS) as exe:
         _ = [exe.submit(processSource,line,sourcenum,sourcenum) for sourcenum,line in enumerate(source_list)]
 
 timed = time() - starttime
