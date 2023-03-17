@@ -198,7 +198,7 @@ def processSource(line,source_count,proc_num):
 ##############################################################################################################################
 ############################################ START MAIN PROGRAM ##############################################################
 # Number of threads requested for data partitioning - GWHG
-NUMTHREADS = options.numthreads
+NUMTHREADS = options.numthreads if options.numthreads < (os.cpu_count()-1) else (os.cpu_count()-1)
     
 print('\n\n******************************************************************************')
 print('                                 FLASH FINDER')
@@ -210,10 +210,11 @@ print('')
 print(f'Number threads for data partition: {NUMTHREADS}')
 print('******************************************************************************\n')
 
-# Check if default command line args have changed in config file:
-print(f'ini_path = {options.ini_path}')
-if os.path.exists(options.ini_path):
-    options = checkOptionsOverride(options,filename=options.ini_path)
+# By default, the initialisation file is expected to be '/config/linefinder.ini' (for container
+# reasons). However, this can be overridden on the command line with '--inifile <filepath>'
+print(f'ini file = {options.inifile}')
+if options.inifile:
+    options = checkOptionsOverride(options,filename=options.inifile)
 else:
     options = checkOptionsOverride(options)
 

@@ -26,8 +26,8 @@ parser.add_argument('--efr', default=0.3, type=float,
                     help='sampling efficiency used in MultiNest')
 parser.add_argument('--flux_limit', default=1.0e99, type=float,
                     help='maximum possible value for spectral line parametrisation')
-parser.add_argument('--ini_path', default='/config/linefinder.ini', type=str,
-                    help='path to ini config file')
+parser.add_argument('--inifile', default='/config/linefinder.ini',
+                    help='initialisation file')
 parser.add_argument('--init_MPI', action='store_true', default=False,
                     help='use MPI in MultiNest')
 parser.add_argument('--invert_spectra', action='store_true', default=False,
