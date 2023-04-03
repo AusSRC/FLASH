@@ -118,3 +118,16 @@ find . -type f -name "results_*.dat" -exec awk 'NR==1 || FNR>1' {} + > 'results_
 
 find /data -type f -name "results_*.dat" -exec awk 'NR==1 || FNR>1' {} + > '/data/results$$_inverted_all.txt'
 
+##############################################################################
+############ STORE TO ACACIA, PRESIGNED URL GENERATION #######################
+
+mc alias set acacia https://projects.pawsey.org.au cdeab391c04c41d289fe7e5fcebc8c39 238d5dfbb91741318c5c0bd7b9c3fa61
+
+mc cp linefinder.sif acacia/aussrc/flash/linefinder.sif 
+
+# In Python:
+
+
+
+
+

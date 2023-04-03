@@ -397,8 +397,14 @@ def processComponent(sbid,specfile,cat_dict):
     compname=str(cat_dict[compno][0]).strip("b'")
     ra=cat_dict[compno][1]
     dec=cat_dict[compno][2]
+
     alpha_src=cat_dict[compno][4]
     curv_src=cat_dict[compno][5]
+    # Check if "-99" = N/A, and set default values
+    if float(alpha_src) ==-99.0:
+        alpha_src = -0.7
+    if float(curv_src) == -99.0:
+        curv_src = 0.0
 
     chan=[]
     freq=[]
@@ -444,9 +450,7 @@ def processComponent(sbid,specfile,cat_dict):
             print(f'----> Cannot find contcube {contcube_path}')
         ##for sbids without contcubes (13298/15873)
         ##Calculate spectral index based on continuum catalogue:
-        curv_src=0.0 ##didn't fit curvature in pilot-1 processing. Default set to -99.        
-        if alpha_src==-99.0:
-            alpha_src==-0.7
+        #curv_src=0.0 ##didn't fit curvature in pilot-1 processing. Default set to -99.        
         flux_cont=calc_specindex(float(peak_flux),float(alpha_src),curv_src,float(nu_0))
         for i in flux_cont:
             contflux_freq+=[i]*54     ##multiply each entry by 54 to get same number of channels, surely not the best way to do this!

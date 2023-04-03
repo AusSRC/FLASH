@@ -8,11 +8,13 @@ export FLASHHOME
 FINDER=$FLASHHOME/linefinder 
 export FINDER
 
-# Set path to MULTINEST
-export MULTINEST=$FLASHHOME/PyMultiNest/MultiNest
-
 # Set path to PYMULTINEST
 export PYMULTINEST=$FLASHHOME/PyMultiNest
+# For MPI verison:
+#export PYMULTINEST=$FLASHHOME/PyMultiNest_MPI
+
+# Set path to MULTINEST
+export MULTINEST=$PYMULTINEST/MultiNest
 
 # Add MultiNest library to dynamic library path
 export DYLD_LIBRARY_PATH=$MULTINEST/lib:${DYLD_LIBRARY_PATH}
