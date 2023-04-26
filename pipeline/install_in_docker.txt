@@ -127,6 +127,15 @@ mc cp linefinder.sif acacia/aussrc/flash/linefinder.sif
 
 # In Python:
 
+##############################################################################
+########### Running locally in container #####################################
+
+singularity shell --bind /scratch/ja3/ger063/data/sourceSpectra/45833/spectra_ascii:/data,/scratch/ja3/ger063/config:/config linefinder.sif
+
+cd /home/flash/FLASH/pipeline
+source set_local_env.sh
+python3 $FINDER/flash_finder_NOMPI.py --out_path /data/outputs --data_path /data --sourcelog /config/sources.log --model_path /config/model.txt
+
 
 
 
