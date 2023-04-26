@@ -1,6 +1,17 @@
+#########################################################################################
+#
+#   Script to identify spectral ascii files that only contain NaN values for noise
+#
+#   GWHG @ CSIRO Apr 2023
+#
+#########################################################################################
+
 import os
 import os.path
 import sys
+
+def usage():
+    print("python3 pre_process.py <directory containing spectral ascii files>")
 
 def flagNoiseInOpd(name):
     data = []
@@ -13,7 +24,13 @@ def flagNoiseInOpd(name):
                 return True
     return False
 
+##########################################################################################
+##########################################################################################
+
 if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        usage()
+        sys.exit()
     dir_name = sys.argv[1]
     with os.scandir(dir_name) as listings:
         for listing in listings:
