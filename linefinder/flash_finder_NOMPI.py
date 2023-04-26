@@ -33,6 +33,7 @@ from initialize import *
 from fitting import *
 from output import *
 from time import time
+import random
 
 from plotting import *
 # Switch off warnings
@@ -113,8 +114,7 @@ def processSource(line,source_count,proc_num):
     # Initialize and generate model object
     model = Model()
     model.input.generate_model(options,source)
-    initialize_resultsfile(options,model,os.getpid())
-
+ 
     # Calculate the null evidence
     empty = np.zeros(source.spectrum.ndata)
     chisq = calculate_chisquared(options,source.spectrum,empty)
@@ -172,7 +172,8 @@ def processSource(line,source_count,proc_num):
     # Report the number of detections
     model.output.ndetections = 0
     for mode in model.output.sline.get_mode_stats()['modes']:
-        mode_evidence = mode['local log-evidence']            
+        mode_evidence = mode['local log-evidence']    
+        print(f"mode_evidence = {mode_evidence}")        
         if mode_evidence >= options.detection_limit:
             model.output.ndetections += 1
     if model.output.ndetections == 1:
@@ -181,7 +182,7 @@ def processSource(line,source_count,proc_num):
         print(f"\nProcess {proc_num}, Source {source.info['name']}: {model.output.ndetections} spectral lines detected\n")
 
     # Write results to file
-    write_resultsfile(options,source,model,os.getpid())
+    #write_resultsfile(options,source,model,os.getpid(),name=results_file)
 
     # Make grahpical output
     if options.plot_switch:
@@ -193,12 +194,10 @@ def processSource(line,source_count,proc_num):
         # Make plot of best-fitting spectrum for each mode
         bestfit_spectrum(options,source,model)
 
-    return
+    return (model,source)
 
 ##############################################################################################################################
 ############################################ START MAIN PROGRAM ##############################################################
-# Number of threads requested for data partitioning - GWHG
-NUMTHREADS = options.numthreads if options.numthreads < (os.cpu_count()-1) else (os.cpu_count()-1)
     
 print('\n\n******************************************************************************')
 print('                                 FLASH FINDER')
@@ -207,7 +206,6 @@ print('Python program to use MultiNest for spectral-line detection and modelling
 print('')
 print('Copyright 2018 James R. Allison. All rights reserved.')
 print('')
-print(f'Number threads for data partition: {NUMTHREADS}')
 print('******************************************************************************\n')
 
 # By default, the initialisation file is expected to be '/config/linefinder.ini' (for container
@@ -217,6 +215,10 @@ if options.inifile:
     options = checkOptionsOverride(options,filename=options.inifile)
 else:
     options = checkOptionsOverride(options)
+
+# Number of threads requested for data partitioning - GWHG
+NUMTHREADS = options.numthreads if options.numthreads < (os.cpu_count()-1) else (os.cpu_count()-1)
+print(f'Number threads for data partition: {NUMTHREADS}, asked for: {options.numthreads}')
 
 # Read source information from file or list spectra in directory
 source_list = Table()
@@ -235,17 +237,45 @@ if 'name' not in source_list.colnames:
     print(f"\nPlease specify source names in {options.data_path+'sources.log'}\n")
     sys.exit(1)
 
-print('\nInitializing output results file.\n')
 source = Source()
 model = Model()
 model.input.generate_model(options,source)
+
+# Initialise output report file
+os.system(f"mkdir -p {options.out_path}")
+results_file = f"{options.out_path}/results_{os.getpid()}.dat"
+while os.path.exists(results_file):
+    # This should never really happen - but in the rare case where pid's
+    # have been reused ....
+    rand = random.randint(-1000000,1000000)
+    results_file = f"{options.out_path}/results_{os.getpid()}_{rand}.dat"
+initialize_resultsfile(options,model,os.getpid(),name=results_file)
+
 
 if PROCESS:
 
     # Loop program over each source spectral data 
     print("looping over sources")
-    with ProcessPoolExecutor(max_workers=NUMTHREADS) as exe:
-        _ = [exe.submit(processSource,line,sourcenum,sourcenum) for sourcenum,line in enumerate(source_list)]
+    returns = []
+    if NUMTHREADS > 1:
+        with ProcessPoolExecutor(max_workers=NUMTHREADS) as exe:
+            for sourcenum,line in enumerate(source_list):
+                ret = exe.submit(processSource,line,sourcenum,sourcenum)
+                returns.append(ret)
+        # Write out results
+        print(f"Writing results to {results_file}")
+        for ret in returns:
+            (model,source) = ret.result()
+            write_resultsfile(options,source,model,os.getpid(),name=results_file)
+
+    else:  
+        for sourcenum,line in enumerate(source_list):
+            ret = processSource(line,sourcenum,sourcenum)
+            returns.append(ret)
+        # Write out results
+        print(f"Writing results to {results_file}")
+        for (model,source) in returns:
+            write_resultsfile(options,source,model,os.getpid(),name=results_file)
 
 timed = time() - starttime
 print(f"Linefinder took {timed:.2f} sec for {len(source_list)} components")
