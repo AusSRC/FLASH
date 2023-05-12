@@ -5,7 +5,6 @@ import time
 import datetime as dt
 import os.path
 import tarfile
-
 import psycopg2
 
 ##################################### USER SET VARIABLES ###################################################
@@ -55,7 +54,7 @@ RUN_TYPE = "spectral"
 
 # 2. List of sbids to process. On slow connections, you might need to do this one sbid at a time, as per the example,
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [45762] #45823 45833 45815 45835 45762 45828 - 45825 has two ascii dirs??
+SBIDS = [45815] #45815 45823 45833 45835 45762 45828 - 45825 has two ascii dirs??
 
 # 3. Top level directory holding the SBID subdirs:
 DATA_DIR = "/home/ger063/src/flash_data"
@@ -224,8 +223,6 @@ def remove_sbid_from_spectral(cur,sbid,runid):
         cur.execute(detect_stat,(sbids,runid))
         print(f"    -- Updated spect_run {runid}")
 
-    
-
 def delete_detection(conn,runid):
 
     cur = get_cursor(conn)
@@ -254,6 +251,7 @@ def delete_detection(conn,runid):
     return cur
 
 #########################################################################################################################
+############################## Uploading to DB ##########################################################################
 #########################################################################################################################
 
 
@@ -313,11 +311,15 @@ def check_sbids(cur,SBIDS,table="spect_run"):
 
 ###############################################
 
-def tar_dir(name,source_dir,recursive = False):
-    """ By default, only tars up files, not subdirectories"""
+def tar_dir(name,source_dir,):
+    """ Only tars up files, not subdirectories"""
+    files = (file for file in os.listdir(source_dir) if os.path.isfile(os.path.join(source_dir, file)))
+    tar = tarfile.open(name, "w:gz")
+    for file in files:
+        tar.add(f"{source_dir}/{file}")
 
-    with tarfile.open(name, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.basename(source_dir),recursive=recursive) 
+    #with tarfile.open(name, "w:gz") as tar:
+    #    tar.add(source_dir, arcname=os.path.basename(source_dir),recursive=recursive) 
 
 ###############################################
 def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
@@ -400,10 +402,13 @@ def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_
  
     # tar up the config files:
     config_tarball = f"{TMP_TAR_DIR}/detect_config.tar.gz"
-    tar_dir(config_tarball,config_dir)
-    config_data = None
-    with open(config_tarball,'rb') as f:
-        config_data = f.read()
+    try:
+        tar_dir(config_tarball,config_dir)
+        config_data = None
+        with open(config_tarball,'rb') as f:
+            config_data = f.read()
+    except FileNotFoundError:
+        pass
 
     # Add the results file
     results = ""
