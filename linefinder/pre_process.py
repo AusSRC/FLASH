@@ -11,7 +11,7 @@ import os.path
 import sys
 
 def usage():
-    print("python3 pre_process.py <directory containing spectral ascii files>")
+    print("python3 pre_process.py <list of directories of spectral ascii files> <directory to move bad files to>")
 
 def flagNoiseInOpd(name):
     data = []
@@ -28,12 +28,17 @@ def flagNoiseInOpd(name):
 ##########################################################################################
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         usage()
         sys.exit()
-    dir_name = sys.argv[1]
-    with os.scandir(dir_name) as listings:
-        for listing in listings:
-            flag = flagNoiseInOpd(f"{dir_name}/{listing.name}")
+    dirnames = sys.argv[1:-1]
+    bad_files_dir = sys.argv[-1]
+    os.system(f"mkdir -p {bad_files_dir}")
+    for dirname in dirnames:
+        print(f"Processing directory {dirname}")
+        files = (file for file in os.listdir(dirname) if os.path.isfile(os.path.join(dirname, file)))
+        for name in files:
+            flag = flagNoiseInOpd(f"{dirname}/{name}")
             if not flag:
-                print(listing.name,f" : {flag}")
+                print(f"{name} : Bad NaN values - moving file")
+                os.system(f"mv {dirname}/{name} {bad_files_dir}")
