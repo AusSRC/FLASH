@@ -541,7 +541,12 @@ sbid_list = []
 # Check the number of cores is realistic: - GWHG
 NUMCORES = NUMCORES if NUMCORES < (os.cpu_count()-1) else (os.cpu_count()-2)
 
-starttime = time()
+try:
+    starttime = time()
+except TypeError:
+    print("Time module not loaded correctly - ignoring")
+    starttime = 0
+
 print(f'Started with sbids: {options.sbids}, number cores: {NUMCORES}')
 # Default override
 if options.sbids=='all' or options.sbid=='all':
@@ -608,8 +613,11 @@ for sbid in sbid_list:
         print('Sending to objectstore')
         sendTar2Objstore(sbid,localtarpath,storepath,certfile,endpoint,project,bucket)
         print(f'tarball stored to Acacia for SB{sbid}')
-
-        print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs, num components = {numcomponents}, num output files = {numfiles}')   # 1640s for SB34571 
+        print(f'Finished {len(sbid_list)} SBs, num components = {numcomponents}, num output files = {numfiles}')
+        if starttime != 0:
+            print(f'Job took {time()-starttime} sec')   # 1640s for SB34571 
     else:
-        print(f'Job took {time()-starttime} sec for {len(sbid_list)} SBs, num components = {numcomponents}, num output files = not known')   # 1640s for SB34571 
+        print(f'Finished {len(sbid_list)} SBs, num components = {numcomponents}')
+        if starttime != 0:
+            print(f'Job took {time()-starttime} sec')   # 1640s for SB34571 
         
