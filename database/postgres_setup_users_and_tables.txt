@@ -1,0 +1,120 @@
+# flashdb is hosted on 146.118.64.208
+
+sudo -u postgres psql
+create user flash with password 'aussrc';
+drop database flashdb with (FORCE);
+create database flashdb;
+grant all privileges on database flashdb to flash;
+
+# Re-login as flash user:
+psql -U flash -d flashdb
+
+# Create the tables:
+
+create table spect_run (
+    id int generated always as identity PRIMARY KEY,
+    SBIDs int[],
+    config_tar bytea,
+    errlog text,
+    stdlog text,
+    platform varchar(50),
+    date TIMESTAMP
+);
+
+create table detect_run (
+    id int generated always as identity PRIMARY KEY,
+    SBIDs int[],
+    config_tar bytea,
+    errlog text,
+    stdlog text,
+    result_filepath varchar(100),
+    results text,
+    platform varchar(50),
+    date TIMESTAMP
+);
+
+create table SBID (
+    id int PRIMARY KEY,
+    spect_runid int,
+    detect_runid int,
+    spectralF boolean,
+    detectionF boolean,
+    ascii_tar oid,
+    detect_tar oid,
+    quality varchar(50)
+);
+
+create table component (
+    comp_id varchar(100) PRIMARY KEY,
+    sbid int NOT NULL,
+    processState varchar(50) NOT NULL,
+    opd_plotname varchar(100),
+    flux_plotname varchar(100),
+    opd_image bytea,
+    flux_image bytea,
+    spectral_date TIMESTAMP,
+    detection_date TIMESTAMP,
+    constraint fk_sbid
+        foreign key(sbid) references SBID(id) on delete cascade
+);
+
+#########################################################################################
+######### NOT USED ######################################################################
+
+create table spectral_plot (
+    plot_id varchar(100) PRIMARY KEY,
+    comp_id varchar(100) NOT NULL,
+    runid int,
+    creation_date TIMESTAMP NOT NULL,
+    plot_type varchar(20) NOT NULL,
+    platform varchar(50),
+    plot bytea NOT NULL,
+    constraint fk_run
+        foreign key(runid) references spect_run(id)
+        on delete cascade,
+    constraint fk_comp
+        foreign key(comp_id) references component(comp_id)
+        on delete cascade
+);
+
+create table detection (
+    id int generated always as identity PRIMARY KEY,
+    comp_id varchar(100) NOT NULL,
+    runid int,
+    creation_date TIMESTAMP NOT NULL,
+    platform varchar(50),
+    constraint fk_comp
+        foreign key(comp_id) references component(comp_id)
+        on delete cascade,
+    constraint fk_run
+        foreign key(runid) references detect_run(id)
+        on delete cascade
+);
+
+#########################################################################################
+######## Delelte tables ######################################
+drop table detection cascade;
+drop table spectral_plot cascade;
+drop table component cascade;
+drop table sbid cascade;
+drop table detect_run cascade;
+drop table spect_run cascade;
+
+
+# To read in binary/text data, user flash needs the following grants.
+# Add as superuser (attached to 'flashdb' database) :
+GRANT EXECUTE ON FUNCTION pg_read_binary_file(text) TO flash;
+GRANT EXECUTE ON FUNCTION pg_read_binary_file(text,bigint,bigint) TO flash;
+GRANT EXECUTE ON FUNCTION pg_read_binary_file(text,bigint,bigint,boolean) TO flash;
+GRANT EXECUTE ON FUNCTION pg_read_file(text) TO flash;
+GRANT EXECUTE ON FUNCTION pg_read_file(text,bigint,bigint) TO flash;
+GRANT EXECUTE ON FUNCTION pg_read_file(text,bigint,bigint,boolean) TO flash;
+    
+######### ADDING DATA ###########################################
+######### with SQL:
+
+# install psycopg2
+sudo apt install pip
+sudo apt-get install --reinstall libpq-dev
+sudo pip install psycopg2
+
