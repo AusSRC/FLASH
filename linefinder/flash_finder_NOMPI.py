@@ -35,7 +35,6 @@ from output import *
 from time import time
 import random
 
-from plotting import *
 # Switch off warnings
 warnings.simplefilter("ignore")
 
@@ -98,7 +97,7 @@ def processSource(line,source_count,proc_num):
     source.info = line
 
     # Report source name 
-    print(f"\nProcess {proc_num}: Working on Source {source.info['name']}\n")
+    print(f"\nProcess {proc_num}: Working on Source {source.info['name']}\n",flush=True)
 
     # Assign output root name
     options.out_root = '%s/%s' % (options.out_path,source.info['name'])
@@ -108,8 +107,8 @@ def processSource(line,source_count,proc_num):
     if os.path.exists(source.spectrum.filename):
         source.spectrum.generate_data(options)
     else:
-        print(f"\nProcess {proc_num}: Spectrum for source {source.info['name']} does not exist. Ignoring it.\n")
-        return
+        print(f"\nProcess {proc_num}: Spectrum for source {source.info['name']} does not exist. Ignoring it.\n",flush=True)
+        return (None,None)
         
     # Initialize and generate model object
     model = Model()
@@ -161,7 +160,7 @@ def processSource(line,source_count,proc_num):
     pymultinest.run(**mnest_args)
 
     # Print message to screen
-    print(f'\nProcess {proc_num}: Finished MultiNest for spectral line model\n')
+    print(f'\nProcess {proc_num}: Finished MultiNest for spectral line model\n',flush=True)
 
     # Obtain output
     pymultinest.Analyzer.get_separated_stats = get_separated_stats
@@ -177,9 +176,9 @@ def processSource(line,source_count,proc_num):
         if mode_evidence >= options.detection_limit:
             model.output.ndetections += 1
     if model.output.ndetections == 1:
-        print(f"\nProcess {proc_num}, Source {source.info['name']}: 1 spectral line detected\n")
+        print(f"\nProcess {proc_num}, Source {source.info['name']}: 1 spectral line detected\n",flush=True)
     else:
-        print(f"\nProcess {proc_num}, Source {source.info['name']}: {model.output.ndetections} spectral lines detected\n")
+        print(f"\nProcess {proc_num}, Source {source.info['name']}: {model.output.ndetections} spectral lines detected\n",flush=True)
 
     # Write results to file
     #write_resultsfile(options,source,model,os.getpid(),name=results_file)
@@ -237,6 +236,9 @@ if 'name' not in source_list.colnames:
     print(f"\nPlease specify source names in {options.data_path+'sources.log'}\n")
     sys.exit(1)
 
+if options.plot_switch:
+    from plotting import *
+
 source = Source()
 model = Model()
 model.input.generate_model(options,source)
@@ -255,7 +257,7 @@ initialize_resultsfile(options,model,os.getpid(),name=results_file)
 if PROCESS:
 
     # Loop program over each source spectral data 
-    print("looping over sources")
+    print("looping over sources",source_list,flush=True)
     returns = []
     if NUMTHREADS > 1:
         with ProcessPoolExecutor(max_workers=NUMTHREADS) as exe:
@@ -266,7 +268,8 @@ if PROCESS:
         print(f"Writing results to {results_file}")
         for ret in returns:
             (model,source) = ret.result()
-            write_resultsfile(options,source,model,os.getpid(),name=results_file)
+            if model:
+                write_resultsfile(options,source,model,os.getpid(),name=results_file)
 
     else:  
         for sourcenum,line in enumerate(source_list):
@@ -275,7 +278,8 @@ if PROCESS:
         # Write out results
         print(f"Writing results to {results_file}")
         for (model,source) in returns:
-            write_resultsfile(options,source,model,os.getpid(),name=results_file)
+            if model:
+                write_resultsfile(options,source,model,os.getpid(),name=results_file)
 
 timed = time() - starttime
 print(f"Linefinder took {timed:.2f} sec for {len(source_list)} components")
