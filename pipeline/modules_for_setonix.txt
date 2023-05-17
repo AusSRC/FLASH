@@ -16,6 +16,16 @@ module load singularity/3.8.6
 module use /software/setonix/current/modules/zen3/gcc/12.1.0/dependencies/
 module load .py-requests/2.25.1-t2rvudo
 
+# Others
+module load py-pip/22.2.2-py3.10.8
+py-scipy/1.7.1
+
+# Python virtual env:
+python3 -m venv /software/projects/ja3/ger063/setonix/python
+source /software/projects/ja3/ger063/setonix/python/bin/activate
+python3 -m pip install pyscopg2-binary
+deactivate
+
 
 ##########################################################################################
 # Below are the presigned URLs for downloading the container and scripts from Acacia.
