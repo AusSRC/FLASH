@@ -52,33 +52,36 @@ RUN_TYPE = "spectral"
 # Set sbids to "UNCERTAIN" quality - this is the default when sbids are created in the db
 #RUN_TYPE = "UNCERTAIN"
 
-# 2. List of sbids to process. On slow connections, you might need to do this one sbid at a time, as per the example,
+# 2. Add the run tag - eg pilot or survey 1 / 2 /3 ... data
+RUN_TAG = "flash pilot 1"
+
+# 3. List of sbids to process. On slow connections, you might need to do this one sbid at a time, as per the example,
 # in case of timeouts when connected to the database for multiple sbids with many components
 SBIDS = [45815] #45815 45823 45833 45835 45762 45828 - 45825 has two ascii dirs??
 
-# 3. Top level directory holding the SBID subdirs:
+# 4. Top level directory holding the SBID subdirs:
 DATA_DIR = "/home/ger063/src/flash_data"
 
-# 4. A temp directory where you have space and write access, to hold tarballs created during this script - these can be large!!
+# 5. A temp directory where you have space and write access, to hold tarballs created during this script - these can be large!!
 TMP_TAR_DIR = DATA_DIR
 
-# 5. The SLURM error and stdout log files associated with the run (either spectral or linefinder)
+# 6. The SLURM error and stdout log files associated with the run (either spectral or linefinder)
 ERROR_LOG = "/home/ger063/src/flash_data/45762/err.log"
 STDOUT_LOG = "/home/ger063/src/flash_data/45762/stdout.log"
 
-# 6. The compute platform used
+# 7. The compute platform used
 PLATFORM = "setonix.pawsey.org.au"
 
-# 7. The config file used for the spectral processing
+# 8. The config file used for the spectral processing
 SPECTRAL_CONFIG = "/home/ger063/src/flash_data/config_spectral/config.py"
 
-# 8. The config directory used for the linefinder processing (contains linefinder.ini, model.txt and sources.log)
+# 9. The config directory used for the linefinder processing (contains linefinder.ini, model.txt and sources.log)
 LINEFINDER_CONFIG_DIR = "/home/ger063/src/flash_data/config_linefinder"
 
-# 9. The linefinder output directory, relative to each of the sbid directories
+# 10. The linefinder output directory, relative to each of the sbid directories
 LINEFINDER_OUTPUT_DIR = "outputs"
 
-# 10. The collected results file from a linefinder run
+# 11. The collected results file from a linefinder run
 LINEFINDER_SUMMARY_FILE = "/home/ger063/src/flash_data/results.dat"
 
 ####################################################################################################################
@@ -270,9 +273,9 @@ def createDataDir(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH,
         sbidsDict[sbid]["ascii_path"] = ascii_path
         sbidsDict[sbid]["output_path"] = output_path
 
-        components = [f for f in os.listdir(component_path) if ".fits" in f]
-        plots = [f for f in os.listdir(plots_path) if ".png" in f]
-        asciis = [f for f in os.listdir(ascii_path) if ".dat" in f]
+        components = [f for f in os.listdir(component_path) if f.endswith(".fits")]
+        plots = [f for f in os.listdir(plots_path) if f.endswith(".png")]
+        asciis = [f for f in os.listdir(ascii_path) if f.endswith(".dat")]
         try:
             output_files = [f for f in os.listdir(output_path)]
         except FileNotFoundError:
@@ -336,29 +339,36 @@ def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
 
     # Add the log files
     errdata = ""
-    with open(errlog,'r') as f:
-        for line in f:
-            line = line.replace("\"","'")
-            errdata = errdata + line.strip() + "\n"
+    if errlog:
+        with open(errlog,'r') as f:
+            for line in f:
+                line = line.replace("\"","'")
+                errdata = errdata + line.strip() + "\n"
     stddata = ""
-    with open(stdlog,'r') as f:
-        for line in f:
-            line = line.replace("\"","'")
-            stddata = stddata + line.strip() + "\n"
+    if stdlog:
+        with open(stdlog,'r') as f:
+            for line in f:
+                line = line.replace("\"","'")
+                stddata = stddata + line.strip() + "\n"
 
     # Get current datetime and format for postgres
     spect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
  
     # tar up the config files:
-    config_tarball = f"{TMP_TAR_DIR}/spectral_config.tar.gz"
-    tar_dir(config_tarball,config_dir)
     config_data = None
-    with open(config_tarball,'rb') as f:
-        config_data = f.read()
-    
+    if config_dir:
+        config_tarball = f"{TMP_TAR_DIR}/spectral_config.tar.gz"
+        tar_dir(config_tarball,config_dir)
+        config_data = None
+        with open(config_tarball,'rb') as f:
+            config_data = f.read()
+        
     # insert into spect_run table
-    insert_query = "INSERT into spect_run(SBIDS,config_tar,errlog,stdlog,platform,date) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id;"
-    cur.execute(insert_query,(SBIDS,psycopg2.Binary(config_data),errdata,stddata,platform,spect_date))
+        insert_query = "INSERT into spect_run(SBIDS,config_tar,errlog,stdlog,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
+        cur.execute(insert_query,(SBIDS,psycopg2.Binary(config_data),errdata,stddata,platform,spect_date,RUN_TAG))
+    else:
+        insert_query = "INSERT into spect_run(SBIDS,errlog,stdlog,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id;"
+        cur.execute(insert_query,(SBIDS,errdata,stddata,platform,spect_date,RUN_TAG))
     runid = cur.fetchone()[0]
     print(f"Data inserted into table 'spect_run': runid = {runid}")
     # Add the processed SBIDS
@@ -387,24 +397,26 @@ def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_
 
     # Add the log files
     errdata = ""
-    with open(errlog,'r') as f:
-        for line in f:
-            line = line.replace("\"","'")
-            errdata = errdata + line.strip() + "\n"
+    if errlog:
+        with open(errlog,'r') as f:
+            for line in f:
+                line = line.replace("\"","'")
+                errdata = errdata + line.strip() + "\n"
     stddata = ""
-    with open(stdlog,'r') as f:
-        for line in f:
-            line = line.replace("\"","'")
-            stddata = stddata + line.strip() + "\n"
+    if stdlog:
+        with open(stdlog,'r') as f:
+            for line in f:
+                line = line.replace("\"","'")
+                stddata = stddata + line.strip() + "\n"
 
     # Get current datetime and format for postgres
     detect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
  
     # tar up the config files:
     config_tarball = f"{TMP_TAR_DIR}/detect_config.tar.gz"
+    config_data = None
     try:
         tar_dir(config_tarball,config_dir)
-        config_data = None
         with open(config_tarball,'rb') as f:
             config_data = f.read()
     except FileNotFoundError:
@@ -418,8 +430,8 @@ def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_
             results = results + line.strip() + "\n"
 
     # insert into detect_run table
-    insert_query = "INSERT into detect_run(SBIDS,config_tar,errlog,stdlog,result_filepath,results,platform,date) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
-    cur.execute(insert_query,(SBIDS,psycopg2.Binary(config_data),errdata,stddata,result_file,results,platform,detect_date))
+    insert_query = "INSERT into detect_run(SBIDS,config_tar,errlog,stdlog,result_filepath,results,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
+    cur.execute(insert_query,(SBIDS,psycopg2.Binary(config_data),errdata,stddata,result_file,results,platform,detect_date,RUN_TAG))
     runid = cur.fetchone()[0]
     print(f"Data inserted into table 'detect_run': runid = {runid}")
 
@@ -505,15 +517,20 @@ def add_component(cur,comp,sbid,plot_list,plot_path,processState="spectral"):
     detect_date = None
 
     # Read in plot images
-    opd = f"{plot_path}/{[f for f in plot_list if 'opd' in f][0]}"
-    flux = f"{plot_path}/{[f for f in plot_list if 'flux' in f][0]}"
     opddata = None
     fluxdata = None
-    with open(opd,'rb') as f:
-        opddata = f.read() 
-    with open(flux,'rb') as f:
-        fluxdata = f.read() 
-
+    opd = ""
+    flux = ""
+    try:
+        opd = f"{plot_path}/{[f for f in plot_list if 'opd' in f][0]}"
+        flux = f"{plot_path}/{[f for f in plot_list if 'flux' in f][0]}"
+        with open(opd,'rb') as f:
+            opddata = f.read() 
+        with open(flux,'rb') as f:
+            fluxdata = f.read() 
+    except IndexError:
+        print(f"WARNING: plot data missing for {comp}")
+        
     # add component
     insert_q = "INSERT into component VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s);"
     cur.execute(insert_q,(comp,sbid,processState,os.path.basename(opd),os.path.basename(flux),opddata,fluxdata,spect_date,detect_date))
