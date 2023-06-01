@@ -17,6 +17,17 @@ from astropy.table import Table
 from glob import glob
 if 'PYMULTINEST' in os.environ:
     sys.path.append(os.environ['PYMULTINEST'])
+else: # Force environment into python!!
+    import shlex
+    import subprocess
+
+    command = shlex.split("bash -c 'source ~/set_local_env.sh && env'")
+    proc = subprocess.Popen(command, stdout = subprocess.PIPE)
+    for line in proc.stdout:
+        (key, _, value) = line.decode().partition("=")
+        os.environ[key] = value
+    proc.communicate()
+    
 import pymultinest
 
 # Import habs nest python modules
@@ -31,6 +42,49 @@ from time import time
 
 # Switch off warnings
 warnings.simplefilter("ignore")
+
+##############################################################################################################################
+##############################################################################################################################
+
+
+def checkOptionsOverride(options,filename="/config/linefinder.ini"):
+    ''' Check if any of the command-line arguments are to be over-ridden'''
+
+    with open(filename) as f:
+        for line in f:
+            # Ignore comments
+            if line.startswith("#") or not line.strip():
+                continue
+            # spilt and strip whitespace
+            attr,val = line.split(":")
+            attr = attr.strip()
+            val = val.strip()
+
+            # process values - check if boolean, int, float or string
+            if val == "True":
+                setattr(options,attr,True)
+            elif val == "False":
+                setattr(options,attr,False)
+            else:
+                try:
+                    val = int(val)
+                except ValueError:
+                    try:
+                        val = float(val)
+                    except ValueError:
+                        pass
+                setattr(options,attr,val)
+    return options
+
+##############################################################################################################################
+##############################################################################################################################
+# By default, the initialisation file is expected to be '/config/linefinder.ini' (for container
+# reasons). However, this can be overridden on the command line with '--inifile <filepath>'
+print(f'ini file = {options.inifile}')
+if options.inifile:
+    options = checkOptionsOverride(options,filename=options.inifile)
+else:
+    options = checkOptionsOverride(options)
 
 # Initialise required directories
 initialize_directories(options)
