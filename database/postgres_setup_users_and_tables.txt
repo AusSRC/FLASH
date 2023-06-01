@@ -18,6 +18,7 @@ create table spect_run (
     errlog text,
     stdlog text,
     platform varchar(50),
+    run_tag varchar(100),
     date TIMESTAMP
 );
 
@@ -30,6 +31,7 @@ create table detect_run (
     result_filepath varchar(100),
     results text,
     platform varchar(50),
+    run_tag varchar(100),
     date TIMESTAMP
 );
 
@@ -60,6 +62,13 @@ create table component (
 
 #########################################################################################
 ######### NOT USED ######################################################################
+
+alter TABLE spect_run ADD COLUMN run_tag varchar(100);
+update spect_run set run_tag = 'flash survey 1';
+alter TABLE detect_run ADD COLUMN run_tag varchar(100);
+update detect_run set run_tag = 'flash survey 1';
+
+select sbid.id,sbid.spect_runid,spect_run.run_tag from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%pilot%';
 
 create table spectral_plot (
     plot_id varchar(100) PRIMARY KEY,
