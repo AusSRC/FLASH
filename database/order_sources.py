@@ -3,29 +3,33 @@ import sys
 from glob import glob
 import re
 
-def returnBrightestSources(names,number,plottype="opd"):
+def returnBrightestSources(names,number):
 
     namedir = {}
 
     for name in names:
-        source_num = re.split('(\d+)',name)[-2]
+        source_num = int(re.split('(\d+)',name)[-2])
         if source_num not in namedir.keys():
-            namedir[source_num] = [name]
+            namedir[int(source_num)] = [name]
         else:
-            namedir[source_num].append(name)
+            namedir[int(source_num)].append(name)
 
     keys = list(namedir.keys())
     keys.sort()
     sorted_sources = {i: namedir[i] for i in keys}
-    
-    n = int(number)
+   
+    if number: 
+        n = int(number)
+    else:
+        n = len(sorted_sources)
     bright_sources = []
     for idx,(key,sources) in enumerate(sorted_sources.items()):
         if idx == n: 
             break
+        sources.sort()
         for source in sources:
             bright_sources.append(source)
-    return bright_sources
+    return bright_sources,idx
 
 ##########################################################################################
 ##########################################################################################
@@ -33,7 +37,10 @@ def returnBrightestSources(names,number,plottype="opd"):
 if __name__ == "__main__":
 
     directory = sys.argv[1]
-    number = sys.argv[2]
+    try:
+        number = sys.argv[2]
+    except IndexError:
+        number = None
     try:
         plottype = sys.argv[3]
     except IndexError:
@@ -41,7 +48,7 @@ if __name__ == "__main__":
 
     names = glob(f"{directory}/*{plottype}.png")
     names = [os.path.basename(f) for f in names]
-
-    sources = returnBrightestSources(names,number,plottype=plottype)
+    sources,number = returnBrightestSources(names,number)
     print(f"\nBrightest {number} sources ({len(sources)} components)\n")
-    print(sources)
+    for idx,source in enumerate(sources):
+        print("    ",idx+1,source)
