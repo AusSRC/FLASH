@@ -57,28 +57,31 @@ def order_names(names):
     namedir = {}
 
     for name in names:
-        source_num = re.split('(\d+)',name.split()[0])[-2]
+        source_num = int(re.split('(\d+)',name.split()[0])[-2])
         if source_num not in namedir.keys():
-            namedir[source_num] = [name]
+            namedir[int(source_num)] = [name]
         else:
-            namedir[source_num].append(name)
-
+            namedir[int(source_num)].append(name)
     keys = list(namedir.keys())
     keys.sort()
     sorted_sources = {i: namedir[i] for i in keys}
-    
+
     bright_sources = []
-    for idx,(key,sources) in enumerate(sorted_sources.items()):
+    for (key,sources) in sorted_sources.items():
+        sources.sort()
         for source in sources:
             bright_sources.append(source)
     return bright_sources
 
+
+
 def process_files(results,files):
     r = open(results,"a")
     lines = []
+    print(f"Found {len(files)} matching files")
     for name in files:
         f = open(name,"r")
-        print(name)
+        print("    ",name)
         file_lines = f.readlines()[1:]
         file_lines = order_names(file_lines)
         lines = lines + file_lines + ["\n"]
@@ -98,6 +101,11 @@ if __name__ == "__main__":
     summary_dir = sys.argv[2]
     num_dirs_to_ignore = len(sys.argv)
     ignore_dirs = sys.argv[1:num_dirs_to_ignore]
+    # Drop any trailing / in directory names:
+    for i,d in enumerate(ignore_dirs):
+        if d.endswith('/'):
+            ignore_dirs[i] = ignore_dirs[i][:-1]
+    
     res_files = find_results_files(parent_dir)
     valid_files = ignore_previous_results(res_files,ignore_dirs)
     results = write_header(summary_dir)
