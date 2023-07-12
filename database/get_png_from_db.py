@@ -89,7 +89,8 @@ if __name__ == "__main__":
     sbid = int(sys.argv[2])
 
     # The component png's you want to download - ordered by brightness, eg '20' will 
-    # download the top 20 components (and their 'a', 'b', 'c' etc varieties)
+    # download the top 20 components (and their 'a', 'b', 'c' etc varieties, so there will
+    # be more than 20 files!)
     #
     num_sources = int(sys.argv[3])
     try:
@@ -117,9 +118,10 @@ if __name__ == "__main__":
     else:
         sources,number = returnBrightestSources(comps,num_sources)
     for idx,source in enumerate(sources):
-        print(f"{idx+1} of {len(sources)} : {source} from sbid {sbid}")
+        print(f"    {idx+1} of {len(sources)} : {source}")
         query = f"select {img_type}_image from component where comp_id = %s"
         cur.execute(query,(source,))
         data = cur.fetchone()
         name = source.replace(".fits",f"_{img_type}.png")
         open(f"{dir_download}/{name}", 'wb').write(data[0])
+    print(f"Downloaded {len(sources)} files from sbid {sbid}")
