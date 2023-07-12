@@ -125,25 +125,34 @@ def get_cursor(conn):
 ##########################################################################################################
 ###################################### DELETING RUNS #####################################################
 
-def delete_sbids(conn,sbids):
+def delete_sbids(conn,sbids,version=None):
 
     cur = get_cursor(conn)
 
     for sbid in sbids:
+        if not version:
+            cur.execute(f"select count(*) from sbid where sbid_num = {sbid};")
+            version = int(cur.fetchall()[0][0])
+        #get the sbid id
+        cur.execute(f"select id from sbid where sbid_num = {sbid} and version = {version};")
+        sbid_id = int(cur.fetchall()[0][0])
         # Delete associated large object of ascii files
         oid_query = "select ascii_tar from sbid where id = %s"
-        cur.execute(oid_query,(sbid,))
+        cur.execute(oid_query,(sbid_id,))
         lon = cur.fetchone()
         oid_delete = "SELECT lo_unlink(%s);"
         for i in lon:
             cur.execute(oid_delete,(i,))
             
         # This sbid will possibly be referenced in the detect_run table. Remove the reference.
+        cur.execute(f"SELECT detect_runid from sbid where id = {sbid_id};")
+        runid = cur.fetchall()[0][0]
+
         sbid_query = "SELECT id,SBIDS from detect_run where %s = ANY (SBIDS)"
         cur.execute(sbid_query,(sbid,))
         try:
             runid = cur.fetchall()[0][0]
-            cur = remove_sbids_from_detection(conn,[sbid],runid)
+            cur = remove_sbids_from_detection(conn,[sbid],version,runid)
         except IndexError:
             print(f"No detection run processed sbid {sbid}")
 
@@ -163,7 +172,7 @@ def delete_sbids(conn,sbids):
 
     return cur
      
-def remove_sbids_from_detection(conn,selected_sbids,runid=None):
+def remove_sbids_from_detection(conn,selected_sbids,version,runid=None):
 
     cur = get_cursor(conn)
 
@@ -314,12 +323,13 @@ def check_sbids(cur,SBIDS,table="spect_run"):
 
 ###############################################
 
-def tar_dir(name,source_dir,):
+def tar_dir(name,source_dir,pattern=None):
     """ Only tars up files, not subdirectories"""
     files = (file for file in os.listdir(source_dir) if os.path.isfile(os.path.join(source_dir, file)))
     tar = tarfile.open(name, "w:gz")
     for file in files:
-        tar.add(f"{source_dir}/{file}")
+        if not pattern or (pattern and pattern in file):
+            tar.add(f"{source_dir}/{file}")
 
     #with tarfile.open(name, "w:gz") as tar:
     #    tar.add(source_dir, arcname=os.path.basename(source_dir),recursive=recursive) 
@@ -330,12 +340,12 @@ def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
     cur = get_cursor(conn)
 
     # Check if any of the sbids have been entered before
-    repeated_sbids = check_sbids(cur,SBIDS,table="spect_run")
-    if repeated_sbids:
-        print(f"*** SKIPPING sbids {repeated_sbids} from list {SBIDS}!!")
-        SBIDS = list(set(repeated_sbids).symmetric_difference(set(SBIDS)))
-    if not SBIDS:
-        return cur
+    #repeated_sbids = check_sbids(cur,SBIDS,table="spect_run")
+    #if repeated_sbids:
+    #    print(f"*** SKIPPING sbids {repeated_sbids} from list {SBIDS}!!")
+    #    SBIDS = list(set(repeated_sbids).symmetric_difference(set(SBIDS)))
+    #if not SBIDS:
+    #    return cur
 
     # Add the log files
     errdata = ""
@@ -374,16 +384,14 @@ def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
     # Add the processed SBIDS
     for sbid in SBIDS:
         # Check if sbid exits:
-        cur.execute(f"SELECT count(*) from SBID where id = {sbid}")
-        result = cur.fetchall()[0][0]
-        if result ==0:
-            add_sbid(conn,cur,sbid=sbid,spect_runid=runid,spectralF=True,dataDict=dataDict[sbid],datapath=dataDict["data_path"])
-        else:
-            print(f"ERROR: sbid {sbid} already in database!! Skipping ...")
+        #cur.execute(f"SELECT count(*) from SBID where id = {sbid}")
+        cur.execute(f"SELECT count(*) from SBID where sbid_num = {sbid}")
+        variation = int(cur.fetchall()[0][0]) + 1
+        add_sbid(conn,cur,sbid=sbid,spect_runid=runid,spectralF=True,dataDict=dataDict[sbid],datapath=dataDict["data_path"],ver=variation)
     return cur
 
 ###############################################
-def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_file,output_dir):
+def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_file,output_dir,version=None):
 
     cur = get_cursor(conn)
 
@@ -437,19 +445,23 @@ def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_
 
     # Add the processed SBIDS
     for sbid in SBIDS:
+        if not version:
+            # If sbid version is not specified, assume the latest one
+            cur.execute(f"SELECT count(*) from SBID where sbid_num = {sbid};")
+            version = int(cur.fetchall()[0][0])
         # Check if sbid exists:
-        cur.execute(f"SELECT count(*) from SBID where id = {sbid}")
-        result = cur.fetchall()[0][0]
+        cur.execute(f"SELECT count(*) from SBID where sbid_num = {sbid} and version = {version};")
+        result = int(cur.fetchall()[0][0])
         if result ==1:
-            update_sbid_detection(cur,sbid=sbid,runid=runid,detectionF=True,dataDict=dataDict[sbid],datapath=output_dir)
+            update_sbid_detection(cur,sbid=sbid,runid=runid,detectionF=True,dataDict=dataDict[sbid],datapath=output_dir,ver=version)
         else:
             print(f"ERROR: sbid {sbid} does not exist in database!! Skipping")
     return cur
 
 ###############################################
-def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict={},datapath="./",quality="UNCERTAIN"):
+def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict={},datapath="./",ver=1,quality="UNCERTAIN"):
 
-    insert_query = "INSERT into SBID(id,spect_runid,spectralF,detectionF,ascii_tar,quality) VALUES (%s,%s,%s,%s,%s,%s);"
+    insert_query = "INSERT into SBID(sbid_num,spect_runid,spectralF,detectionF,ascii_tar,quality,version) VALUES (%s,%s,%s,%s,%s,%s,%s);"
     run_table = "spect_run"
     runid = spect_runid
     # Check runid exists
@@ -470,8 +482,11 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
     new_oid = lob.oid
     lob.close()
  
-    cur.execute(insert_query, (sbid,runid,spectralF,detectionF,new_oid,quality))
-    print(f"SBID {sbid} added to table 'SBID'")
+    cur.execute(insert_query, (sbid,runid,spectralF,detectionF,new_oid,quality,ver))
+    # Get the generated id of the sbid just added:
+    cur.execute(f"SELECT id from SBID where sbid_num = {sbid} and version = {ver};")
+    sbid_id = int(cur.fetchall()[0][0])
+    print(f"SBID {sbid_id}:{sbid} added to table 'SBID'")
 
     # Add the components and associated outputs plots of the sbid
     for comp in dataDict["components"]:
@@ -479,33 +494,36 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
         component_index = comp.split("component_")[1].split(".fits")[0]
         plotfiles = [f for f in dataDict["plots"] if ("component_%s" % component_index) in f]
         plot_path = f"{dataDict['plots_path']}"
-        add_component(cur,comp,sbid,plotfiles,plot_path,processState="spectral")
+        add_component(cur,comp,sbid_id,plotfiles,plot_path,processState="spectral")
 
 ###############################################
-def update_sbid_detection(cur,sbid,runid,detectionF,dataDict,datapath):
+def update_sbid_detection(cur,sbid,runid,detectionF,dataDict,datapath,ver):
 
     # Create tarball of linefinder output files:
     output_tarball = f"{TMP_TAR_DIR}/{sbid}_linefinder_output.tar.gz"
     print(f"Creating tarball {output_tarball}")
-    tar_dir(output_tarball,f"{sbid}/{LINEFINDER_OUTPUT_DIR}")
+    tar_dir(output_tarball,f"{sbid}/{LINEFINDER_OUTPUT_DIR}",pattern="stats.dat")
 
     # Create a large object in the database:
     print("    -- loading to database")
     lob = conn.lobject(mode="wb", new_file=output_tarball)
     new_oid = lob.oid
     lob.close()
- 
+
+    # Get the id of this sbid/version:
+    cur.execute(f"SELECT id from SBID where sbid_num = {sbid} and version = {ver};")
+    sbid_id = int(cur.fetchall()[0][0])
+
     update_query = "UPDATE SBID SET detect_runid = %s, detectionF = %s, detect_tar = %s where id = %s;"
-    cur.execute(update_query,(runid,detectionF,new_oid,sbid))
-    print(f"sbid table updated with detection for sbid = {sbid}")
+    cur.execute(update_query,(runid,detectionF,new_oid,sbid_id))
+    print(f"sbid table updated with detection for sbid = {sbid}, version {ver}")
 
     # Update the component table with the detection
     for comp in dataDict["components"]:
-        update_component_detection(cur,comp,processState="detection")
-    
+        update_component_detection(cur,comp,sbid_id,processState="detection")
 
 ###############################################
-def add_component(cur,comp,sbid,plot_list,plot_path,processState="spectral"):
+def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral"):
     # Determine status
     #status = "NULL"
     #select_q = f"SELECT b.spectralF,b.detectionF from sbid a INNER JOIN run b on a.run_id = b.id where a.id = {sbid};"
@@ -532,30 +550,36 @@ def add_component(cur,comp,sbid,plot_list,plot_path,processState="spectral"):
         print(f"WARNING: plot data missing for {comp}")
         
     # add component
-    insert_q = "INSERT into component VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s);"
-    cur.execute(insert_q,(comp,sbid,processState,os.path.basename(opd),os.path.basename(flux),opddata,fluxdata,spect_date,detect_date))
-    print(f"    Data inserted into table 'component': comp_id = {comp}")
+    insert_q = "INSERT into component(comp_id,processState,opd_plotname,flux_plotname,opd_image,flux_image,spectral_date,detection_date,sbid_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s);"
+    cur.execute(insert_q,(comp,processState,os.path.basename(opd),os.path.basename(flux),opddata,fluxdata,spect_date,detect_date,sbid_id))
+    # Get id of just-added component:
+    cur.execute(f"select id from component where comp_id = {comp} and sbid_id = {sbid_id};")
+    id = int(cur.fetchall()[0][0])
+
+    print(f"    Data inserted into table 'component': id = {id}, comp_id = {comp}")
     return
 
 ###############################################
-def update_component_detection(cur,comp,processState):
+def update_component_detection(cur,comp,sbid_id,processState):
     # Get current datetime and format for postgres
     detect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S") 
 
-    update_query = "UPDATE component SET processState = %s, detection_date = %s where comp_id = %s;"
-    cur.execute(update_query,(processState,detect_date,comp))
-    print(f"    Detection updated into table 'component': comp_id = {comp}")
+    update_query = "UPDATE component SET processState = %s, detection_date = %s where comp_id = %s and sbid_id = %s;"
+    cur.execute(update_query,(processState,detect_date,comp,sbid_id))
+    print(f"    Detection updated into table 'component': comp_id = {comp}, sbid_id = {sbid_id}")
     return
 
 ###############################################
 
-def update_quality(conn,SBIDS,quality):
+def update_quality(conn,SBIDS,quality,version=None):
 
     cur = get_cursor(conn)
-    
-    update_query = "UPDATE SBID SET quality = %s where id = %s"
+    update_query = "UPDATE SBID SET quality = %s where sbid_num = %s and version = %s"
     for sbid in SBIDS:
-        cur.execute(update_query,(quality,sbid))
+        if not version:
+            cur.execute(f"select count(*) from sbid where sbid_num = {sbid};")
+            version = int(cur.fetchall()[0][0])
+        cur.execute(update_query,(quality,sbid,version))
     
     print(f"Set quality {quality} for sbids {SBIDS}")
     
