@@ -117,9 +117,9 @@ if __name__ == "__main__":
     else:
         sources,number = returnBrightestSources(comps,num_sources)
     for idx,source in enumerate(sources):
-        print(f"{idx+1} : {source} from sbid {sbid}")
+        print(f"{idx+1} of {len(sources)} : {source} from sbid {sbid}")
         query = f"select {img_type}_image from component where comp_id = %s"
         cur.execute(query,(source,))
-        name = source.replace(".fits",f"_{img_type}.png")
         data = cur.fetchone()
+        name = source.replace(".fits",f"_{img_type}.png")
         open(f"{dir_download}/{name}", 'wb').write(data[0])
