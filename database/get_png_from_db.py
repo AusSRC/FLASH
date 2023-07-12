@@ -8,6 +8,8 @@
 #       eg "python3 get_png_from_db.py /home/ger063/tmp 43426 20"
 #       will download brightest 20 sources from sbid 43426
 #
+#       To get ALL the sources, use "-1" for n
+#
 #       By default only the opd images are downloaded. To get the flux images, add "flux"
 #
 #       eg "python3 get_png_from_db.py /home/ger063/tmp 43426 20 flux"
@@ -110,7 +112,10 @@ if __name__ == "__main__":
     query = "select comp_id from component where sbid_id = %s"
     cur.execute(query,(sid,))
     comps = [comp[0] for comp in cur.fetchall()[1:]]
-    sources,number = returnBrightestSources(comps,num_sources)
+    if num_sources == -1:
+        sources,number = returnBrightestSources(comps)
+    else:
+        sources,number = returnBrightestSources(comps,num_sources)
     for idx,source in enumerate(sources):
         print(f"{idx+1} : {source} from sbid {sbid}")
         query = f"select {img_type}_image from component where comp_id = %s"
