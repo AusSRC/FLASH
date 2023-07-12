@@ -91,6 +91,7 @@ if __name__ == "__main__":
     #
     num_sources = int(sys.argv[3])
     try:
+        # The image type to download ("opd" or "flux")
         img_type = sys.argv[4]
     except IndexError:
         img_type = 'opd'
