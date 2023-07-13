@@ -53,11 +53,11 @@ RUN_TYPE = "spectral"
 #RUN_TYPE = "UNCERTAIN"
 
 # 2. Add the run tag - eg pilot or survey 1 / 2 /3 ... data
-RUN_TAG = "flash pilot 1"
+RUN_TAG = "testing only"
 
 # 3. List of sbids to process. On slow connections, you might need to do this one sbid at a time, as per the example,
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [45815] #45815 45823 45833 45835 45762 45828 - 45825 has two ascii dirs??
+SBIDS = [45833] #45815 45823 45833 45835 45762 45828 - 45825 has two ascii dirs??
 
 # 4. Top level directory holding the SBID subdirs:
 DATA_DIR = "/home/ger063/src/flash_data"
@@ -66,14 +66,14 @@ DATA_DIR = "/home/ger063/src/flash_data"
 TMP_TAR_DIR = DATA_DIR
 
 # 6. The SLURM error and stdout log files associated with the run (either spectral or linefinder)
-ERROR_LOG = "/home/ger063/src/flash_data/45762/err.log"
-STDOUT_LOG = "/home/ger063/src/flash_data/45762/stdout.log"
+ERROR_LOG = "/home/ger063/src/flash_data/45833/err.log"
+STDOUT_LOG = "/home/ger063/src/flash_data/45833/stdout.log"
 
 # 7. The compute platform used
 PLATFORM = "setonix.pawsey.org.au"
 
 # 8. The config file used for the spectral processing
-SPECTRAL_CONFIG = "/home/ger063/src/flash_data/config_spectral/config.py"
+SPECTRAL_CONFIG = "/home/ger063/src/flash_data/config_spectral"
 
 # 9. The config directory used for the linefinder processing (contains linefinder.ini, model.txt and sources.log)
 LINEFINDER_CONFIG_DIR = "/home/ger063/src/flash_data/config_linefinder"
@@ -130,14 +130,9 @@ def delete_sbids(conn,sbids,version=None):
     cur = get_cursor(conn)
 
     for sbid in sbids:
-        if not version:
-            cur.execute(f"select count(*) from sbid where sbid_num = {sbid};")
-            version = int(cur.fetchall()[0][0])
-        #get the sbid id
-        cur.execute(f"select id from sbid where sbid_num = {sbid} and version = {version};")
-        sbid_id = int(cur.fetchall()[0][0])
+        sbid_id,version = get_max_sbid_version(cur,sbid,version)
         # Delete associated large object of ascii files
-        oid_query = "select ascii_tar from sbid where id = %s"
+        oid_query = "select ascii_tar from sbid where id = %s;"
         cur.execute(oid_query,(sbid_id,))
         lon = cur.fetchone()
         oid_delete = "SELECT lo_unlink(%s);"
@@ -148,7 +143,7 @@ def delete_sbids(conn,sbids,version=None):
         cur.execute(f"SELECT detect_runid from sbid where id = {sbid_id};")
         runid = cur.fetchall()[0][0]
 
-        sbid_query = "SELECT id,SBIDS from detect_run where %s = ANY (SBIDS)"
+        sbid_query = "SELECT id,SBIDS from detect_run where %s = ANY (SBIDS);"
         cur.execute(sbid_query,(sbid,))
         try:
             runid = cur.fetchall()[0][0]
@@ -157,7 +152,7 @@ def delete_sbids(conn,sbids,version=None):
             print(f"No detection run processed sbid {sbid}")
 
         # It will DEFINITELY be referenced in the spect_run table - remove
-        sbid_query = "SELECT id from spect_run where %s = ANY (SBIDS)"
+        sbid_query = "SELECT id from spect_run where %s = ANY (SBIDS);"
         cur.execute(sbid_query,(sbid,))
         try:
             runid = cur.fetchall()[0][0]
@@ -167,37 +162,38 @@ def delete_sbids(conn,sbids,version=None):
             print(f"No spectral run processed sbid {sbid}")
 
         # Now remove the sbid from the SBID table (will also remove associated components) and any large objects
-        sbid_delete = "DELETE from SBID where id = %s"
+        sbid_delete = "DELETE from SBID where id = %s;"
         cur.execute(sbid_delete,(sbid,))
 
     return cur
      
-def remove_sbids_from_detection(conn,selected_sbids,version,runid=None):
+def remove_sbids_from_detection(conn,selected_sbids,version=None,runid=None):
 
     cur = get_cursor(conn)
 
     for sbid in selected_sbids:
+        sbid_id,version = get_max_sbid_version(cur,sbid,version)
         # Delete associated large object of detection outputs
-        oid_query = "select detect_tar from sbid where id = %s"
-        cur.execute(oid_query,(sbid,))
+        oid_query = "select detect_tar from sbid where id = %s;"
+        cur.execute(oid_query,(sbid_id,))
         lon = cur.fetchone()
         oid_delete = "SELECT lo_unlink(%s);"
         for i in lon:
             cur.execute(oid_delete,(i,))
         
         # Remove detection flag and oid from the sbid
-        sbid_update = "UPDATE sbid SET detectionF = %s, detect_tar = NULL where id = %s"
-        cur.execute(sbid_update,(False,sbid))
+        sbid_update = "UPDATE sbid SET detectionF = %s, detect_tar = NULL where id = %s;"
+        cur.execute(sbid_update,(False,sbid_id))
 
         # Get detection that lists this sbid
         if not runid:
             # Need to get detection id 
-            sbid_query = "SELECT detect_runid from sbid where id = %s"
-            cur.execute(sbid_query,(sbid,))
+            sbid_query = "SELECT detect_runid from sbid where id = %s;"
+            cur.execute(sbid_query,(sbid_id,))
             runid = cur.fetchone()[0]
         
         # Remove reference in detect_run
-        sbid_query = "SELECT SBIDS from detect_run where id = %s"
+        sbid_query = "SELECT SBIDS from detect_run where id = %s;"
         cur.execute(sbid_query,(runid,))
         sbids = None
         try:
@@ -207,12 +203,12 @@ def remove_sbids_from_detection(conn,selected_sbids,version,runid=None):
             pass 
         # Check if sbids list now empty, in which case delete whole detection
         if not sbids:
-            detect_stat = "DELETE from detect_run where id = %s"
+            detect_stat = "DELETE from detect_run where id = %s;"
             cur.execute(detect_stat,(runid,))
             print(f"    -- Deleted detection {runid}")
         else:
         # Update detection by removing sbid from row
-            detect_stat = "UPDATE detect_run SET SBIDS = %s where id = %s"
+            detect_stat = "UPDATE detect_run SET SBIDS = %s where id = %s;"
             cur.execute(detect_stat,(sbids,runid))
             print(f"    -- Updated detection {runid}")
     return cur
@@ -220,18 +216,18 @@ def remove_sbids_from_detection(conn,selected_sbids,version,runid=None):
 def remove_sbid_from_spectral(cur,sbid,runid):
     
     # Get list of sbids for detection
-    sbid_query = "SELECT SBIDS from spect_run where id = %s"
+    sbid_query = "SELECT SBIDS from spect_run where id = %s;"
     cur.execute(sbid_query,(runid,))
     sbids = cur.fetchone()[0]
     sbids.remove(sbid)
     # Check if sbids list now empty, in which case delete whole detection
     if not sbids:
-        detect_stat = "DELETE from spect_run where id = %s"
+        detect_stat = "DELETE from spect_run where id = %s;"
         cur.execute(detect_stat,(runid,))
         print(f"    -- Deleted spectral run {runid}")
     else:
     # Update detection by removing sbid from row
-        detect_stat = "UPDATE spect_run SET SBIDS = %s where id = %s"
+        detect_stat = "UPDATE spect_run SET SBIDS = %s where id = %s;"
         cur.execute(detect_stat,(sbids,runid))
         print(f"    -- Updated spect_run {runid}")
 
@@ -240,7 +236,7 @@ def delete_detection(conn,runid):
     cur = get_cursor(conn)
 
     # Get the sbids that this detection run processed
-    sbid_query = "select SBIDS from detect_run where id = %s"
+    sbid_query = "select SBIDS from detect_run where id = %s;"
     cur.execute(sbid_query,(runid,))
     sbids = cur.fetchone()[0]
 
@@ -251,15 +247,15 @@ def delete_detection(conn,runid):
     # Process SBIDs
     for sbid in sbids:
         # Get the large object number for the detection tarball
-        oid_query = "select detect_tar from sbid where id = %s"
-        cur.execute(oid_query,(sbid,))
+        oid_query = "select detect_tar from sbid where sbid_num = %s and detect_runid = %s;"
+        cur.execute(oid_query,(sbid,runid))
         lon = cur.fetchone()[0]
         # Delete it from large object table
         oid_delete = "SELECT lo_unlink(%s);"
         cur.execute(oid_delete,(lon,))
         # Reset runid, detection flag and tarball in table SBID
-        sbid_reset = "UPDATE SBID SET detect_runid=NULL,detectionF = %s, detect_tar = NULL where id = %s"
-        cur.execute(sbid_reset,(False,sbid))
+        sbid_reset = "UPDATE SBID SET detect_runid=NULL,detectionF = %s, detect_tar = NULL where sbid_num = %s and detect_runid = %s;"
+        cur.execute(sbid_reset,(False,sbid,runid))
     return cur
 
 #########################################################################################################################
@@ -323,6 +319,29 @@ def check_sbids(cur,SBIDS,table="spect_run"):
 
 ###############################################
 
+def get_max_sbid_version(cur,sbid_num,version=None):
+
+    # If version=None, returns the sbid_id:version for the latest version number of the sbid_num in the SBID table
+    # Otherwise returns the sbid_id:version for the sbid_num and version combination provided
+    # If the sbid_num doesn't exist, returns None:0
+
+    if version:
+        query = "select id from sbid where sbid_num = %s and version = %s;"
+        cur.execute(query,(sbid_num,version))
+        sbid_id = int(cur.fetchall()[0][0])
+    else:
+        query = "select id,version from sbid where sbid_num = %s and version = (select max(version) from sbid where sbid_num = %s);"
+        cur.execute(query,(sbid_num,sbid_num))
+        try:
+            sbid_id,version = cur.fetchall()[0]
+        except IndexError:
+            # sbid doesn't exist
+            sbid_id = None
+            version = 0
+    return sbid_id,version
+
+###############################################
+
 def tar_dir(name,source_dir,pattern=None):
     """ Only tars up files, not subdirectories"""
     files = (file for file in os.listdir(source_dir) if os.path.isfile(os.path.join(source_dir, file)))
@@ -383,10 +402,9 @@ def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
     print(f"Data inserted into table 'spect_run': runid = {runid}")
     # Add the processed SBIDS
     for sbid in SBIDS:
-        # Check if sbid exits:
-        #cur.execute(f"SELECT count(*) from SBID where id = {sbid}")
-        cur.execute(f"SELECT count(*) from SBID where sbid_num = {sbid}")
-        variation = int(cur.fetchall()[0][0]) + 1
+        # Check if sbid exits - if it does, add it with a version number > 1:
+        sbid_id,variation = get_max_sbid_version(cur,sbid)
+        variation += 1
         add_sbid(conn,cur,sbid=sbid,spect_runid=runid,spectralF=True,dataDict=dataDict[sbid],datapath=dataDict["data_path"],ver=variation)
     return cur
 
@@ -447,15 +465,12 @@ def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_
     for sbid in SBIDS:
         if not version:
             # If sbid version is not specified, assume the latest one
-            cur.execute(f"SELECT count(*) from SBID where sbid_num = {sbid};")
-            version = int(cur.fetchall()[0][0])
+            sbid_id,version = get_max_sbid_version(cur,sbid)
         # Check if sbid exists:
-        cur.execute(f"SELECT count(*) from SBID where sbid_num = {sbid} and version = {version};")
-        result = int(cur.fetchall()[0][0])
-        if result ==1:
-            update_sbid_detection(cur,sbid=sbid,runid=runid,detectionF=True,dataDict=dataDict[sbid],datapath=output_dir,ver=version)
+        if sbid_id:
+            update_sbid_detection(cur,sbid=sbid,sbid_id=sbid_id,runid=runid,detectionF=True,dataDict=dataDict[sbid],datapath=output_dir,ver=version)
         else:
-            print(f"ERROR: sbid {sbid} does not exist in database!! Skipping")
+            print(f"ERROR: sbid:version {sbid}:{version} does not exist in database!! Skipping")
     return cur
 
 ###############################################
@@ -481,7 +496,7 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
     lob = conn.lobject(mode="wb", new_file=ascii_tarball)
     new_oid = lob.oid
     lob.close()
- 
+     
     cur.execute(insert_query, (sbid,runid,spectralF,detectionF,new_oid,quality,ver))
     # Get the generated id of the sbid just added:
     cur.execute(f"SELECT id from SBID where sbid_num = {sbid} and version = {ver};")
@@ -497,7 +512,7 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
         add_component(cur,comp,sbid_id,plotfiles,plot_path,processState="spectral")
 
 ###############################################
-def update_sbid_detection(cur,sbid,runid,detectionF,dataDict,datapath,ver):
+def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ver):
 
     # Create tarball of linefinder output files:
     output_tarball = f"{TMP_TAR_DIR}/{sbid}_linefinder_output.tar.gz"
@@ -509,10 +524,6 @@ def update_sbid_detection(cur,sbid,runid,detectionF,dataDict,datapath,ver):
     lob = conn.lobject(mode="wb", new_file=output_tarball)
     new_oid = lob.oid
     lob.close()
-
-    # Get the id of this sbid/version:
-    cur.execute(f"SELECT id from SBID where sbid_num = {sbid} and version = {ver};")
-    sbid_id = int(cur.fetchall()[0][0])
 
     update_query = "UPDATE SBID SET detect_runid = %s, detectionF = %s, detect_tar = %s where id = %s;"
     cur.execute(update_query,(runid,detectionF,new_oid,sbid_id))
@@ -553,7 +564,7 @@ def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral"):
     insert_q = "INSERT into component(comp_id,processState,opd_plotname,flux_plotname,opd_image,flux_image,spectral_date,detection_date,sbid_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s);"
     cur.execute(insert_q,(comp,processState,os.path.basename(opd),os.path.basename(flux),opddata,fluxdata,spect_date,detect_date,sbid_id))
     # Get id of just-added component:
-    cur.execute(f"select id from component where comp_id = {comp} and sbid_id = {sbid_id};")
+    cur.execute(f"select id from component where comp_id = '{comp}' and sbid_id = {sbid_id};")
     id = int(cur.fetchall()[0][0])
 
     print(f"    Data inserted into table 'component': id = {id}, comp_id = {comp}")
@@ -577,8 +588,7 @@ def update_quality(conn,SBIDS,quality,version=None):
     update_query = "UPDATE SBID SET quality = %s where sbid_num = %s and version = %s"
     for sbid in SBIDS:
         if not version:
-            cur.execute(f"select count(*) from sbid where sbid_num = {sbid};")
-            version = int(cur.fetchall()[0][0])
+            sbid_id,version = get_max_sbid_version(cur,sbid)
         cur.execute(update_query,(quality,sbid,version))
     
     print(f"Set quality {quality} for sbids {SBIDS}")
