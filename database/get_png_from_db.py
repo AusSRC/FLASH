@@ -27,6 +27,11 @@ import base64
 import psycopg2
 import re
 
+# default order for outputs from a query.
+ORDERBY = "SBID"
+#ORDERBY = "ID" # id is a proxy for date
+#ORDERBY = "DATE"
+
 def connect(db="flashdb",user="flash",host="146.118.64.208",password="aussrc"):
 
     conn = psycopg2.connect(
@@ -107,8 +112,11 @@ def query_db_for_sbid(cur,sbid):
     if sbid != -1:  # Query a specific SBID
         query = "select sbid_num, version, spect_runid, id, detectionF from sbid where sbid_num = %s"
         cur.execute(query,(sbid,))
-    else:           # Query all SBIDS in the db. Order by SBID
-        query = "select sbid_num, version, spect_runid, id, detectionF from sbid order by sbid_num;"
+    else:           # Query all SBIDS in the db. Order by SBID is default
+        if ORDERBY == "SBID":
+            query = "select sbid_num, version, spect_runid, id, detectionF from sbid order by sbid_num;"
+        elif ORDERBY in ["ID","DATE"]:
+            query = "select sbid_num, version, spect_runid, id, detectionF from sbid order by id;"
         cur.execute(query)
     res = cur.fetchall()
     title_str = "\nDATE\t\t\tSBID\tVERSION\tID\tTAG\t\t\tLINEFINDER RUN"
