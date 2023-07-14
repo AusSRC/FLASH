@@ -3,7 +3,7 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       python3 get_png_from_db.py <directory to download to> <sbid> <top n brightest components>
+#       python3 get_png_from_db.py <directory to download to> <sbid> <'n' top brightest components>
 #
 #       eg "python3 get_png_from_db.py /home/ger063/tmp 43426 20"
 #       will download brightest 20 sources from the latest version of sbid 43426 in the db
@@ -16,6 +16,11 @@
 #       By default only the opd images are downloaded. To get the flux images, add "flux"
 #
 #       eg "python3 get_png_from_db.py /home/ger063/tmp 43426 20 flux"
+#
+#       Query mode:
+#       python3 get_png_from_db.py 45833
+#
+#       will return metadata about SB45833 stored in the db (use '-1' to get all SBIDS)
 #######################################################################################
 import sys
 import base64
@@ -184,10 +189,11 @@ def get_plots_for_sbid(cur,args):
 def usage():
     print()
     print("USAGE:")
-    print("python3 get_png_from_db.py <directory to download to> <sbid> <top n brightest components>")
+    print("python3 get_png_from_db.py <directory to download to> <sbid> <'n' top brightest components>")
     print("     eg python3 get_png_from_db.py /home/ger063/tmp 43426 20")
     print()
-    print("     will download brightest 20 sources from sbid 43426")
+    print("     will download brightest 20 sources from latest version of sbid 43426")
+    print("     For all sources, use '-1' for n")
     print()
     print("     python3 get_png_from_db.py /home/ger063/tmp 43426:2 20")
     print("     will download the brightest 20 sources from version 2 of sbid 43426 in the db")
