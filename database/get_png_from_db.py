@@ -198,6 +198,7 @@ def usage():
     print("     python3 get_png_from_db.py 45833")
     print()
     print("     will return metadata on sbid, eg number of versions, tags etc")
+    print("     (use '-1' to get ALL sbids)")
     sys.exit()
 
 ##################################################################################################
