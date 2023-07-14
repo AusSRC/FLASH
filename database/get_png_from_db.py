@@ -99,12 +99,19 @@ def returnBrightestSources(names,number=None):
 
 def query_db_for_sbid(cur,sbid):
 
-    query = "select sbid_num, version, spect_runid, id, detectionF from sbid where sbid_num = %s"
-    cur.execute(query,(sbid,))
+    if sbid != -1:  # Query a specific SBID
+        query = "select sbid_num, version, spect_runid, id, detectionF from sbid where sbid_num = %s"
+        cur.execute(query,(sbid,))
+    else:           # Query all SBIDS in the db. Order by SBID
+        query = "select sbid_num, version, spect_runid, id, detectionF from sbid order by sbid_num;"
+        cur.execute(query)
     res = cur.fetchall()
-    print("DATE\t\t\tSBID\tVERSION\tID\tTAG\t\t\tLINEFINDER RUN")
-    for result in res:
-        # get the run tags
+    title_str = "\nDATE\t\t\tSBID\tVERSION\tID\tTAG\t\t\tLINEFINDER RUN"
+    print(title_str)
+    for i,result in enumerate(res):
+        if i % 60 == 0:
+            print(title_str)
+        # get the run tags from the spect_run table
         spect_q = "select run_tag, date from spect_run where id = %s"
         cur.execute(spect_q,(result[2],))
         spect_tag,date = cur.fetchall()[0]
