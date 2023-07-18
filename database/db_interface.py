@@ -348,7 +348,7 @@ def tar_dir(name,source_dir,pattern=None):
     tar = tarfile.open(name, "w:gz")
     for file in files:
         if not pattern or (pattern and pattern in file):
-            tar.add(f"{source_dir}/{file}")
+            tar.add(f"{source_dir}/{file}", arcname = '.')
 
     #with tarfile.open(name, "w:gz") as tar:
     #    tar.add(source_dir, arcname=os.path.basename(source_dir),recursive=recursive) 
