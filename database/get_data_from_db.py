@@ -3,6 +3,7 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
+#       Usage 1:
 #       python3 get_png_from_db.py <directory to download to> <sbid> <'n' top brightest components>
 #
 #       eg "python3 get_png_from_db.py /home/ger063/tmp 43426 20"
@@ -17,7 +18,13 @@
 #
 #       eg "python3 get_png_from_db.py /home/ger063/tmp 43426 20 flux"
 #
-#       Query mode:
+#       Usage 2:
+#       python3 get_png_from_db.py <directory to download to> <sbid> ascii
+#
+#       eg "python3 get_png_from_db.py /home/ger063/tmp 43426:2 ascii"
+#       will download the tarball of ascii files stored for SBID 43426 version2
+#
+#       Usage 3: Query mode:
 #       python3 get_png_from_db.py 45833
 #
 #       will return metadata about SB45833 stored in the db (use '-1' to get all SBIDS)
@@ -31,6 +38,7 @@ import re
 ORDERBY = "SBID"
 #ORDERBY = "ID" # id is a proxy for date
 #ORDERBY = "DATE"
+#######################################################################################
 
 def connect(db="flashdb",user="flash",host="146.118.64.208",password="aussrc"):
 
@@ -133,6 +141,39 @@ def query_db_for_sbid(cur,sbid):
 
 ##################################################################################################
 
+def get_files_for_sbid(conn,cur,args):
+
+    # The directory for downloads:
+    dir_download = args[1]
+
+    # The sbid you want to use - if a version is not declared ("45833" rather than "45833:2"),
+    # then use the latest version
+    version = None
+    sbid_str = args[2]
+    if ":" in sbid_str:
+        sbid = int(sbid_str.split(":")[0])
+        version = int(sbid_str.split(":")[1])
+    else:
+        sbid = int(sbid_str)
+
+    # get the corresponding sbid id for the sbid_num:version
+    sid,version = get_max_sbid_version(cur,sbid,version)
+
+    # Download tar of ascii files for the sbid
+    query = "select ascii_tar from sbid where id = %s"
+    cur.execute(query,(sid,))
+    oid = cur.fetchone()[0]
+    print(f"Retrieving large object {oid} from db")
+    loaded_lob = conn.lobject(oid=oid, mode="rb")
+    name = f"{sbid}_{version}.tar.gz"
+    open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
+    print(f"Downloaded tar of ascii files for {sbid}:{version}")
+    return
+
+
+
+##################################################################################################
+
 def get_plots_for_sbid(cur,args):
 
     # The directory for downloads:
@@ -157,11 +198,10 @@ def get_plots_for_sbid(cur,args):
     #
     num_sources = int(args[3])
     try:
-        # The image type to download ("opd" or "flux")
-        img_type = args[4]
-    except IndexError:
-        img_type = 'opd'
-
+        # The files type to download ("opd" or "flux")
+        data_type = args[4]
+    except IndexError: # default is to download opd files
+        data_type = 'opd'
     if not sid:
         if version == 0:
             version = "any_version"
@@ -184,10 +224,10 @@ def get_plots_for_sbid(cur,args):
     # Get the image data for the component and write it to a local file:
     for idx,source in enumerate(sources):
         print(f"    {idx+1} of {len(sources)} : {source}")
-        query = f"select {img_type}_image from component where comp_id = %s"
+        query = f"select {data_type}_image from component where comp_id = %s"
         cur.execute(query,(source,))
         data = cur.fetchone()
-        name = source.replace(".fits",f"_{img_type}.png")
+        name = source.replace(".fits",f"_{data_type}.png")
         open(f"{dir_download}/{name}", 'wb').write(data[0])
     print(f"Downloaded {len(sources)} files from sbid {sbid}")
 
@@ -196,7 +236,7 @@ def get_plots_for_sbid(cur,args):
 
 def usage():
     print()
-    print("USAGE:")
+    print("USAGE 1 - Get spectral plot files stored for SBID:")
     print("python3 get_png_from_db.py <directory to download to> <sbid> <'n' top brightest components>")
     print("     eg python3 get_png_from_db.py /home/ger063/tmp 43426 20")
     print()
@@ -208,8 +248,14 @@ def usage():
 
     print("     -- add 'flux' to download the flux images. Default is opd images only")
     print()
-    print("ALTERNATE USAGE - query db for sbid metatdata")
-    print("     python3 get_png_from_db.py 45833")
+    print("USAGE 2 - Get tar of ascii files for SBID:")
+    print("python3 get_png_from_db.py <directory to download to> <sbid> ascii")
+    print("     eg python3 get_png_from_db.py /home/ger063/tmp 43426:2 ascii")
+    print()
+    print("     will download the tarball of ascii files stored for SBID 43426 version2")
+    print()
+    print("USAGE 3 - query db for sbid metatdata")
+    print("python3 get_png_from_db.py 45833")
     print()
     print("     will return metadata on sbid, eg number of versions, tags etc")
     print("     (use '-1' to get ALL sbids)")
@@ -220,7 +266,7 @@ def usage():
 
 if __name__ == "__main__":
 
-    if len(sys.argv) not in [2,4,5]:
+    if len(sys.argv) not in [2,3,4,5]:
         usage()
 
     conn = connect()
@@ -233,6 +279,10 @@ if __name__ == "__main__":
         except:
             usage()
         query_db_for_sbid(cur,sbid)
+
+    # Get tar of ascii files
+    elif sys.argv[-1] == "ascii":
+        get_files_for_sbid(conn,cur,sys.argv)
 
     # Get plots for sbid
     elif len(sys.argv) > 3:
