@@ -24,7 +24,13 @@
 #       eg "python3 get_png_from_db.py /home/ger063/tmp 43426:2 ascii"
 #       will download the tarball of ascii files stored for SBID 43426 version2
 #
-#       Usage 3: Query mode:
+#       Usage 3:
+#       python3 get_png_from_db.py <directory to download to> <sbid> linefinder
+#
+#       eg "python3 get_png_from_db.py /home/ger063/tmp 43426:2 linefinder"
+#       will download the tarball of linefinder result files stored for SBID 43426 version2
+#
+#       Usage 4: Query mode:
 #       python3 get_png_from_db.py 45833
 #
 #       will return metadata about SB45833 stored in the db (use '-1' to get all SBIDS)
@@ -160,14 +166,35 @@ def get_files_for_sbid(conn,cur,args):
     sid,version = get_max_sbid_version(cur,sbid,version)
 
     # Download tar of ascii files for the sbid
-    query = "select ascii_tar from sbid where id = %s"
-    cur.execute(query,(sid,))
-    oid = cur.fetchone()[0]
-    print(f"Retrieving large object {oid} from db")
-    loaded_lob = conn.lobject(oid=oid, mode="rb")
-    name = f"{sbid}_{version}.tar.gz"
-    open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
-    print(f"Downloaded tar of ascii files for {sbid}:{version}")
+    if args[-1] == "ascii":
+        query = "select ascii_tar from sbid where id = %s"
+        cur.execute(query,(sid,))
+        oid = cur.fetchone()[0]
+        print(f"Retrieving large object {oid} from db")
+        loaded_lob = conn.lobject(oid=oid, mode="rb")
+        name = f"{sbid}_{version}.tar.gz"
+        open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
+        print(f"Downloaded tar of ascii files for {sbid}:{version}")
+
+    elif args[-1] == "linefinder":
+        query = "select detectionF from sbid where id = %s"    
+        cur.execute(query,(sid,))
+        detect = cur.fetchone()[0]
+        if not detect:
+            print(f"No linefinder results available for sbid {sbid}:{version} !!")
+            return
+        query = "select detect_tar from sbid where id = %s"
+        cur.execute(query,(sid,))
+        oid = cur.fetchone()[0]
+        if not oid:
+            print(f"Linefinder was run, but no results stored in db for sbid {sbid}:{version} !!")
+            return
+        print(f"Retrieving large object {oid} from db")
+        loaded_lob = conn.lobject(oid=oid, mode="rb")
+        name = f"{sbid}_{version}.tar.gz"
+        open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
+        print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
+
     return
 
 
@@ -254,7 +281,13 @@ def usage():
     print()
     print("     will download the tarball of ascii files stored for SBID 43426 version2")
     print()
-    print("USAGE 3 - query db for sbid metatdata")
+    print("USAGE 3 - Get tar of linefinder results files for SBID:")
+    print("python3 get_png_from_db.py <directory to download to> <sbid> linefinder")
+    print("     eg python3 get_png_from_db.py /home/ger063/tmp 43426:2 linefinder")
+    print()
+    print("     will download the tarball of linefinder result files stored for SBID 43426 version2")
+    print()
+     print("USAGE 4 - query db for sbid metatdata")
     print("python3 get_png_from_db.py 45833")
     print()
     print("     will return metadata on sbid, eg number of versions, tags etc")
@@ -280,8 +313,8 @@ if __name__ == "__main__":
             usage()
         query_db_for_sbid(cur,sbid)
 
-    # Get tar of ascii files
-    elif sys.argv[-1] == "ascii":
+    # Get tar of either ascii files or linefinder results
+    elif sys.argv[-1] in ["ascii","linefinder"]:
         get_files_for_sbid(conn,cur,sys.argv)
 
     # Get plots for sbid
