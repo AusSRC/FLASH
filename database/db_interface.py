@@ -346,14 +346,6 @@ def get_max_sbid_version(cur,sbid_num,version=None):
 
 ###############################################
 
-def is_string(var):
-    if type(variable) == str:
-        return True
-    else:
-        return False
-
-###############################################
-
 def tar_dir(name,source_dir,pattern=None):
     """ Only tars up files, not subdirectories"""
     files = (file for file in os.listdir(source_dir) if os.path.isfile(os.path.join(source_dir, file)))
@@ -362,14 +354,12 @@ def tar_dir(name,source_dir,pattern=None):
         if not pattern:
             tar.add(f"{source_dir}/{file}", arcname = '.')
         else:
-            if is_string(pattern):
+            if isinstance(pattern,str):
                 pattern = [pattern] 
             for pat in pattern:
                 if pat in file:
                     tar.add(f"{source_dir}/{file}", arcname = '.')
 
-    #with tarfile.open(name, "w:gz") as tar:
-    #    tar.add(source_dir, arcname=os.path.basename(source_dir),recursive=recursive) 
 
 ###############################################
 def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
