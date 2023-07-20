@@ -77,7 +77,7 @@ def get_max_sbid_version(cur,sbid_num,version=None):
         try:
             sbid_id = int(cur.fetchall()[0][0])
         except IndexError:
-            # sbid doesn't exist
+            # sbid for this version doesn't exist
             sbid_id = None
     else:
         query = "select id,version from sbid where sbid_num = %s and version = (select max(version) from sbid where sbid_num = %s);"

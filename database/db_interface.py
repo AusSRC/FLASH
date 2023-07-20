@@ -328,7 +328,11 @@ def get_max_sbid_version(cur,sbid_num,version=None):
     if version:
         query = "select id from sbid where sbid_num = %s and version = %s;"
         cur.execute(query,(sbid_num,version))
-        sbid_id = int(cur.fetchall()[0][0])
+        try:
+            sbid_id = int(cur.fetchall()[0][0])
+        except IndexError:
+            # sbid for this version doesn't exist
+            sbid_id = None
     else:
         query = "select id,version from sbid where sbid_num = %s and version = (select max(version) from sbid where sbid_num = %s);"
         cur.execute(query,(sbid_num,sbid_num))
@@ -342,13 +346,27 @@ def get_max_sbid_version(cur,sbid_num,version=None):
 
 ###############################################
 
+def is_string(var):
+    if type(variable) == str:
+        return True
+    else:
+        return False
+
+###############################################
+
 def tar_dir(name,source_dir,pattern=None):
     """ Only tars up files, not subdirectories"""
     files = (file for file in os.listdir(source_dir) if os.path.isfile(os.path.join(source_dir, file)))
     tar = tarfile.open(name, "w:gz")
     for file in files:
-        if not pattern or (pattern and pattern in file):
+        if not pattern:
             tar.add(f"{source_dir}/{file}", arcname = '.')
+        else:
+            if is_string(pattern):
+                pattern = [pattern] 
+            for pat in pattern:
+                if pat in file:
+                    tar.add(f"{source_dir}/{file}", arcname = '.')
 
     #with tarfile.open(name, "w:gz") as tar:
     #    tar.add(source_dir, arcname=os.path.basename(source_dir),recursive=recursive) 
@@ -517,7 +535,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ve
     # Create tarball of linefinder output files:
     output_tarball = f"{TMP_TAR_DIR}/{sbid}_linefinder_output.tar.gz"
     print(f"Creating tarball {output_tarball}")
-    tar_dir(output_tarball,f"{sbid}/{LINEFINDER_OUTPUT_DIR}",pattern="stats.dat")
+    tar_dir(output_tarball,f"{sbid}/{LINEFINDER_OUTPUT_DIR}",pattern=["stats.dat","result"])
 
     # Create a large object in the database:
     print("    -- loading to database")
