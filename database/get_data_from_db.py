@@ -147,6 +147,16 @@ def query_db_for_sbid(cur,sbid):
 
 ##################################################################################################
 
+def write_lob(lobj,filename):
+    with open(filename, 'wb') as f:
+        while True:
+            chunk = lobj.read(4096*4096)
+            if not chunk:
+                break
+            f.write(chunk)  
+
+##################################################################################################
+
 def get_files_for_sbid(conn,cur,args):
 
     # The directory for downloads:
@@ -173,7 +183,10 @@ def get_files_for_sbid(conn,cur,args):
         print(f"Retrieving large object {oid} from db")
         loaded_lob = conn.lobject(oid=oid, mode="rb")
         name = f"{sbid}_{version}.tar.gz"
-        open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
+        # This may run out of mem for a very large object:
+        #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
+        # So use streaming function:
+        write_lob(loaded_lob,f"{dir_download}/{name}")
         print(f"Downloaded tar of ascii files for {sbid}:{version}")
 
     elif args[-1] == "linefinder":
@@ -192,7 +205,10 @@ def get_files_for_sbid(conn,cur,args):
         print(f"Retrieving large object {oid} from db")
         loaded_lob = conn.lobject(oid=oid, mode="rb")
         name = f"{sbid}_{version}.tar.gz"
-        open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
+        # This may run out of mem for a very large object:
+        #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
+        # So use streaming function:
+        write_lob(loaded_lob,f"{dir_download}/{name}")
         print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
 
     return
@@ -287,7 +303,7 @@ def usage():
     print()
     print("     will download the tarball of linefinder result files stored for SBID 43426 version2")
     print()
-     print("USAGE 4 - query db for sbid metatdata")
+    print("USAGE 4 - query db for sbid metatdata")
     print("python3 get_png_from_db.py 45833")
     print()
     print("     will return metadata on sbid, eg number of versions, tags etc")
