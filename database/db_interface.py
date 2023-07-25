@@ -37,12 +37,12 @@ import psycopg2
 # 1. Define the type of processing run you want to store in the database from the following choices:
 
 # add a spectral processing run to the database (one or more SBID's)
-RUN_TYPE = "spectral"   
+#RUN_TYPE = "spectral"   
 # add a detection (Linefinder) processing run to the database (one or more SBID's). 
 # The SBID(s) must already be in the database from a prior spectral run.
 #RUN_TYPE = "detection"   
 # Delete an sbid from the database. Also deletes any reference in a spectral or detection run
-#RUN_TYPE = "DELETESBIDS" 
+RUN_TYPE = "DELETESBIDS" 
 # Remove detection processing from an sbid -reverts to a 'spectral run' sbid
 #RUN_TYPE = "SBIDSPLOTONLY"
 # Set sbids to "GOOD" quality
@@ -55,9 +55,11 @@ RUN_TYPE = "spectral"
 # 2. Add the run tag - eg pilot or survey 1 / 2 /3 ... data
 RUN_TAG = "testing only"
 
-# 3. List of sbids to process. On slow connections, you might need to do this one sbid at a time, as per the example,
+# 3. List of sbids (and their corresponding versions) to process. 
+# On slow connections, you might need to do this one sbid at a time, as per the example,
 # in case of timeouts when connected to the database for multiple sbids with many components
 SBIDS = [45833] #45815 45823 45833 45835 45762 45828 - 45825 has two ascii dirs??
+VERSIONS = [2] # This list should correspond to the above sbids list = set to empty for just the latest version.
 
 # 4. Top level directory holding the SBID subdirs:
 DATA_DIR = "/home/ger063/src/flash_data"
@@ -125,11 +127,13 @@ def get_cursor(conn):
 ##########################################################################################################
 ###################################### DELETING RUNS #####################################################
 
-def delete_sbids(conn,sbids,version=None):
+def delete_sbids(conn,sbids,versions=None):
 
     cur = get_cursor(conn)
+    if not versions:
+        versions = [None]*len(selected_sbids)
 
-    for sbid in sbids:
+    for sbid,version in zip (sbids,versions):
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
         # Delete associated large object of ascii files
         oid_query = "select ascii_tar from sbid where id = %s;"
@@ -163,15 +167,17 @@ def delete_sbids(conn,sbids,version=None):
 
         # Now remove the sbid from the SBID table (will also remove associated components) and any large objects
         sbid_delete = "DELETE from SBID where id = %s;"
-        cur.execute(sbid_delete,(sbid,))
+        cur.execute(sbid_delete,(sbid_id,))
 
     return cur
      
-def remove_sbids_from_detection(conn,selected_sbids,version=None,runid=None):
+def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
 
     cur = get_cursor(conn)
+    if not versions:
+        versions = [None]*len(selected_sbids)
 
-    for sbid in selected_sbids:
+    for sbid,version in zip(selected_sbids,versions):
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
         # Delete associated large object of detection outputs
         oid_query = "select detect_tar from sbid where id = %s;"
@@ -642,9 +648,9 @@ if __name__ == "__main__":
     elif RUN_TYPE == "UNCERTAIN":
         cur = update_quality(conn,SBIDS=sbids,quality="UNCERTAIN")
     elif RUN_TYPE == "DELETESBIDS":
-        cur = delete_sbids(conn,SBIDS)
+        cur = delete_sbids(conn,SBIDS,VERSIONS)
     elif RUN_TYPE == "SBIDSPLOTONLY":
-        cur = remove_sbids_from_detection(conn,SBIDS)
+        cur = remove_sbids_from_detection(conn,SBIDS,VERSIONS)
         
     conn.commit()
     cur.close()
