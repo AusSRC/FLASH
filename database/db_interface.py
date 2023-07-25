@@ -37,12 +37,12 @@ import psycopg2
 # 1. Define the type of processing run you want to store in the database from the following choices:
 
 # add a spectral processing run to the database (one or more SBID's)
-#RUN_TYPE = "spectral"   
+RUN_TYPE = "spectral"   
 # add a detection (Linefinder) processing run to the database (one or more SBID's). 
 # The SBID(s) must already be in the database from a prior spectral run.
 #RUN_TYPE = "detection"   
 # Delete an sbid from the database. Also deletes any reference in a spectral or detection run
-RUN_TYPE = "DELETESBIDS" 
+#RUN_TYPE = "DELETESBIDS" 
 # Remove detection processing from an sbid -reverts to a 'spectral run' sbid
 #RUN_TYPE = "SBIDSPLOTONLY"
 # Set sbids to "GOOD" quality
@@ -59,7 +59,7 @@ RUN_TAG = "testing only"
 # On slow connections, you might need to do this one sbid at a time, as per the example,
 # in case of timeouts when connected to the database for multiple sbids with many components
 SBIDS = [45833] #45815 45823 45833 45835 45762 45828 - 45825 has two ascii dirs??
-VERSIONS = [2] # This list should correspond to the above sbids list = set to empty for just the latest version.
+VERSIONS = [] # This list should correspond to the above sbids list = set to empty for just the latest version.
 
 # 4. Top level directory holding the SBID subdirs:
 DATA_DIR = "/home/ger063/src/flash_data"
