@@ -59,10 +59,11 @@ RUN_TYPE = "spectral"
 RUN_TAG = "testing only"
 
 # 3. List of sbids (and their corresponding versions) to process. 
-# On slow connections, you might need to do this one sbid at a time, as per the example,
+# On slow connections, you might need to do this one sbid at a time (as per the example),
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [45833] #45815 45823 45833 45835 45762 45828
-VERSIONS = [2] # This list should have corresponding entries to the above sbids list ; set to [] for just the latest version.
+SBIDS = [45833] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
+ # This version list should have corresponding entries to the above sbids list ; or set to [] for just the latest version(s).
+VERSIONS = [2] # Or for eg 6 sbids: [2,1,1,2,1,1]
 
 # 4. Top level directory holding the SBID subdirs:
 DATA_DIR = "/scratch/ja3/ger063/flash_data"
