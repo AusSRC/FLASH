@@ -235,14 +235,6 @@ def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
 
     cur = get_cursor(conn)
 
-    # Check if any of the sbids have been entered before
-    #repeated_sbids = check_sbids(cur,SBIDS,table="spect_run")
-    #if repeated_sbids:
-    #    print(f"*** SKIPPING sbids {repeated_sbids} from list {SBIDS}!!")
-    #    SBIDS = list(set(repeated_sbids).symmetric_difference(set(SBIDS)))
-    #if not SBIDS:
-    #    return cur
-
     # Add the log files
     errdata = ""
     if errlog:
@@ -413,10 +405,6 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ve
 ###############################################
 def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral"):
     # Determine status
-    #status = "NULL"
-    #select_q = f"SELECT b.spectralF,b.detectionF from sbid a INNER JOIN run b on a.run_id = b.id where a.id = {sbid};"
-    #cur.execute(select_q)
-    #spectralF,detectionF = cur.fetchone()
 
     # Get current datetime and format for postgres
     spect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S") 
