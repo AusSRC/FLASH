@@ -133,7 +133,6 @@ def query_db_for_sbid(cur,sbid):
         cur.execute(query)
     res = cur.fetchall()
     title_str = "\nDATE\t\t\tSBID\tVERSION\tID\tTAG\t\t\tLINEFINDER RUN"
-    print(title_str)
     for i,result in enumerate(res):
         if i % 60 == 0:
             print(title_str)
