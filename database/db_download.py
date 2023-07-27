@@ -4,34 +4,34 @@
 #       GWHG @ CSIRO, July 2023
 #
 #       Usage 1:
-#       python3 get_png_from_db.py <directory to download to> <sbid> <'n' top brightest components>
+#       python3 db_download.py <directory to download to> <sbid> <'n' top brightest components>
 #
-#       eg "python3 get_png_from_db.py /home/ger063/tmp 43426 20"
+#       eg "python3 db_download.py /home/ger063/tmp 43426 20"
 #       will download brightest 20 sources from the latest version of sbid 43426 in the db
 #
-#        "python3 get_png_from_db.py /home/ger063/tmp 43426:2 20"
+#        "python3 db_download.py /home/ger063/tmp 43426:2 20"
 #       will download the brightest 20 sources from version 2 of sbid 43426 in the db
 #
 #       To get ALL the sources, use "-1" for n
 #
 #       By default only the opd images are downloaded. To get the flux images, add "flux"
 #
-#       eg "python3 get_png_from_db.py /home/ger063/tmp 43426 20 flux"
+#       eg "python3 db_download.py /home/ger063/tmp 43426 20 flux"
 #
 #       Usage 2:
-#       python3 get_png_from_db.py <directory to download to> <sbid> ascii
+#       python3 db_download.py <directory to download to> <sbid> ascii
 #
-#       eg "python3 get_png_from_db.py /home/ger063/tmp 43426:2 ascii"
+#       eg "python3 db_download.py /home/ger063/tmp 43426:2 ascii"
 #       will download the tarball of ascii files stored for SBID 43426 version2
 #
 #       Usage 3:
-#       python3 get_png_from_db.py <directory to download to> <sbid> linefinder
+#       python3 db_download.py <directory to download to> <sbid> linefinder
 #
-#       eg "python3 get_png_from_db.py /home/ger063/tmp 43426:2 linefinder"
+#       eg "python3 db_download.py /home/ger063/tmp 43426:2 linefinder"
 #       will download the tarball of linefinder result files stored for SBID 43426 version2
 #
 #       Usage 4: Query mode:
-#       python3 get_png_from_db.py 45833
+#       python3 db_download.py 45833
 #
 #       will return metadata about SB45833 stored in the db (use '-1' to get all SBIDS)
 #######################################################################################
@@ -43,7 +43,6 @@ import re
 # default order for outputs from a query.
 ORDERBY = "SBID"
 #ORDERBY = "ID" # id is a proxy for date
-#ORDERBY = "DATE"
 #######################################################################################
 
 def connect(db="flashdb",user="flash",host="146.118.64.208",password="aussrc"):
@@ -280,31 +279,31 @@ def get_plots_for_sbid(cur,args):
 def usage():
     print()
     print("USAGE 1 - Get spectral plot files stored for SBID:")
-    print("python3 get_png_from_db.py <directory to download to> <sbid> <'n' top brightest components>")
-    print("     eg python3 get_png_from_db.py /home/ger063/tmp 43426 20")
+    print("python3 db_download.py <directory to download to> <sbid> <'n' top brightest components>")
+    print("     eg python3 db_download.py /home/ger063/tmp 43426 20")
     print()
     print("     will download brightest 20 sources from latest version of sbid 43426")
     print("     For all sources, use '-1' for n")
     print()
-    print("     python3 get_png_from_db.py /home/ger063/tmp 43426:2 20")
+    print("     python3 db_download.py /home/ger063/tmp 43426:2 20")
     print("     will download the brightest 20 sources from version 2 of sbid 43426 in the db")
 
     print("     -- add 'flux' to download the flux images. Default is opd images only")
     print()
     print("USAGE 2 - Get tar of ascii files for SBID:")
-    print("python3 get_png_from_db.py <directory to download to> <sbid> ascii")
-    print("     eg python3 get_png_from_db.py /home/ger063/tmp 43426:2 ascii")
+    print("python3 db_download.py <directory to download to> <sbid> ascii")
+    print("     eg python3 db_download.py /home/ger063/tmp 43426:2 ascii")
     print()
     print("     will download the tarball of ascii files stored for SBID 43426 version2")
     print()
     print("USAGE 3 - Get tar of linefinder results files for SBID:")
-    print("python3 get_png_from_db.py <directory to download to> <sbid> linefinder")
-    print("     eg python3 get_png_from_db.py /home/ger063/tmp 43426:2 linefinder")
+    print("python3 db_download.py <directory to download to> <sbid> linefinder")
+    print("     eg python3 db_download.py /home/ger063/tmp 43426:2 linefinder")
     print()
     print("     will download the tarball of linefinder result files stored for SBID 43426 version2")
     print()
     print("USAGE 4 - query db for sbid metatdata")
-    print("python3 get_png_from_db.py 45833")
+    print("python3 db_download.py 45833")
     print()
     print("     will return metadata on sbid, eg number of versions, tags etc")
     print("     (use '-1' to get ALL sbids)")
