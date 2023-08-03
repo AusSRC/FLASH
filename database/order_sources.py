@@ -3,7 +3,7 @@ import sys
 from glob import glob
 import re
 
-def returnBrightestSources(names,number):
+def returnBrightestSources(names,number=None):
 
     namedir = {}
 

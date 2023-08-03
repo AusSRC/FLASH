@@ -5,6 +5,8 @@ import time
 import datetime as dt
 import os.path
 import psycopg2
+import xmltodict
+from glob import glob
 
 ##################################### db_delete_data ###################################################
 #
@@ -20,15 +22,20 @@ import psycopg2
 
 
 # Delete an sbid from the database. Also deletes any reference in a spectral or detection run
-RUN_TYPE = "DELETESBIDS" 
+#RUN_TYPE = "DELETESBIDS" 
 # Remove detection processing from an sbid -reverts to a 'spectral run' sbid
 #RUN_TYPE = "SBIDSPLOTONLY"
+# Add catalogue data
+RUN_TYPE = "CATALOGUE"
 
 # 2. List of sbids (and their corresponding versions) to process. 
 # On slow connections, you might need to do this one sbid at a time, as per the example,
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [45833] #45815 45823 45833 45835 45762 45828 - 45825 has two ascii dirs??
-VERSIONS = [2] # This list should correspond to the above sbids list = set to empty for just the latest version.
+SBIDS = [13298,13299,13305,13306,13334] #45815 45823 45833 45835 45762 45828 - 45825 has two ascii dirs??
+VERSIONS = [1] # This list should correspond to the above sbids list = set to empty for just the latest version.
+
+# 3. If adding catalogue data, provide the directory that holds the catalogues by sbid
+CATDIR = "/home/ger063/src/flash_data/casda"
 
 ####################################################################################################################
 ########################## DO NOT EDIT FURTHER #####################################################################
@@ -50,6 +57,119 @@ def get_cursor(conn):
     cursor = conn.cursor()
     return cursor
 
+###############################################
+
+def get_max_sbid_version(cur,sbid_num,version=None):
+
+    # If version=None, returns the sbid_id:version for the latest version number of the sbid_num in the SBID table
+    # Otherwise returns the sbid_id:version for the sbid_num and version combination provided
+    # If the sbid_num doesn't exist, returns None:0
+
+    if version:
+        query = "select id from sbid where sbid_num = %s and version = %s;"
+        cur.execute(query,(sbid_num,version))
+        try:
+            sbid_id = int(cur.fetchall()[0][0])
+        except IndexError:
+            # sbid for this version doesn't exist
+            sbid_id = None
+    else:
+        query = "select id,version from sbid where sbid_num = %s and version = (select max(version) from sbid where sbid_num = %s);"
+        cur.execute(query,(sbid_num,sbid_num))
+        try:
+            sbid_id,version = cur.fetchall()[0]
+        except IndexError:
+            # sbid doesn't exist
+            sbid_id = None
+            version = 0
+    return sbid_id,version
+
+###############################################
+
+
+##########################################################################################################
+###################################### Catalogue data ####################################################
+
+def __get_component_catalog_data(catname,comp_name):
+
+    with open(catname,'r',encoding = 'utf-8') as file:
+        xml_data = file.read()
+    xml_dict = xmltodict.parse(xml_data)
+    fieldnames = []
+    datadict = {}
+    # Get field names
+    for row in xml_dict['VOTABLE']['RESOURCE']['TABLE']['FIELD']:
+        fieldnames.append(row['@name'].strip())
+
+    # Get data for given component
+    for row in xml_dict['VOTABLE']['RESOURCE']['TABLE']['DATA']['TABLEDATA']['TR']:
+        if row['TD'][1] == comp_name:
+            for i,val in enumerate(row['TD']):
+                datadict[fieldnames[i]] = val
+            break
+    return datadict
+
+def __get_sbid_catalog_data(catname):
+
+    with open(catname,'r',encoding = 'utf-8') as file:
+        xml_data = file.read()
+    xml_dict = xmltodict.parse(xml_data)
+    fieldnames = []
+    datadict = {}
+    catdict = {}
+    # Get field names
+    for row in xml_dict['VOTABLE']['RESOURCE']['TABLE']['FIELD']:
+        fieldnames.append(row['@name'].strip())
+
+    # Get data for all listed components
+    for row in xml_dict['VOTABLE']['RESOURCE']['TABLE']['DATA']['TABLEDATA']['TR']:
+        comp_name =  row['TD'][1]
+        for i,val in enumerate(row['TD']):
+            datadict[fieldnames[i]] = val
+        catdict[comp_name] = datadict
+        datadict = {}
+    return catdict
+
+def __get_sbid_components_in_db(cur,sbid):
+    sbid_id,version = get_max_sbid_version(cur,sbid)
+    query = "select comp_id from component where sbid_id = %s"
+    cur.execute(query,(sbid_id,))
+    components = cur.fetchall()
+    component_names = []
+    for comp in components:
+        component_names.append(comp[0])
+    return component_names
+
+def __add_component_catalog_to_db(cur,comp_id,catdict):
+
+    query = "UPDATE component set component_name = %s, ra_hms_cont = %s, dec_dms_cont = %s, ra_deg_cont = %s, dec_deg_cont = %s where comp_id = %s;"
+    cur.execute(query,(catdict['component_name'],catdict['ra_hms_cont'],catdict['dec_dms_cont'],catdict['ra_deg_cont'],catdict['dec_deg_cont'],comp_id))
+    #print(catdict['component_name'],catdict['ra_hms_cont'],catdict['dec_dms_cont'],catdict['ra_deg_cont'],catdict['dec_deg_cont'],comp_id)
+    print(".",end="")
+
+def add_sbid_catalogue(conn,sbid,casda_folder):
+
+    cur = get_cursor(conn)
+    datadir = f"{casda_folder}/{sbid}"
+    names = glob(f"{datadir}/*.components.xml")
+    if len(names) != 1:
+        print(f"Error in {sbid} catalogue name {names}. Not processing")
+        return cur
+    name = names[0]
+    print(f"Reading {os.path.basename(name)}")
+    
+    # Get components listed in catalogue
+    components_data = __get_sbid_catalog_data(name)
+    # Get components listed in db for this sbid (will be much less than in catalogue)
+    components_db = __get_sbid_components_in_db(cur,sbid)
+    print(f"Components in catalogue: {len(components_data.keys())}, in db: {len(components_db)}")
+    for comp_id in components_db:
+        name = comp_id.replace(".fits","").replace("spec_","")
+        comp_data = components_data[name]
+        __add_component_catalog_to_db(cur,comp_id,comp_data)
+    print()
+    print(f"Added catalogue data for {sbid}")
+    return cur
 
 ##########################################################################################################
 ###################################### DELETING RUNS #####################################################
@@ -232,6 +352,9 @@ if __name__ == "__main__":
         cur = delete_sbids(conn,SBIDS,VERSIONS)
     elif RUN_TYPE == "SBIDSPLOTONLY":
         cur = remove_sbids_from_detection(conn,SBIDS,VERSIONS)
+    elif RUN_TYPE == "CATALOGUE":
+        for sbid in SBIDS:
+            cur = add_sbid_catalogue(conn,sbid,CATDIR)
         
     conn.commit()
     cur.close()
