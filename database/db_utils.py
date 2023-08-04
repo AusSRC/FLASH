@@ -10,6 +10,7 @@ from glob import glob
 
 from casda_download import *
 
+
 ##################################### db_delete_data ###################################################
 #
 #       This script deletes data held in the FLASH db at 146.118.64.208
@@ -27,17 +28,20 @@ from casda_download import *
 #RUN_TYPE = "DELETESBIDS" 
 # Remove detection processing from an sbid -reverts to a 'spectral run' sbid
 #RUN_TYPE = "SBIDSPLOTONLY"
-# Add catalogue data
+# Add catalogue data - remember to add your Opal password as a command line arg with '-p'
 RUN_TYPE = "CATALOGUE"
 
 # 2. List of sbids (and their corresponding versions) to process. 
 # On slow connections, you might need to do this one sbid at a time, as per the example,
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [34556,34557,34558,34559] #45815 45823 45833 45835 45762 45828 - 45825 has two ascii dirs??
+SBIDS = [42298,42299,42300,42323,43424,43426,45762,45815,45823,45825,45828,45835] #45815 45823 45833 45835 45762 45828 - 45825 has two ascii dirs??
 VERSIONS = [1] # This list should correspond to the above sbids list = set to empty for just the latest version.
 
 # 3. If adding catalogue data, provide the directory that holds the catalogues by sbid
 CATDIR = "/home/ger063/src/flash_data/casda"
+DATADIR = CATDIR
+UNTAR = False
+DELETE_CATS = True # save space by deleting catalogues after processing
 
 ####################################################################################################################
 ########################## DO NOT EDIT FURTHER #####################################################################
@@ -93,11 +97,13 @@ def get_max_sbid_version(cur,sbid_num,version=None):
 ###################################### Catalogue data ####################################################
 
 def get_catalogues():
+    # These functions are defined in 'casda_download'
+
     args = set_parser()
     #sbid_list = get_sbids(args)
     sbid_list = SBIDS
     casda,casdatap = authenticate(args)
-    process_sbid_list(sbid_list,args,casda,casdatap)
+    process_sbid_list(sbid_list,args,casda,casdatap,exists=True)
     print(f"Retrieved catalogues for sbids {sbid_list}")
 
 def __get_component_catalog_data(catname,comp_name):
@@ -363,13 +369,18 @@ if __name__ == "__main__":
     elif RUN_TYPE == "SBIDSPLOTONLY":
         cur = remove_sbids_from_detection(conn,SBIDS,VERSIONS)
     elif RUN_TYPE == "CATALOGUE":
+        print(f"Processing sbids {SBIDS}")
         get_catalogues()
         for sbid in SBIDS:
             cur = add_sbid_catalogue(conn,sbid,CATDIR)
-        
+        if DELETE_CATS:
+            for sbid in SBIDS:
+                os.system(f"rm -R {CATDIR}/{sbid}")
+            print(f"Downloaded catalogues deleted: {SBIDS}")
+            
     conn.commit()
     cur.close()
     conn.close()
-    print(f"Job took {time.time()-starttime} sec for sbids {SBIDS}")
+    print(f"Job took {time.time()-starttime} sec for {len(SBIDS)} sbids {SBIDS}")
 
 

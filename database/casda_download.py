@@ -60,9 +60,11 @@ def authenticate(args):
     return casda,casdatap
 ################################################################################################################
 
-def process_sbid_list(sbid_list,args,casda,casdatap):
+def process_sbid_list(sbid_list,args,casda,casdatap,exists=False):
     # Loop over each SBID
     for sbid in sbid_list:
+        if exists and glob(f"{DATADIR}/{sbid}/*.xml") != []:
+            continue
 
         # Make a folder
         try:
