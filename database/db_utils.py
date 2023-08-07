@@ -31,13 +31,20 @@ from casda_download import *
 # Add catalogue data - remember to add your Opal password as a command line arg with '-p'
 RUN_TYPE = "CATALOGUE"
 
+# Check if the sbids exist in the db
+#RUN_TYPE = "CHECK_SBIDS"
+
+# Check for processed files in local sbid dirs
+#RUN_TYPE = "CHECK_LOCAL_SBIDS"
+SBIDDIR = "/scratch/ja3/mah128/plot_spectra/data/sourceSpectra"
+
 # 2. List of sbids (and their corresponding versions) to process. 
 # On slow connections, you might need to do this one sbid at a time, as per the example,
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [42298,42299,42300,42323,43424,43426,45762,45815,45823,45825,45828,45835] #45815 45823 45833 45835 45762 45828 - 45825 has two ascii dirs??
-VERSIONS = [1] # This list should correspond to the above sbids list = set to empty for just the latest version.
+SBIDS = [51444,51446,51447,51449,51450,51451,51452,51453,51454,51455]
+VERSIONS = [] # This list should correspond to the above sbids list = set to empty for just the latest version of each sbid.
 
-# 3. If adding catalogue data, provide the directory that holds the catalogues by sbid
+# 3. If adding catalogue data, provide the directory that holds, or will hold, the catalogues by sbid
 CATDIR = "/home/ger063/src/flash_data/casda"
 DATADIR = CATDIR
 UNTAR = False
@@ -92,6 +99,39 @@ def get_max_sbid_version(cur,sbid_num,version=None):
 
 ###############################################
 
+def check_sbids_in_db(conn):
+
+    # Check if the sbids listed in SBIDS are in the db
+
+    cur = get_cursor(conn)
+    for sbid in SBIDS:
+        sbid_id,ver = get_max_sbid_version(cur,sbid)
+        print(f"{sbid}: id = {sbid_id}, version = {ver}")
+
+    return cur
+
+###############################################
+
+def check_local_processed_sbids(directory):
+
+    # Check if local sbid directories contain any spectral ascii files, which is indicative 
+    # of a spectral run being done over those sbids.
+    
+    print(f"In {directory}, processed sbids are:")
+    subdirs = glob(f"{directory}/*/")
+    sbids = []
+    for name in subdirs:
+        subname = name.split("/")[-2]
+        try:
+            n = int(subname)
+            sbids.append(n)
+        except ValueError:
+            pass
+    sbids.sort()
+    for sbid in sbids:
+        ascii_files = glob(f"{directory}/{sbid}/spectra_ascii/*.dat")
+        if len(ascii_files) > 0:
+            print(f"{sbid},",end="")
 
 ##########################################################################################################
 ###################################### Catalogue data ####################################################
@@ -327,33 +367,6 @@ def delete_detection(conn,runid):
         cur.execute(sbid_reset,(False,sbid,runid))
     return cur
 
-#########################################################################################################################
-#########################################################################################################################
-
-def get_max_sbid_version(cur,sbid_num,version=None):
-
-    # If version=None, returns the sbid_id:version for the latest version number of the sbid_num in the SBID table
-    # Otherwise returns the sbid_id:version for the sbid_num and version combination provided
-    # If the sbid_num doesn't exist, returns None:0
-
-    if version:
-        query = "select id from sbid where sbid_num = %s and version = %s;"
-        cur.execute(query,(sbid_num,version))
-        try:
-            sbid_id = int(cur.fetchall()[0][0])
-        except IndexError:
-            # sbid for this version doesn't exist
-            sbid_id = None
-    else:
-        query = "select id,version from sbid where sbid_num = %s and version = (select max(version) from sbid where sbid_num = %s);"
-        cur.execute(query,(sbid_num,sbid_num))
-        try:
-            sbid_id,version = cur.fetchall()[0]
-        except IndexError:
-            # sbid doesn't exist
-            sbid_id = None
-            version = 0
-    return sbid_id,version
 
 ############################################################################################################################################
 ############################################################################################################################################
@@ -377,6 +390,11 @@ if __name__ == "__main__":
             for sbid in SBIDS:
                 os.system(f"rm -R {CATDIR}/{sbid}")
             print(f"Downloaded catalogues deleted: {SBIDS}")
+    elif RUN_TYPE == "CHECK_SBIDS":
+        cur = check_sbids_in_db(conn)
+    elif RUN_TYPE == "CHECK_LOCAL_SBIDS":
+        cur = check_local_processed_sbids(SBIDDIR)
+        sys.exit()
             
     conn.commit()
     cur.close()

@@ -56,28 +56,28 @@ RUN_TYPE = "spectral"
 #RUN_TYPE = "UNCERTAIN"
 
 # 2. Add the run tag - eg pilot or survey 1 / 2 /3 ... data
-RUN_TAG = "testing only"
+RUN_TAG = "FLASH survey 1"
 
 # 3. List of sbids to process. 
 # On slow connections, you might need to do this one sbid at a time (as per the example),
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [45833] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
+SBIDS = [51444,51446,51447,51449,51450,51451,51452,51453,51454,51455] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
 
 # 4. Top level directory holding the SBID subdirs:
-DATA_DIR = "/scratch/ja3/ger063/flash_data"
+DATA_DIR = "/scratch/ja3/mah128/plot_spectra/data/sourceSpectra"
 
 # 5. A temp directory where you have space and write access, to hold tarballs created during this script - these can be large!!
 TMP_TAR_DIR = "/scratch/ja3/ger063/tmp"
 
 # 6. The SLURM error and stdout log files associated with the run (either spectral or linefinder)
-ERROR_LOG = "/scratch/ja3/ger063/flash_data/45833/err.log"
-STDOUT_LOG = "/scratch/ja3/ger063/flash_data/45833/stdout.log"
+ERROR_LOG = ""
+STDOUT_LOG = ""
 
 # 7. The compute platform used
 PLATFORM = "setonix.pawsey.org.au"
 
-# 8. The config file used for the spectral processing
-SPECTRAL_CONFIG = "/scratch/ja3/ger063/flash_data/config_spectral"
+# 8. The config dir holding the config file used for the spectral processing
+SPECTRAL_CONFIG = "/scratch/ja3/mah128/plot_spectra"
 
 # 9. The config directory used for the linefinder processing (contains linefinder.ini, model.txt and sources.log)
 LINEFINDER_CONFIG_DIR = "/scratch/ja3/ger063/flash_data/config_linefinder"
@@ -252,13 +252,24 @@ def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
     spect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
  
     # tar up the config files:
+    flux = None
     config_data = None
     if config_dir:
         config_tarball = f"{TMP_TAR_DIR}/spectral_config.tar.gz"
-        tar_dir(config_tarball,config_dir)
+        tar_dir(config_tarball,config_dir,pattern="config.py")
         config_data = None
         with open(config_tarball,'rb') as f:
             config_data = f.read()
+        # Try to get the peak flux value in the config file:
+        try:
+            with open(f"{config_dir}/config.py","r") as f:
+                config = f.readlines()
+            for line in config:
+                if line.startswith("PEAKFLUX"):
+                    flux = float(line.split("=")[1].split("#")[0])
+                    print(f"Set flux cutoff to {flux}")
+        except:
+            print("Could not determine PEAKFLUX from config file")
         
     # insert into spect_run table
         insert_query = "INSERT into spect_run(SBIDS,config_tar,errlog,stdlog,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
@@ -273,7 +284,7 @@ def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
         # Check if sbid exits - if it does, add it with a version number += 1:
         sbid_id,version = get_max_sbid_version(cur,sbid)
         version += 1
-        add_sbid(conn,cur,sbid=sbid,spect_runid=runid,spectralF=True,dataDict=dataDict[sbid],datapath=dataDict["data_path"],ver=version)
+        add_sbid(conn,cur,sbid=sbid,spect_runid=runid,spectralF=True,dataDict=dataDict[sbid],datapath=dataDict["data_path"],ver=version,flux=flux)
     return cur
 
 ###############################################
@@ -342,7 +353,7 @@ def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_
     return cur
 
 ###############################################
-def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict={},datapath="./",ver=1,quality="UNCERTAIN"):
+def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict={},datapath="./",ver=1,flux=None,quality="UNCERTAIN"):
 
     insert_query = "INSERT into SBID(sbid_num,spect_runid,spectralF,detectionF,ascii_tar,quality,version) VALUES (%s,%s,%s,%s,%s,%s,%s);"
     run_table = "spect_run"
@@ -377,7 +388,7 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
         component_index = comp.split("component_")[1].split(".fits")[0]
         plotfiles = [f for f in dataDict["plots"] if ("component_%s" % component_index) in f]
         plot_path = f"{dataDict['plots_path']}"
-        add_component(cur,comp,sbid_id,plotfiles,plot_path,processState="spectral")
+        add_component(cur,comp,sbid_id,plotfiles,plot_path,processState="spectral",fluxcutoff=flux)
 
 ###############################################
 def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ver):
@@ -402,7 +413,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ve
         update_component_detection(cur,comp,sbid_id,processState="detection")
 
 ###############################################
-def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral"):
+def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral",fluxcutoff=None):
     # Determine status
 
     # Get current datetime and format for postgres
@@ -425,8 +436,8 @@ def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral"):
         print(f"WARNING: plot data missing for {comp}")
         
     # add component
-    insert_q = "INSERT into component(comp_id,processState,opd_plotname,flux_plotname,opd_image,flux_image,spectral_date,detection_date,sbid_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s);"
-    cur.execute(insert_q,(comp,processState,os.path.basename(opd),os.path.basename(flux),opddata,fluxdata,spect_date,detect_date,sbid_id))
+    insert_q = "INSERT into component(comp_id,processState,opd_plotname,flux_plotname,opd_image,flux_image,spectral_date,detection_date,sbid_id,fluxfilter) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"
+    cur.execute(insert_q,(comp,processState,os.path.basename(opd),os.path.basename(flux),opddata,fluxdata,spect_date,detect_date,sbid_id,fluxcutoff))
     # Get id of just-added component:
     cur.execute(f"select id from component where comp_id = '{comp}' and sbid_id = {sbid_id};")
     id = int(cur.fetchall()[0][0])
