@@ -30,10 +30,15 @@
 #       eg "python3 db_download.py /home/ger063/tmp 43426:2 linefinder"
 #       will download the tarball of linefinder result files stored for SBID 43426 version2
 #
-#       Usage 4: Query mode:
+#       Usage 4: Query SBID mode:
 #       python3 db_download.py 45833
 #
 #       will return metadata about SB45833 stored in the db (use '-1' to get all SBIDS)
+#       
+#       Usage 5: Query linefinder outputs per sbid:
+#       python db_download linefinder 50356 30
+#
+#       will return the linefinder result for each component of SB50356, if the ln_mean value is > 30
 #######################################################################################
 import sys
 import base64
@@ -275,6 +280,37 @@ def get_plots_for_sbid(cur,args):
     return
 ##################################################################################################
 
+def get_results_for_sbid(cur,args):
+
+    # The sbid you want to use - if a version is not declared ("45833" rather than "45833:2"),
+    # then use the latest version
+    version = None
+    sbid_str = args[2]
+    if ":" in sbid_str:
+        sbid = int(sbid_str.split(":")[0])
+        version = int(sbid_str.split(":")[1])
+    else:
+        sbid = int(sbid_str)
+
+    # get the corresponding sbid id for the sbid_num:version
+    sid,version = get_max_sbid_version(cur,sbid,version)
+
+    # min val for ln_mean:
+    ln_mean = args[3]
+
+    query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and flux_cutoff = 'ABOVE' order by ln_mean;")
+    cur.execute(query,(sid,ln_mean))
+    results = cur.fetchall()
+    print("component_name               comp_id             ra_hms_cont  dec_dms_cont mode_num ln_mean")
+    for result in results:
+        for val in result:
+            print(val," ", end="")
+        print('\n')
+
+    return
+
+##################################################################################################
+
 def usage():
     print()
     print("USAGE 1 - Get spectral plot files stored for SBID:")
@@ -306,6 +342,10 @@ def usage():
     print()
     print("     will return metadata on sbid, eg number of versions, tags etc")
     print("     (use '-1' to get ALL sbids)")
+    print("USAGE 5 - Query linefinder outputs per sbid:")
+    print("db_download linefinder 50356 30")
+    print()
+    print("     will return the linefinder result for each component of SB50356, if the ln_mean value is > 30")
     sys.exit()
 
 ##################################################################################################
@@ -331,10 +371,17 @@ if __name__ == "__main__":
     elif sys.argv[-1] in ["ascii","linefinder"]:
         get_files_for_sbid(conn,cur,sys.argv)
 
+    # Get linfinder results for sbid
+    elif sys.argv[1] == "linefinder":
+        get_results_for_sbid(cur,sys.argv)
+
     # Get plots for sbid
     elif len(sys.argv) > 3:
         get_plots_for_sbid(cur,sys.argv)
-
+    
     else:
         usage()
+
+    cur.close()
+    conn.close()
 
