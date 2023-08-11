@@ -3,6 +3,8 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
+#       version 1.01 11/08/2023
+###################################################################################### 
 #       Usage 1:
 #       python3 db_download.py <directory to download to> <sbid> <'n' top brightest components>
 #
@@ -266,13 +268,18 @@ def get_plots_for_sbid(cur,args):
         sources,number = returnBrightestSources(comps)
     else:
         sources,number = returnBrightestSources(comps,num_sources)
-
     # Get the image data for the component and write it to a local file:
     for idx,source in enumerate(sources):
         print(f"    {idx+1} of {len(sources)} : {source}")
         query = f"select {data_type}_image from component where comp_id = %s"
         cur.execute(query,(source,))
         data = cur.fetchone()
+        if not data[0]:
+            query = f"select fluxfilter from component where comp_id = %s and sbid_id = %s;"
+            cur.execute(query,(source,sid))
+            flux_filter = cur.fetchone()[0]
+            print(f"plotfile for {source} missing from db. Flux cutoff was {flux_filter}")
+            continue
         name = source.replace(".fits",f"_{data_type}.png")
         open(f"{dir_download}/{name}", 'wb').write(data[0])
     print(f"Downloaded {len(sources)} files from sbid {sbid}")
@@ -305,7 +312,7 @@ def get_results_for_sbid(cur,args):
     for result in results:
         for val in result:
             print(val," ", end="")
-        print('\n')
+        print()
 
     return
 
@@ -343,7 +350,7 @@ def usage():
     print("     will return metadata on sbid, eg number of versions, tags etc")
     print("     (use '-1' to get ALL sbids)")
     print("USAGE 5 - Query linefinder outputs per sbid:")
-    print("db_download linefinder 50356 30")
+    print("python3 db_download linefinder 50356 30")
     print()
     print("     will return the linefinder result for each component of SB50356, if the ln_mean value is > 30")
     sys.exit()

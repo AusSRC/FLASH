@@ -10,7 +10,7 @@ import psycopg2
 #       Script to upload data to the FLASH database
 #       GWHG @ CSIRO, July 2023
 #
-#
+#       version 1.01 11/08/2023
 ##################################### USER SET VARIABLES ###################################################
 
 # For the below variables, set to "" if they don't apply.

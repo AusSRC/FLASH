@@ -11,10 +11,12 @@ from glob import glob
 from casda_download import *
 
 
-##################################### db_delete_data ###################################################
+##################################### db_utils  ################################################################
 #
 #       This script deletes data held in the FLASH db at 146.118.64.208
 #       GWHG @ CSIRO, July 2023
+#
+#       version 1.01 11/08/2023
 #
 #       Edit USER SECTION below to define the type of operation
 
@@ -200,7 +202,6 @@ def __add_component_catalog_to_db(cur,comp_id,catdict):
 
     query = "UPDATE component set component_name = %s, ra_hms_cont = %s, dec_dms_cont = %s, ra_deg_cont = %s, dec_deg_cont = %s where comp_id = %s;"
     cur.execute(query,(catdict['component_name'],catdict['ra_hms_cont'],catdict['dec_dms_cont'],catdict['ra_deg_cont'],catdict['dec_deg_cont'],comp_id))
-    #print(catdict['component_name'],catdict['ra_hms_cont'],catdict['dec_dms_cont'],catdict['ra_deg_cont'],catdict['dec_deg_cont'],comp_id)
     print(".",end="")
 
 def add_sbid_catalogue(conn,sbid,casda_folder):
