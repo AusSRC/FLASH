@@ -42,11 +42,11 @@ import psycopg2
 # 1. Define the type of processing run you want to store in the database from the following choices:
 
 # add a spectral processing run to the database (one or more SBID's)
-RUN_TYPE = "spectral"  
+#RUN_TYPE = "spectral"  
  
 # add a detection (Linefinder) processing run to the database (one or more SBID's). 
 # The SBID(s) must already be in the database from a prior spectral run.
-#RUN_TYPE = "detection"   
+RUN_TYPE = "detection"   
 
 # Set sbids to "GOOD" quality
 #RUN_TYPE = "GOOD"
@@ -61,10 +61,10 @@ RUN_TAG = "FLASH survey 1"
 # 3. List of sbids to process. 
 # On slow connections, you might need to do this one sbid at a time (as per the example),
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [51444,51446,51447,51449,51450,51451,51452,51453,51454,51455] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
+SBIDS = [50356] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
 
 # 4. Top level directory holding the SBID subdirs:
-DATA_DIR = "/scratch/ja3/mah128/plot_spectra/data/sourceSpectra"
+DATA_DIR = "/scratch/ja3/ger063/data"
 
 # 5. A temp directory where you have space and write access, to hold tarballs created during this script - these can be large!!
 TMP_TAR_DIR = "/scratch/ja3/ger063/tmp"
@@ -80,13 +80,13 @@ PLATFORM = "setonix.pawsey.org.au"
 SPECTRAL_CONFIG = "/scratch/ja3/mah128/plot_spectra"
 
 # 9. The config directory used for the linefinder processing (contains linefinder.ini, model.txt and sources.log)
-LINEFINDER_CONFIG_DIR = "/scratch/ja3/ger063/flash_data/config_linefinder"
+LINEFINDER_CONFIG_DIR = "/home/ger063/flashfinder_local_mpi/config"
 
 # 10. The linefinder output directory, relative to each of the sbid directories
 LINEFINDER_OUTPUT_DIR = "outputs"
 
 # 11. The collected results file from a linefinder run
-LINEFINDER_SUMMARY_FILE = "/scratch/ja3/ger063/flash_data/results.dat"
+LINEFINDER_SUMMARY_FILE = "/scratch/ja3/ger063/data/results.dat"
 
 ####################################################################################################################
 ############################################### USER SECTION 2 #####################################################
@@ -220,13 +220,13 @@ def tar_dir(name,source_dir,pattern=None):
     tar = tarfile.open(name, "w:gz")
     for file in files:
         if not pattern:
-            tar.add(f"{source_dir}/{file}", arcname = '.')
+            tar.add(f"{source_dir}/{file}", arcname = file)
         else:
             if isinstance(pattern,str):
                 pattern = [pattern] 
             for pat in pattern:
                 if pat in file:
-                    tar.add(f"{source_dir}/{file}", arcname = '.')
+                    tar.add(f"{source_dir}/{file}", arcname = file)
 
 
 ###############################################
@@ -350,6 +350,21 @@ def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_
             update_sbid_detection(cur,sbid=sbid,sbid_id=sbid_id,runid=runid,detectionF=True,dataDict=dataDict[sbid],datapath=output_dir,ver=version)
         else:
             print(f"ERROR: sbid:version {sbid}:{version} does not exist in database!! Skipping")
+
+        # Process the results file against each component
+        results = results.splitlines()
+        for line in results[1:]:
+            vals = line.split()
+            name = vals[0].rsplit("_",1)[0]
+            line_sbid = int(name.split("_")[0][2:])
+            ln_mean = float(vals[17])
+            mode_num = int(vals[1])
+            if line_sbid == int(sbid) and ln_mean > 0:
+                update = "update component set mode_num = %s, ln_mean = %s where comp_id like %s and sbid_id = %s;"
+                like= '%{}%'.format(name)
+                cur.execute(update,(mode_num,ln_mean,like,sbid_id))
+                print(f"        component {name} updated with linefinder results")
+
     return cur
 
 ###############################################
