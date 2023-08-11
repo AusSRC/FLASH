@@ -117,7 +117,7 @@ def connect(db="flashdb",user="flash",host="146.118.64.208",password="aussrc"):
         password = password,
         host = host
     )
-    print(conn.get_dsn_parameters(),"\n")
+    #print(conn.get_dsn_parameters(),"\n")
     return conn
 
 def get_cursor(conn):
