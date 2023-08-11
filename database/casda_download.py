@@ -61,6 +61,8 @@ def authenticate(args):
 ################################################################################################################
 
 def process_sbid_list(sbid_list,args,casda,casdatap,exists=False):
+
+
     # Loop over each SBID
     for sbid in sbid_list:
         if exists and glob(f"{DATADIR}/{sbid}/*.xml") != []:
@@ -84,7 +86,7 @@ def process_sbid_list(sbid_list,args,casda,casdatap,exists=False):
         #if spectral download specified
         if not args.catalogues_only:
             # Loop over the variable list
-            for variable in variable_list:
+            for variable in ['SourceSpectra','NoiseSpectra']:
 
                 # Get the TAP information
                 print('Querying CASDA for relevant file...')
