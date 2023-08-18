@@ -43,14 +43,14 @@ SBIDDIR = "/scratch/ja3/mah128/plot_spectra/data/sourceSpectra"
 # 2. List of sbids (and their corresponding versions) to process. 
 # On slow connections, you might need to do this one sbid at a time, as per the example,
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [51444,51446,51447,51449,51450,51451,51452,51453,51454,51455]
+SBIDS = [51444]
 VERSIONS = [] # This list should correspond to the above sbids list = set to empty for just the latest version of each sbid.
 
 # 3. If adding catalogue data, provide the directory that holds, or will hold, the catalogues by sbid
 CATDIR = "/home/ger063/src/flash_data/casda"
 DATADIR = CATDIR
 UNTAR = False
-DELETE_CATS = True # save space by deleting catalogues after processing
+DELETE_CATS = False # save space by deleting catalogues after processing
 
 ####################################################################################################################
 ########################## DO NOT EDIT FURTHER #####################################################################
@@ -138,15 +138,19 @@ def check_local_processed_sbids(directory):
 ##########################################################################################################
 ###################################### Catalogue data ####################################################
 
-def get_catalogues():
+def get_catalogues(catalogue_only = False):
     # These functions are defined in 'casda_download'
 
     args = set_parser()
+    args.catalogues_only = catalogue_only
     #sbid_list = get_sbids(args)
     sbid_list = SBIDS
     casda,casdatap = authenticate(args)
     process_sbid_list(sbid_list,args,casda,casdatap,exists=True)
-    print(f"Retrieved catalogues for sbids {sbid_list}")
+    if args.catalogues_only:
+        print(f"Retrieved catalogues and spectra for sbids {sbid_list}")
+    else:
+        print(f"Retrieved catalogues for sbids {sbid_list}")
 
 def __get_component_catalog_data(catname,comp_name):
 
@@ -385,8 +389,8 @@ if __name__ == "__main__":
     elif RUN_TYPE == "CATALOGUE":
         print(f"Processing sbids {SBIDS}")
         get_catalogues()
-        for sbid in SBIDS:
-            cur = add_sbid_catalogue(conn,sbid,CATDIR)
+        #for sbid in SBIDS:
+        #    cur = add_sbid_catalogue(conn,sbid,CATDIR)
         if DELETE_CATS:
             for sbid in SBIDS:
                 os.system(f"rm -R {CATDIR}/{sbid}")
