@@ -9,12 +9,14 @@
 #       python3 db_download.py <directory to download to> <sbid> <'n' top brightest components>
 #
 #       eg "python3 db_download.py /home/ger063/tmp 43426 20"
-#       will download brightest 20 sources from the latest version of sbid 43426 in the db
+#       will download the plots for the brightest 20 sources from the latest version of sbid 43426 in the db
 #
 #        "python3 db_download.py /home/ger063/tmp 43426:2 20"
-#       will download the brightest 20 sources from version 2 of sbid 43426 in the db
+#       will download the plots for the brightest 20 sources from version 2 of sbid 43426 in the db
 #
 #       To get ALL the sources, use "-1" for n
+#       To get specific sources, replace 'n' with the name of a file containing a list of the
+#       required sources, 1 per line.
 #
 #       By default only the opd images are downloaded. To get the flux images, add "flux"
 #
@@ -100,6 +102,11 @@ def get_max_sbid_version(cur,sbid_num,version=None):
 
 def returnBrightestSources(names,number=None):
 
+    # This will sort the sources by component number = relative brightness.
+    # If 'number' is defined, it will only return that many component groups.
+    # For example, number = 2 would return the sub-components of the top two source groups, say 
+    # component_1a, component_1b and component_2a, component_2b and component_2c.
+
     namedir = {}
 
     for name in names:
@@ -128,6 +135,8 @@ def returnBrightestSources(names,number=None):
 ##################################################################################################
 
 def query_db_for_sbid(cur,sbid):
+
+    # This will return metadata stored in the db for a particular sbid
 
     if sbid != -1:  # Query a specific SBID
         query = "select sbid_num, version, spect_runid, id, detectionF from sbid where sbid_num = %s"
@@ -163,6 +172,9 @@ def write_lob(lobj,filename):
 ##################################################################################################
 
 def get_files_for_sbid(conn,cur,args):
+
+    # This will return a tarball of ascii files stored for a particular sbid, 
+    # or linefinder results files for an sbid, if available.
 
     # The directory for downloads:
     dir_download = args[1]
@@ -224,11 +236,18 @@ def get_files_for_sbid(conn,cur,args):
 
 def get_plots_for_sbid(cur,args):
 
+    # This will return a tarball of spectral plots stored for a particular sbid
+    # args[1] = directory for downloads
+    # args[2] = The sbid you want to use - if a version is not declared ("45833" rather than "45833:2"),
+    #           then use the latest version
+    # args[3] = the top 'n' brightest sources only. A value of '-1' will download all
+    #           Alternatively, supply a filename of a list of sources. Only those will be downloaded.
+    # args[4] = plot type ('opd' or 'flux') to download
+
+
     # The directory for downloads:
     dir_download = args[1]
 
-    # The sbid you want to use - if a version is not declared ("45833" rather than "45833:2"),
-    # then use the latest version
     version = None
     sbid_str = args[2]
     if ":" in sbid_str:
@@ -244,7 +263,19 @@ def get_plots_for_sbid(cur,args):
     # download the top 20 components (and their 'a', 'b', 'c' etc varieties, so there will
     # be more than 20 files!)
     #
-    num_sources = int(args[3])
+    try:
+        num_sources = int(args[3])
+        source_list = None
+    except ValueError:
+        # This arg should be a filename:
+        source_list_path = args[3]
+        num_sources = -1
+        source_list = []
+        with open(source_list_path,'r') as f:
+            for line in f.readlines():
+                name = line.strip().split("component_")[1].split("_")[0]
+                source_list.append("component_" + name)
+
     try:
         # The files type to download ("opd" or "flux")
         data_type = args[4]
@@ -266,6 +297,13 @@ def get_plots_for_sbid(cur,args):
     # Re-order in descending brightness:
     if num_sources == -1:
         sources,number = returnBrightestSources(comps)
+        if source_list: # specific sources requested
+            explicit_sources = []
+            for source in sources:
+                for component_name in source_list:
+                    if component_name in source:
+                        explicit_sources.append(source)
+            sources = explicit_sources
     else:
         sources,number = returnBrightestSources(comps,num_sources)
     # Get the image data for the component and write it to a local file:
@@ -289,8 +327,13 @@ def get_plots_for_sbid(cur,args):
 
 def get_results_for_sbid(cur,args):
 
-    # The sbid you want to use - if a version is not declared ("45833" rather than "45833:2"),
-    # then use the latest version
+    # This will print out a table of linefinder output data for a given sbid
+    # args[1] = 'linefinder'
+    # args[2] = The sbid you want to use - if a version is not declared ("45833" rather than "45833:2"),
+    #           then use the latest version
+    # args[3] = ln_mean cutoff - only sources with an ln_mean() value larger than this will be shown
+    #           Alternatively, supply a filename of a list of sources. Only those will be downloaded.
+
     version = None
     sbid_str = args[2]
     if ":" in sbid_str:
@@ -303,16 +346,34 @@ def get_results_for_sbid(cur,args):
     sid,version = get_max_sbid_version(cur,sbid,version)
 
     # min val for ln_mean:
-    ln_mean = args[3]
+    try:
+        ln_mean = float(args[3])
+        source_list = None
+    except ValueError: # a filename of sources was provided instead of ln_mean()
+        ln_mean = 0.0
+        source_list_path = args[3]
+        source_list = []
+        with open(source_list_path,'r') as f:
+            for line in f.readlines():
+                name = line.strip().split("component_")[1].split("_")[0]
+                source_list.append("component_" + name)
 
     query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and flux_cutoff = 'ABOVE' order by ln_mean;")
     cur.execute(query,(sid,ln_mean))
     results = cur.fetchall()
     print("component_name               comp_id             ra_hms_cont  dec_dms_cont mode_num ln_mean")
     for result in results:
-        for val in result:
-            print(val," ", end="")
-        print()
+        if source_list:
+            for comp in source_list:
+                if comp in result[1]:
+                    for val in result:
+                        print(val," ",end="")
+                    print()
+                    break
+        else:
+            for val in result:
+                print(val," ", end="")
+            print()
 
     return
 
@@ -326,6 +387,8 @@ def usage():
     print()
     print("     will download brightest 20 sources from latest version of sbid 43426")
     print("     For all sources, use '-1' for n")
+    print("     To get specific sources, replace 'n' with the name of a file containing a list of the")
+    print("     required sources, 1 per line.")
     print()
     print("     python3 db_download.py /home/ger063/tmp 43426:2 20")
     print("     will download the brightest 20 sources from version 2 of sbid 43426 in the db")
@@ -350,9 +413,11 @@ def usage():
     print("     will return metadata on sbid, eg number of versions, tags etc")
     print("     (use '-1' to get ALL sbids)")
     print("USAGE 5 - Query linefinder outputs per sbid:")
-    print("python3 db_download linefinder 50356 30")
+    print("python3 db_download.py linefinder 50356 30")
     print()
     print("     will return the linefinder result for each component of SB50356, if the ln_mean value is > 30")
+    print("     To get specific sources, replace ln_mean with the name of a file containing a list of the")
+    print("     required sources, 1 per line.")
     sys.exit()
 
 ##################################################################################################
