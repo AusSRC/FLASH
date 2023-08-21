@@ -10,7 +10,7 @@ import psycopg2
 #       Script to upload data to the FLASH database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.01 11/08/2023
+#       version 1.02 21/08/2023
 ##################################### USER SET VARIABLES ###################################################
 
 # For the below variables, set to "" if they don't apply.
@@ -353,17 +353,19 @@ def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_
 
         # Process the results file against each component
         results = results.splitlines()
+        last_ln_mean = 0
         for line in results[1:]:
             vals = line.split()
             name = vals[0].rsplit("_",1)[0]
             line_sbid = int(name.split("_")[0][2:])
             ln_mean = float(vals[17])
             mode_num = int(vals[1])
-            if line_sbid == int(sbid) and ln_mean > 0:
+            if line_sbid == int(sbid) and ln_mean > last_ln_mean: # we only store the modenum version with the largest ln_mean in component table
                 update = "update component set mode_num = %s, ln_mean = %s where comp_id like %s and sbid_id = %s;"
                 like= '%{}%'.format(name)
                 cur.execute(update,(mode_num,ln_mean,like,sbid_id))
                 print(f"        component {name} updated with linefinder results")
+                last_ln_mean = ln_mean
 
     return cur
 
