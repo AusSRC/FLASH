@@ -3,7 +3,7 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.01 11/08/2023
+#       version 1.02 21/08/2023
 ###################################################################################### 
 #       Usage 1:
 #       python3 db_download.py <directory to download to> <sbid> <'n' top brightest components>
@@ -325,7 +325,7 @@ def get_plots_for_sbid(cur,args):
     return
 ##################################################################################################
 
-def get_results_for_sbid(cur,args):
+def get_results_for_sbid(cur,args,verbose=False):
 
     # This will print out a table of linefinder output data for a given sbid
     # args[1] = 'linefinder'
@@ -358,22 +358,59 @@ def get_results_for_sbid(cur,args):
                 name = line.strip().split("component_")[1].split("_")[0]
                 source_list.append("component_" + name)
 
-    query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and flux_cutoff = 'ABOVE' order by ln_mean;")
+    # Get the relevant results file from the detect_run table:
+    query = "select detect_runid from sbid where id = %s;"
+    cur.execute(query,(sid,))
+    detect_runid = int(cur.fetchone()[0])
+    query = "select results from detect_run where id = %s;"
+    cur.execute(query,(detect_runid,))
+    result_data = cur.fetchone()[0].split('\n')
+
+    # Get the list of relevant components and their values for this sbid from the component table
+    query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and flux_cutoff = 'ABOVE' order by ln_mean;")
     cur.execute(query,(sid,ln_mean))
     results = cur.fetchall()
-    print("component_name               comp_id             ra_hms_cont  dec_dms_cont mode_num ln_mean")
+    # Extract component id from results and get corresponding line from result_data
+    results_dict = {}
+    for result in results:
+        comp_id = "component" + result[1].split("_component")[1].split(".")[0]
+        results_dict[comp_id] = []
+        for line in result_data:
+            if comp_id in line:
+                results_dict[comp_id].append(line)
+
+    if verbose: # detailed output is saved to file
+        f = open(f"{sbid}_linefinder_outputs.csv","w")
+        # we want From catalogues - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
+        #         From linefinder outputs - Name, ModeNum, abs_peakz_median, abs_peakopd_median, abs_intopd_median(km/s), abs_width_median(km/s), ln(B)_mean
+        f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,abs_peakz_median,abs_peakopd_median,abs_intopd_median(km/s),abs_width_median(km/s),ln(B)_mean\n")
+    
+    print("component_name               comp_id             ra_hms_cont dec_dms_cont ra_deg_cont dec_deg mode ln_mean")
     for result in results:
         if source_list:
             for comp in source_list:
                 if comp in result[1]:
+                    if verbose:
+                        linefinder_data = results_dict[comp]
+                        for line in linefinder_data:
+                            vals = line.split()
+                            f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},N/A,N/A,N/A,{vals[5]},{vals[8]},{vals[11]},{vals[14]},{vals[17]}\n")
                     for val in result:
                         print(val," ",end="")
                     print()
                     break
         else:
+            if verbose:
+                comp= "component" + result[1].split("_component")[1].split(".")[0]
+                linefinder_data = results_dict[comp]
+                for line in linefinder_data:
+                    vals = line.split()
+                    f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},N/A,N/A,N/A,{vals[5]},{vals[8]},{vals[11]},{vals[14]},{vals[17]}\n")
             for val in result:
                 print(val," ", end="")
             print()
+    if verbose:
+        f.close()
 
     return
 
@@ -445,7 +482,7 @@ if __name__ == "__main__":
 
     # Get linfinder results for sbid
     elif sys.argv[1] == "linefinder":
-        get_results_for_sbid(cur,sys.argv)
+        get_results_for_sbid(cur,sys.argv,verbose=True)
 
     # Get plots for sbid
     elif len(sys.argv) > 3:
