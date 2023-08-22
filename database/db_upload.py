@@ -10,7 +10,7 @@ import psycopg2
 #       Script to upload data to the FLASH database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.02 21/08/2023
+#       version 1.03 22/08/2023
 ##################################### USER SET VARIABLES ###################################################
 
 # For the below variables, set to "" if they don't apply.
@@ -42,11 +42,11 @@ import psycopg2
 # 1. Define the type of processing run you want to store in the database from the following choices:
 
 # add a spectral processing run to the database (one or more SBID's)
-#RUN_TYPE = "spectral"  
+#RUN_TYPE = "SPECTRAL"  
  
 # add a detection (Linefinder) processing run to the database (one or more SBID's). 
 # The SBID(s) must already be in the database from a prior spectral run.
-RUN_TYPE = "detection"   
+RUN_TYPE = "DETECTION"   
 
 # Set sbids to "GOOD" quality
 #RUN_TYPE = "GOOD"
@@ -61,7 +61,7 @@ RUN_TAG = "FLASH survey 1"
 # 3. List of sbids to process. 
 # On slow connections, you might need to do this one sbid at a time (as per the example),
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [50356] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
+SBIDS = [45823] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
 
 # 4. Top level directory holding the SBID subdirs:
 DATA_DIR = "/scratch/ja3/ger063/data"
@@ -77,7 +77,7 @@ STDOUT_LOG = ""
 PLATFORM = "setonix.pawsey.org.au"
 
 # 8. The config dir holding the config file used for the spectral processing
-SPECTRAL_CONFIG = "/scratch/ja3/mah128/plot_spectra"
+SPECTRAL_CONFIG_DIR = "/scratch/ja3/mah128/plot_spectra"
 
 # 9. The config directory used for the linefinder processing (contains linefinder.ini, model.txt and sources.log)
 LINEFINDER_CONFIG_DIR = "/home/ger063/flashfinder_local_mpi/config"
@@ -486,6 +486,69 @@ def update_quality(conn,SBIDS,quality,version=None):
     print(f"Set quality {quality} for sbids {SBIDS}")
     
     return cur
+####################################################################################################################
+########################################## USAGE AND CLI PARSING ###################################################
+
+def usage():
+
+    print()
+    print("USAGE:")
+    print("python3 db_upload.py <RUN_TYPE> <SBID LIST> <DATA_DIR> <TMP_DIR> <CONFIG DIR> <ERR LOG> <STD LOG> <OUTPUT DIR> <SUMMARY FILE> <PLATFORM> <RUN TAG>")
+    print()
+     
+
+###############################################
+def set_mode_and_values(args):
+
+    global RUN_TYPE,SBIDS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM
+    global SPECTRAL_CONFIG_DIR,LINEFINDER_CONFIG_DIR,LINEFINDER_OUTPUT_DIR,LINEFINDER_SUMMARY_FILE
+
+    RUN_TYPE = args[0].strip().upper()
+    SBIDS = args[1].split(',')
+
+    try:
+        DATA_DIR = args[2].strip()
+    except IndexError:
+        return
+    try:
+        TMP_TAR_DIR = args[3].strip()
+    except IndexError:
+        return
+    try:
+        config_dir = args[4].strip()
+        if RUN_TYPE == "SPECTRAL":
+            SPECTRAL_CONFIG_DIR = config_dir
+        elif RUN_TYPE == "DETECTION":
+            LINEFINDER_CONFIG_DIR = config_dir
+    except IndexError:
+        return
+    try:
+        ERROR_LOG = args[5].strip()
+    except IndexError:
+        return
+    try:
+        STDOUT_LOG = args[6].strip()
+    except IndexError:
+        return
+    try:
+        LINEFINDER_OUTPUT_DIR = args[7].strip()
+    except IndexError:
+        return
+    try:
+        LINEFINDER_SUMMARY_FILE = args[8].strip()
+    except IndexError:
+        return
+    try:
+        PLATFORM = args[9].strip()
+    except IndexError:
+        return
+    try:
+        RUN_TAG = args[10].strip()
+    except IndexError:
+        return
+
+
+    print("CLI overriding defaults")
 
 ####################################################################################################################
 ####################################################################################################################
@@ -495,20 +558,27 @@ if __name__ == "__main__":
     starttime = time.time()
     conn = connect()
 
-    # Change to data directory
-    if DATA_DIR != "./":
-        os.chdir(DATA_DIR)
+    if (len(sys.argv) > 1):
+        usage()
+        # mode and sbids have been declared on command line
+        set_mode_and_values(sys.argv[1:])
 
     # Add run
-    if RUN_TYPE == "spectral":
+    if RUN_TYPE == "SPECTRAL":
+        # Change to data directory
+        if DATA_DIR != "./":
+            os.chdir(DATA_DIR)
         dataDict = createDataDir()
         cur = add_spect_run(conn,SBIDS=SBIDS,
-                        config_dir=SPECTRAL_CONFIG,
+                        config_dir=SPECTRAL_CONFIG_DIR,
                         errlog=ERROR_LOG,
                         stdlog=STDOUT_LOG,
                         dataDict=dataDict,
                         platform=PLATFORM)
-    elif RUN_TYPE == "detection":
+    elif RUN_TYPE == "DETECTION":
+        # Change to data directory
+        if DATA_DIR != "./":
+            os.chdir(DATA_DIR)
         dataDict = createDataDir()
         cur = add_detect_run(conn,
                         SBIDS=SBIDS,
@@ -520,11 +590,11 @@ if __name__ == "__main__":
                         result_file=LINEFINDER_SUMMARY_FILE,
                         output_dir=LINEFINDER_OUTPUT_DIR)
     elif RUN_TYPE == "GOOD":
-        cur = update_quality(conn,SBIDS=sbids,quality="GOOD")
+        cur = update_quality(conn,SBIDS=SBIDS,quality="GOOD")
     elif RUN_TYPE == "BAD":
-        cur = update_quality(conn,SBIDS=sbids,quality="BAD")
+        cur = update_quality(conn,SBIDS=SBIDS,quality="BAD")
     elif RUN_TYPE == "UNCERTAIN":
-        cur = update_quality(conn,SBIDS=sbids,quality="UNCERTAIN")
+        cur = update_quality(conn,SBIDS=SBIDS,quality="UNCERTAIN")
         
     conn.commit()
     cur.close()
