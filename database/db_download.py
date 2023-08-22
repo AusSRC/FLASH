@@ -367,7 +367,7 @@ def get_results_for_sbid(cur,args,verbose=False):
     result_data = cur.fetchone()[0].split('\n')
 
     # Get the list of relevant components and their values for this sbid from the component table
-    query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and flux_cutoff = 'ABOVE' order by ln_mean;")
+    query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and flux_cutoff = 'ABOVE' order by ln_mean;")
     cur.execute(query,(sid,ln_mean))
     results = cur.fetchall()
     # Extract component id from results and get corresponding line from result_data
@@ -381,12 +381,14 @@ def get_results_for_sbid(cur,args,verbose=False):
 
     if verbose: # detailed output is saved to file
         f = open(f"{sbid}_linefinder_outputs.csv","w")
-        # we want From catalogues - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
+        # we want From component table - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
         #         From linefinder outputs - Name, ModeNum, abs_peakz_median, abs_peakopd_median, abs_intopd_median(km/s), abs_width_median(km/s), ln(B)_mean
         f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,abs_peakz_median,abs_peakopd_median,abs_intopd_median(km/s),abs_width_median(km/s),ln(B)_mean\n")
-    
-    print("component_name               comp_id             ra_hms_cont dec_dms_cont ra_deg_cont dec_deg mode ln_mean")
+    print()
+    print("component_name     comp_id   ra_hms_cont dec_dms_cont ra_deg_cont dec_deg mode ln_mean")
+    print()
     for result in results:
+        comp_id = "component" + result[1].split("_component")[1].split(".")[0]
         if source_list:
             for comp in source_list:
                 if comp in result[1]:
@@ -394,10 +396,9 @@ def get_results_for_sbid(cur,args,verbose=False):
                         linefinder_data = results_dict[comp]
                         for line in linefinder_data:
                             vals = line.split()
-                            f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},N/A,N/A,N/A,{vals[5]},{vals[8]},{vals[11]},{vals[14]},{vals[17]}\n")
-                    for val in result:
-                        print(val," ",end="")
-                    print()
+                            f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{result[8]},{vals[5]},{vals[8]},{vals[11]},{vals[14]},{vals[17]}\n")
+                    # Summary to screen:
+                    print(result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10])
                     break
         else:
             if verbose:
@@ -405,13 +406,11 @@ def get_results_for_sbid(cur,args,verbose=False):
                 linefinder_data = results_dict[comp]
                 for line in linefinder_data:
                     vals = line.split()
-                    f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},N/A,N/A,N/A,{vals[5]},{vals[8]},{vals[11]},{vals[14]},{vals[17]}\n")
-            for val in result:
-                print(val," ", end="")
-            print()
+                    f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{result[8]},{vals[5]},{vals[8]},{vals[11]},{vals[14]},{vals[17]}\n")
+            # Summary to screen:
+            print(result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10])
     if verbose:
         f.close()
-
     return
 
 ##################################################################################################
