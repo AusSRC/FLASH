@@ -3,7 +3,7 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.02 21/08/2023
+#       version 1.03 22/08/2023
 ###################################################################################### 
 #       Usage 1:
 #       python3 db_download.py <directory to download to> <sbid> <'n' top brightest components>
@@ -367,17 +367,27 @@ def get_results_for_sbid(cur,args,verbose=False):
     result_data = cur.fetchone()[0].split('\n')
 
     # Get the list of relevant components and their values for this sbid from the component table
-    query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and flux_cutoff = 'ABOVE' order by ln_mean;")
-    cur.execute(query,(sid,ln_mean))
+    if ln_mean == -1: # This means get all components, even if there is no value for ln_mean
+        query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean;")
+        cur.execute(query,(sid,))
+    else:
+        query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s order by ln_mean;")
+        cur.execute(query,(sid,ln_mean))
     results = cur.fetchall()
     # Extract component id from results and get corresponding line from result_data
     results_dict = {}
     for result in results:
         comp_id = "component" + result[1].split("_component")[1].split(".")[0]
         results_dict[comp_id] = []
+        found = False
+        notf = 1
         for line in result_data:
             if comp_id in line:
                 results_dict[comp_id].append(line)
+                found = True
+        if not found:
+            print(f"{notf}: NOT FOUND! {comp_id}")
+            notf += 1
 
     if verbose: # detailed output is saved to file
         f = open(f"{sbid}_linefinder_outputs.csv","w")
@@ -409,6 +419,7 @@ def get_results_for_sbid(cur,args,verbose=False):
                     f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{result[8]},{vals[5]},{vals[8]},{vals[11]},{vals[14]},{vals[17]}\n")
             # Summary to screen:
             print(result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10])
+    print(f"{len(results)} rows")
     if verbose:
         f.close()
     return
