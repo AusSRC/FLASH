@@ -26,7 +26,7 @@ def set_parser():
             default=None,
             help='Specify list of SBIDs to download as a comma-separated list (default: %(default)s)')
     parser.add_argument('-c', '--catalogues_only',
-            default=True,
+            default=False,
             action='store_true',
             help='Specify whether you want to download catalogues only (default: %(default)s)')    
     args = parser.parse_args()
