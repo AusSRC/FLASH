@@ -9,8 +9,9 @@ from glob import glob
 import getpass
 from argparse import ArgumentParser, RawTextHelpFormatter
 
-UNTAR = False
-DATADIR = "/home/ger063/src/flash_data/casda"
+UNTAR = True
+DATADIR = "/scratch/ja3/ger063/data/casda" # The expected structure is subdirs under here for sbids
+CATDIR = "/scratch/ja3/ger063/data/casda/catalogues" # directory that holds catalogues
 ################################################################################################################
 
 def set_parser():
@@ -83,7 +84,8 @@ def process_sbid_list(sbid_list,args,casda,casdatap,exists=False):
         r = job.get_results()
         print(f'Staging and downloading the catalogues for {sbid}')
         url_list = casda.stage_data(r)
-        filelist = casda.download_files(url_list, savedir=f'{DATADIR}/%s/' % sbid)
+        #filelist = casda.download_files(url_list, savedir=f'{DATADIR}/%s/' % sbid)
+        filelist = casda.download_files(url_list, savedir=f'{CATDIR}')
         print('... done!')
         #if spectral download specified
         if not args.catalogues_only:

@@ -16,7 +16,7 @@ from casda_download import *
 #       This script deletes data held in the FLASH db at 146.118.64.208
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.01 11/08/2023
+#       version 1.02 02/09/2023
 #
 #       Edit USER SECTION below to define the type of operation
 
@@ -32,25 +32,28 @@ from casda_download import *
 #RUN_TYPE = "SBIDSPLOTONLY"
 # Add catalogue data - remember to add your Opal password as a command line arg with '-p'
 RUN_TYPE = "CATALOGUE"
+DOWNLOAD_CAT = False # If the catalogues are not already downloaded, set this to True
+ADD_CAT = True # Don't just download the catalogues - add them to the database too.
 
 # Check if the sbids exist in the db
 #RUN_TYPE = "CHECK_SBIDS"
 
 # Check for processed files in local sbid dirs
 #RUN_TYPE = "CHECK_LOCAL_SBIDS"
-SBIDDIR = "/scratch/ja3/mah128/plot_spectra/data/sourceSpectra"
+SBIDDIR = "/scratch/ja3/ger063/data/casda"
 
 # 2. List of sbids (and their corresponding versions) to process. 
 # On slow connections, you might need to do this one sbid at a time, as per the example,
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [51444]
+SBIDS = [45825,45828,45833,45835]
 VERSIONS = [] # This list should correspond to the above sbids list = set to empty for just the latest version of each sbid.
 
 # 3. If adding catalogue data, provide the directory that holds, or will hold, the catalogues by sbid
-CATDIR = "/home/ger063/src/flash_data/casda"
+CATDIR = "/scratch/ja3/ger063/data/casda/catalogues"
 DATADIR = CATDIR
 UNTAR = False
 DELETE_CATS = False # save space by deleting catalogues after processing
+ONLY_CATS = True # Only download catalogues - not spectral and noise data
 
 ####################################################################################################################
 ########################## DO NOT EDIT FURTHER #####################################################################
@@ -138,8 +141,8 @@ def check_local_processed_sbids(directory):
 ##########################################################################################################
 ###################################### Catalogue data ####################################################
 
-def get_catalogues(catalogue_only = False):
-    # These functions are defined in 'casda_download'
+def get_catalogues(catalogue_only = ONLY_CATS):
+    # These functions are defined in module 'casda_download'
 
     args = set_parser()
     args.catalogues_only = catalogue_only
@@ -147,10 +150,9 @@ def get_catalogues(catalogue_only = False):
     sbid_list = SBIDS
     casda,casdatap = authenticate(args)
     process_sbid_list(sbid_list,args,casda,casdatap,exists=True)
-    if args.catalogues_only:
-        print(f"Retrieved catalogues and spectra for sbids {sbid_list}")
-    else:
-        print(f"Retrieved catalogues for sbids {sbid_list}")
+    print(f"Retrieved catalogues for sbids {sbid_list}")
+    if not args.catalogues_only:
+        print("   + spectra and noise data")
 
 def __get_component_catalog_data(catname,comp_name):
 
@@ -204,15 +206,14 @@ def __get_sbid_components_in_db(cur,sbid):
 
 def __add_component_catalog_to_db(cur,comp_id,catdict):
 
-    query = "UPDATE component set component_name = %s, ra_hms_cont = %s, dec_dms_cont = %s, ra_deg_cont = %s, dec_deg_cont = %s where comp_id = %s;"
-    cur.execute(query,(catdict['component_name'],catdict['ra_hms_cont'],catdict['dec_dms_cont'],catdict['ra_deg_cont'],catdict['dec_deg_cont'],comp_id))
+    query = "UPDATE component set component_name = %s, ra_hms_cont = %s, dec_dms_cont = %s, ra_deg_cont = %s, dec_deg_cont = %s, flux_peak = %s, flux_int = %s, has_siblings = %s where comp_id = %s;"
+    cur.execute(query,(catdict['component_name'],catdict['ra_hms_cont'],catdict['dec_dms_cont'],catdict['ra_deg_cont'],catdict['dec_deg_cont'],catdict['flux_peak'],catdict['flux_int'],catdict['has_siblings'],comp_id))
     print(".",end="")
 
 def add_sbid_catalogue(conn,sbid,casda_folder):
 
     cur = get_cursor(conn)
-    datadir = f"{casda_folder}/{sbid}"
-    names = glob(f"{datadir}/*.components.xml")
+    names = glob(f"{casda_folder}/*SB{sbid}*.components.xml")
     if len(names) != 1:
         print(f"Error in {sbid} catalogue name {names}. Not processing")
         return cur
@@ -384,26 +385,38 @@ if __name__ == "__main__":
     # Add run
     if RUN_TYPE == "DELETESBIDS":
         cur = delete_sbids(conn,SBIDS,VERSIONS)
+        conn.commit()
+        cur.close()
+        conn.close()
     elif RUN_TYPE == "SBIDSPLOTONLY":
         cur = remove_sbids_from_detection(conn,SBIDS,VERSIONS)
+        conn.commit()
+        cur.close()
+        conn.close()
     elif RUN_TYPE == "CATALOGUE":
         print(f"Processing sbids {SBIDS}")
         get_catalogues()
-        #for sbid in SBIDS:
-        #    cur = add_sbid_catalogue(conn,sbid,CATDIR)
-        if DELETE_CATS:
+        if ADD_CAT:
+            for sbid in SBIDS:
+                cur = add_sbid_catalogue(conn,sbid,CATDIR)
+            conn.commit()
+            cur.close()
+        conn.close()
+        if ADD_CAT and DELETE_CATS:
             for sbid in SBIDS:
                 os.system(f"rm -R {CATDIR}/{sbid}")
             print(f"Downloaded catalogues deleted: {SBIDS}")
     elif RUN_TYPE == "CHECK_SBIDS":
         cur = check_sbids_in_db(conn)
+        conn.commit()
+        cur.close()
+        conn.close()
     elif RUN_TYPE == "CHECK_LOCAL_SBIDS":
         cur = check_local_processed_sbids(SBIDDIR)
-        sys.exit()
+        conn.commit()
+        cur.close()
+        conn.close()
             
-    conn.commit()
-    cur.close()
-    conn.close()
     print(f"Job took {time.time()-starttime} sec for {len(SBIDS)} sbids {SBIDS}")
 
 

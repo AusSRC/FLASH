@@ -42,11 +42,11 @@ import psycopg2
 # 1. Define the type of processing run you want to store in the database from the following choices:
 
 # add a spectral processing run to the database (one or more SBID's)
-#RUN_TYPE = "SPECTRAL"  
+RUN_TYPE = "SPECTRAL"  
  
 # add a detection (Linefinder) processing run to the database (one or more SBID's). 
 # The SBID(s) must already be in the database from a prior spectral run.
-RUN_TYPE = "DETECTION"   
+#RUN_TYPE = "DETECTION"   
 
 # Set sbids to "GOOD" quality
 #RUN_TYPE = "GOOD"
@@ -61,23 +61,23 @@ RUN_TAG = "FLASH survey 1"
 # 3. List of sbids to process. 
 # On slow connections, you might need to do this one sbid at a time (as per the example),
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [45823] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
+SBIDS = [45825,45828,45833,45835] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
 
 # 4. Top level directory holding the SBID subdirs:
-DATA_DIR = "/scratch/ja3/ger063/data"
+DATA_DIR = "/scratch/ja3/ger063/data/casda"
 
 # 5. A temp directory where you have space and write access, to hold tarballs created during this script - these can be large!!
 TMP_TAR_DIR = "/scratch/ja3/ger063/tmp"
 
 # 6. The SLURM error and stdout log files associated with the run (either spectral or linefinder)
-ERROR_LOG = ""
-STDOUT_LOG = ""
+ERROR_LOG = "/scratch/ja3/ger063/data/casda/logs/finder_error_4697770.log"
+STDOUT_LOG = "/scratch/ja3/ger063/data/casda/logs/finder_output_4697770.log"
 
 # 7. The compute platform used
 PLATFORM = "setonix.pawsey.org.au"
 
 # 8. The config dir holding the config file used for the spectral processing
-SPECTRAL_CONFIG_DIR = "/scratch/ja3/mah128/plot_spectra"
+SPECTRAL_CONFIG_DIR = "/scratch/ja3/ger063/flash/config1"
 
 # 9. The config directory used for the linefinder processing (contains linefinder.ini, model.txt and sources.log)
 LINEFINDER_CONFIG_DIR = "/home/ger063/flashfinder_local_mpi/config"
@@ -493,7 +493,10 @@ def usage():
 
     print()
     print("USAGE:")
+    print("python3 db_upload.py")
+    print("     will use defaults defined in script")
     print("python3 db_upload.py <RUN_TYPE> <SBID LIST> <DATA_DIR> <TMP_DIR> <CONFIG DIR> <ERR LOG> <STD LOG> <OUTPUT DIR> <SUMMARY FILE> <PLATFORM> <RUN TAG>")
+    print("     will override some or all defaults defined in script")
     print()
      
 
@@ -558,8 +561,8 @@ if __name__ == "__main__":
     starttime = time.time()
     conn = connect()
 
+    usage()
     if (len(sys.argv) > 1):
-        usage()
         # mode and sbids have been declared on command line
         set_mode_and_values(sys.argv[1:])
 
