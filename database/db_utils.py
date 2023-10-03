@@ -16,7 +16,7 @@ from casda_download import *
 #       This script deletes data held in the FLASH db at 146.118.64.208
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.02 02/09/2023
+#       version 1.02 02/10/2023
 #
 #       Edit USER SECTION below to define the type of operation
 
@@ -27,11 +27,11 @@ from casda_download import *
 
 
 # Delete an sbid from the database. Also deletes any reference in a spectral or detection run
-#RUN_TYPE = "DELETESBIDS" 
+RUN_TYPE = "DELETESBIDS" 
 # Remove detection processing from an sbid -reverts to a 'spectral run' sbid
 #RUN_TYPE = "SBIDSPLOTONLY"
 # Add catalogue data - remember to add your Opal password as a command line arg with '-p'
-RUN_TYPE = "CATALOGUE"
+#RUN_TYPE = "CATALOGUE"
 DOWNLOAD_CAT = False # If the catalogues are not already downloaded, set this to True
 ADD_CAT = True # Don't just download the catalogues - add them to the database too.
 
@@ -45,7 +45,7 @@ SBIDDIR = "/scratch/ja3/ger063/data/casda"
 # 2. List of sbids (and their corresponding versions) to process. 
 # On slow connections, you might need to do this one sbid at a time, as per the example,
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [45825,45828,45833,45835]
+SBIDS = [50356,50358,50359,50360,51016,51017,51438,51439,51447,51453,51454,51455,51891,51943,51944,51945,51951,52504]
 VERSIONS = [] # This list should correspond to the above sbids list = set to empty for just the latest version of each sbid.
 
 # 3. If adding catalogue data, provide the directory that holds, or will hold, the catalogues by sbid
@@ -143,7 +143,9 @@ def check_local_processed_sbids(directory):
 
 def get_catalogues(catalogue_only = ONLY_CATS):
     # These functions are defined in module 'casda_download'
-
+    if not DOWNLOAD_CAT:
+        print("Catalogues not downloaded")
+        return
     args = set_parser()
     args.catalogues_only = catalogue_only
     #sbid_list = get_sbids(args)
@@ -240,9 +242,11 @@ def delete_sbids(conn,sbids,versions=None):
 
     cur = get_cursor(conn)
     if not versions:
-        versions = [None]*len(selected_sbids)
+        versions = [None]*len(sbids)
 
     for sbid,version in zip (sbids,versions):
+        print(f"For {sbid}:{1 if version == None else version} :")
+        print("\tFinding ascii LOB")
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
         # Delete associated large object of ascii files
         oid_query = "select ascii_tar from sbid where id = %s;"
@@ -251,6 +255,7 @@ def delete_sbids(conn,sbids,versions=None):
         oid_delete = "SELECT lo_unlink(%s);"
         for i in lon:
             cur.execute(oid_delete,(i,))
+        print("\tDeleted ascii LOB")
             
         # This sbid will possibly be referenced in the detect_run table. Remove the reference.
         cur.execute(f"SELECT detect_runid from sbid where id = {sbid_id};")
@@ -260,9 +265,10 @@ def delete_sbids(conn,sbids,versions=None):
         cur.execute(sbid_query,(sbid,))
         try:
             runid = cur.fetchall()[0][0]
-            cur = remove_sbids_from_detection(conn,[sbid],version,runid)
+            cur = remove_sbids_from_detection(conn,[sbid],[version],runid)
+            print("\tRemoved reference in detect table")
         except IndexError:
-            print(f"No detection run found for sbid {sbid}:{version}")
+            print(f"\tNo detection run found for sbid {sbid}:{version}")
 
         # It will DEFINITELY be referenced in the spect_run table - remove
         sbid_query = "SELECT id from spect_run where %s = ANY (SBIDS);"
@@ -270,13 +276,16 @@ def delete_sbids(conn,sbids,versions=None):
         try:
             runid = cur.fetchall()[0][0]
             remove_sbid_from_spectral(cur,sbid,runid)
+            print("\tRemoved reference in spectral_run table")
         except IndexError:
             # This should NEVER happen
-            print(f"No spectral run found for sbid {sbid}:{version}")
+            print(f"\tNo spectral run found for sbid {sbid}:{version}")
 
         # Now remove the sbid from the SBID table (will also remove associated components) and any large objects
+        print("\tDeleting components ...")
         sbid_delete = "DELETE from SBID where id = %s;"
         cur.execute(sbid_delete,(sbid_id,))
+        print(f"\t{sbid}:{version} deleted!")
 
     return cur
      

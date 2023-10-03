@@ -42,7 +42,7 @@
 #       Usage 5: Query linefinder outputs per sbid:
 #       python db_download linefinder 50356 30
 #
-#       will return the linefinder result for each component of SB50356, if the ln_mean value is > 30
+#       will return the linefinder result for each component of SB50356, if the ln_mean value is > 30 (use '-1' to get all components)
 #######################################################################################
 import sys
 import base64
@@ -157,6 +157,8 @@ def query_db_for_sbid(cur,sbid):
         cur.execute(spect_q,(result[2],))
         spect_tag,date = cur.fetchall()[0]
         print(f"{date}\t{result[0]}\t{result[1]}\t{result[3]}\t{spect_tag}\t\t\t{result[4]}")
+    print()
+    print(f"Number of records: {len(res)}")
     return
 
 ##################################################################################################
@@ -361,7 +363,11 @@ def get_results_for_sbid(cur,args,verbose=False):
     # Get the relevant results file from the detect_run table:
     query = "select detect_runid from sbid where id = %s;"
     cur.execute(query,(sid,))
-    detect_runid = int(cur.fetchone()[0])
+    res = cur.fetchone()[0]
+    if not res:
+        print(f"ERROR - {sbid} not in detection table")
+        return 
+    detect_runid = int(res)
     query = "select results from detect_run where id = %s;"
     cur.execute(query,(detect_runid,))
     result_data = cur.fetchone()[0].split('\n')
@@ -374,6 +380,7 @@ def get_results_for_sbid(cur,args,verbose=False):
         query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s order by ln_mean;")
         cur.execute(query,(sid,ln_mean))
     results = cur.fetchall()
+    row_count = len(results)
     # Extract component id from results and get corresponding line from result_data
     results_dict = {}
     for result in results:
@@ -400,6 +407,7 @@ def get_results_for_sbid(cur,args,verbose=False):
     for result in results:
         comp_id = "component" + result[1].split("_component")[1].split(".")[0]
         if source_list:
+            row_count = len(source_list)
             for comp in source_list:
                 if comp in result[1]:
                     if verbose:
@@ -419,7 +427,7 @@ def get_results_for_sbid(cur,args,verbose=False):
                     f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{result[8]},{vals[5]},{vals[8]},{vals[11]},{vals[14]},{vals[17]}\n")
             # Summary to screen:
             print(result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10])
-    print(f"{len(results)} rows")
+    print(f"{row_count} rows")
     if verbose:
         f.close()
     return
@@ -463,6 +471,8 @@ def usage():
     print("python3 db_download.py linefinder 50356 30")
     print()
     print("     will return the linefinder result for each component of SB50356, if the ln_mean value is > 30")
+    print("     (use '-1' to get all components)")
+    print()
     print("     To get specific sources, replace ln_mean with the name of a file containing a list of the")
     print("     required sources, 1 per line.")
     sys.exit()
@@ -477,28 +487,28 @@ if __name__ == "__main__":
 
     conn = connect()
     cur = get_cursor(conn)
-    
-    # Query db for sbid metadata
-    if len(sys.argv) == 2:
-        try:
-            sbid = int(sys.argv[1])
-        except:
-            usage()
-        query_db_for_sbid(cur,sbid)
+    try: 
+        # Query db for sbid metadata
+        if len(sys.argv) == 2:
+            try:
+                sbid = int(sys.argv[1])
+            except:
+                usage()
+            query_db_for_sbid(cur,sbid)
 
-    # Get tar of either ascii files or linefinder results
-    elif sys.argv[-1] in ["ascii","linefinder"]:
-        get_files_for_sbid(conn,cur,sys.argv)
+        # Get tar of either ascii files or linefinder results
+        elif sys.argv[-1] in ["ascii","linefinder"]:
+            get_files_for_sbid(conn,cur,sys.argv)
 
-    # Get linfinder results for sbid
-    elif sys.argv[1] == "linefinder":
-        get_results_for_sbid(cur,sys.argv,verbose=True)
+        # Get linfinder results for sbid
+        elif sys.argv[1] == "linefinder":
+            get_results_for_sbid(cur,sys.argv,verbose=True)
 
-    # Get plots for sbid
-    elif len(sys.argv) > 3:
-        get_plots_for_sbid(cur,sys.argv)
-    
-    else:
+        # Get plots for sbid
+        elif len(sys.argv) > 3:
+            get_plots_for_sbid(cur,sys.argv)
+        
+    except:
         usage()
 
     cur.close()
