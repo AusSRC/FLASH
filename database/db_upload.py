@@ -10,7 +10,7 @@ import psycopg2
 #       Script to upload data to the FLASH database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.03 22/08/2023
+#       version 1.04 03/10/2023
 ##################################### USER SET VARIABLES ###################################################
 
 # For the below variables, set to "" if they don't apply.
@@ -42,7 +42,7 @@ import psycopg2
 # 1. Define the type of processing run you want to store in the database from the following choices:
 
 # add a spectral processing run to the database (one or more SBID's)
-RUN_TYPE = "SPECTRAL"  
+#RUN_TYPE = "SPECTRAL"  
  
 # add a detection (Linefinder) processing run to the database (one or more SBID's). 
 # The SBID(s) must already be in the database from a prior spectral run.
@@ -55,13 +55,16 @@ RUN_TYPE = "SPECTRAL"
 # Set sbids to "UNCERTAIN" quality - this is the default when sbids are created in the db
 #RUN_TYPE = "UNCERTAIN"
 
+# Comment on sbid
+RUN_TYPE = "COMMENT_SBID"
+
 # 2. Add the run tag - eg pilot or survey 1 / 2 /3 ... data
 RUN_TAG = "FLASH survey 1"
 
 # 3. List of sbids to process. 
 # On slow connections, you might need to do this one sbid at a time (as per the example),
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [45825,45828,45833,45835] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
+SBIDS = [50019,50021,50022] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
 
 # 4. Top level directory holding the SBID subdirs:
 DATA_DIR = "/scratch/ja3/ger063/data/casda"
@@ -70,8 +73,8 @@ DATA_DIR = "/scratch/ja3/ger063/data/casda"
 TMP_TAR_DIR = "/scratch/ja3/ger063/tmp"
 
 # 6. The SLURM error and stdout log files associated with the run (either spectral or linefinder)
-ERROR_LOG = "/scratch/ja3/ger063/data/casda/logs/finder_error_4697770.log"
-STDOUT_LOG = "/scratch/ja3/ger063/data/casda/logs/finder_output_4697770.log"
+ERROR_LOG = "/scratch/ja3/ger063/data/casda/logs/finder_error_4698948.log"
+STDOUT_LOG = "/scratch/ja3/ger063/data/casda/logs/finder_output_4698948.log"
 
 # 7. The compute platform used
 PLATFORM = "setonix.pawsey.org.au"
@@ -408,6 +411,31 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
         add_component(cur,comp,sbid_id,plotfiles,plot_path,processState="spectral",fluxcutoff=flux)
 
 ###############################################
+def add_sbid_comment(conn,sbid,comment,ver=None):
+
+    cur = get_cursor(conn)
+    sbid_id,ver = get_max_sbid_version(cur,sbid,ver)
+    date = dt.datetime.now()
+    date_str = f"{date.day}/{date.month}/{date.year}"
+
+    # Get any existing comment
+    get_comment = "select comment from sbid where id = %s"
+    cur.execute(get_comment,(sbid_id,))
+    try:
+        old_comment = cur.fetchall()[0][0]
+    except IndexError:
+        print("Error getting previous comment")
+    if not old_comment:
+        old_comment = ""
+    print(f"Previous comment was: {old_comment}") 
+    comment = old_comment + "[" + date_str + ": " + comment + "]"
+
+    add_query = "update sbid set comment = %s where id = %s"
+    cur.execute(add_query,(comment,sbid_id))
+    print(f"Comment added to SB{sbid}")
+    return cur
+
+###############################################
 def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ver):
 
     # Create tarball of linefinder output files:
@@ -562,8 +590,9 @@ if __name__ == "__main__":
     conn = connect()
 
     usage()
-    if (len(sys.argv) > 1):
+    if (len(sys.argv) > 3):
         # mode and sbids have been declared on command line
+        print("Using values on cmd line")
         set_mode_and_values(sys.argv[1:])
 
     # Add run
@@ -592,6 +621,17 @@ if __name__ == "__main__":
                         platform=PLATFORM,
                         result_file=LINEFINDER_SUMMARY_FILE,
                         output_dir=LINEFINDER_OUTPUT_DIR)
+
+    elif RUN_TYPE == "COMMENT_SBID":
+        print("Adding comment to sbid")
+        sbid_arg = sys.argv[1]
+        if ":" in sbid_arg:
+            sbid,ver = sbid_arg.split(":")
+        else:
+            sbid = int(sbid_arg)
+            ver = None
+        cur = add_sbid_comment(conn,sbid, sys.argv[2], ver)
+        SBIDS = [sbid]
     elif RUN_TYPE == "GOOD":
         cur = update_quality(conn,SBIDS=SBIDS,quality="GOOD")
     elif RUN_TYPE == "BAD":

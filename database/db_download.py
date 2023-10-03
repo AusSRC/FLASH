@@ -3,7 +3,7 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.03 22/08/2023
+#       version 1.04 03/10/2023
 ###################################################################################### 
 #       Usage 1:
 #       python3 db_download.py <directory to download to> <sbid> <'n' top brightest components>
@@ -143,12 +143,12 @@ def query_db_for_sbid(cur,sbid):
         cur.execute(query,(sbid,))
     else:           # Query all SBIDS in the db. Order by SBID is default
         if ORDERBY == "SBID":
-            query = "select sbid_num, version, spect_runid, id, detectionF from sbid order by sbid_num;"
+            query = "select sbid_num, version, spect_runid, id, detectionF, comment from sbid order by sbid_num;"
         elif ORDERBY in ["ID","DATE"]:
-            query = "select sbid_num, version, spect_runid, id, detectionF from sbid order by id;"
+            query = "select sbid_num, version, spect_runid, id, detectionF, comment from sbid order by id;"
         cur.execute(query)
     res = cur.fetchall()
-    title_str = "\nDATE\t\t\tSBID\tVERSION\tID\tTAG\t\t\tLINEFINDER RUN"
+    title_str = "\nDATE\t\t\tSBID\tVERSION\tID\tTAG\t\t\tLINEFINDER RUN\t COMMENT"
     for i,result in enumerate(res):
         if i % 60 == 0:
             print(title_str)
@@ -156,7 +156,7 @@ def query_db_for_sbid(cur,sbid):
         spect_q = "select run_tag, date from spect_run where id = %s"
         cur.execute(spect_q,(result[2],))
         spect_tag,date = cur.fetchall()[0]
-        print(f"{date}\t{result[0]}\t{result[1]}\t{result[3]}\t{spect_tag}\t\t\t{result[4]}")
+        print(f"{date}\t{result[0]}\t{result[1]}\t{result[3]}\t{spect_tag}\t\t\t{result[4]}\t{result[5]}")
     print()
     print(f"Number of records: {len(res)}")
     return
@@ -346,7 +346,7 @@ def get_results_for_sbid(cur,args,verbose=False):
 
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
-
+    print(f"For {sbid}:{version} ...")
     # min val for ln_mean:
     try:
         ln_mean = float(args[3])
