@@ -17,6 +17,7 @@ from astropy.table import Table
 from glob import glob
 if 'PYMULTINEST' in os.environ:
     sys.path.append(os.environ['PYMULTINEST'])
+    import pymultinest
 else: # Force environment into python!!
     import shlex
     import subprocess
@@ -27,9 +28,10 @@ else: # Force environment into python!!
         (key, _, value) = line.decode().partition("=")
         os.environ[key] = value
     proc.communicate()
+    print(f"Forced PYMULTINEST into environ: {os.environ['PYMULTINEST']}",flush=True)
+    sys.path.append(os.environ['PYMULTINEST'])
+    import pymultinest
     
-import pymultinest
-
 # Import habs nest python modules
 from options import *
 from data import *
@@ -239,6 +241,7 @@ if (mpi_rank == 0) or (not options.init_MPI):
         mnest_args['multimodal'] = options.mmodal
         mnest_args['null_log_evidence'] = -1.e99 # options.detection_limit
         mnest_args['mode_tolerance'] = -1.e99 # options.detection_limit
+        mnest_args['max_modes'] = 200 # sets max mem for modes - default is 100
         pymultinest.run(**mnest_args)
 
         # Print message to screen

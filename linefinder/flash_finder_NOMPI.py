@@ -97,7 +97,7 @@ def processSource(line,source_count,proc_num):
     source.info = line
 
     # Report source name 
-    print(f"\nProcess {proc_num}: Working on Source {source.info['name']}\n",flush=True)
+    print(f"\nProcess {proc_num}: Working on Source {source.info['name']}\n")
 
     # Assign output root name
     options.out_root = '%s/%s' % (options.out_path,source.info['name'])
@@ -107,7 +107,7 @@ def processSource(line,source_count,proc_num):
     if os.path.exists(source.spectrum.filename):
         source.spectrum.generate_data(options)
     else:
-        print(f"\nProcess {proc_num}: Spectrum for source {source.info['name']} does not exist. Ignoring it.\n",flush=True)
+        print(f"\nProcess {proc_num}: Spectrum for source {source.info['name']} does not exist. Ignoring it.\n")
         return (None,None)
         
     # Initialize and generate model object
@@ -160,7 +160,7 @@ def processSource(line,source_count,proc_num):
     pymultinest.run(**mnest_args)
 
     # Print message to screen
-    print(f'\nProcess {proc_num}: Finished MultiNest for spectral line model\n',flush=True)
+    print(f'\nProcess {proc_num}: Finished MultiNest for spectral line model\n')
 
     # Obtain output
     pymultinest.Analyzer.get_separated_stats = get_separated_stats
@@ -176,9 +176,9 @@ def processSource(line,source_count,proc_num):
         if mode_evidence >= options.detection_limit:
             model.output.ndetections += 1
     if model.output.ndetections == 1:
-        print(f"\nProcess {proc_num}, Source {source.info['name']}: 1 spectral line detected\n",flush=True)
+        print(f"\nProcess {proc_num}, Source {source.info['name']}: 1 spectral line detected\n")
     else:
-        print(f"\nProcess {proc_num}, Source {source.info['name']}: {model.output.ndetections} spectral lines detected\n",flush=True)
+        print(f"\nProcess {proc_num}, Source {source.info['name']}: {model.output.ndetections} spectral lines detected\n")
 
     # Write results to file
     #write_resultsfile(options,source,model,os.getpid(),name=results_file)
@@ -265,7 +265,7 @@ if PROCESS:
                 ret = exe.submit(processSource,line,sourcenum,sourcenum)
                 returns.append(ret)
         # Write out results
-        print(f"Writing results to {results_file}")
+        print(f"Writing results to {results_file}",flush=True)
         for ret in returns:
             (model,source) = ret.result()
             if model:

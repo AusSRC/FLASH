@@ -11,7 +11,7 @@ import os.path
 import sys
 
 def usage():
-    print("python3 pre_process.py <list of directories of spectral ascii files> <directory to move bad files to>")
+    print("python3 pre_process.py <directory of spectral ascii files> <dir of spectral plot files> <directory to move bad files to>")
 
 def flagNoiseInOpd(name):
     data = []
@@ -24,6 +24,14 @@ def flagNoiseInOpd(name):
                 return True
     return False
 
+def movePlotFile(source_dir,dest_dir,ascii_name):
+    # Find plot file associated with the given ascii file
+    plotname = ascii_name.replace(".dat",".png")
+    plotfile = os.path.join(source_dir,plotname)
+    if os.path.isfile(plotfile):
+        os.system(f"mv {plotfile} {dest_dir}")
+    
+
 ##########################################################################################
 ##########################################################################################
 
@@ -31,14 +39,21 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         usage()
         sys.exit()
-    dirnames = sys.argv[1:-1]
+    count = 0
+    bad_files = []
+    ascii_dirname = sys.argv[1]
+    plot_dirname = sys.argv[2]
     bad_files_dir = sys.argv[-1]
     os.system(f"mkdir -p {bad_files_dir}")
-    for dirname in dirnames:
-        print(f"Processing directory {dirname}")
-        files = (file for file in os.listdir(dirname) if os.path.isfile(os.path.join(dirname, file)))
-        for name in files:
-            flag = flagNoiseInOpd(f"{dirname}/{name}")
-            if not flag:
-                print(f"{name} : Bad NaN values - moving file")
-                os.system(f"mv {dirname}/{name} {bad_files_dir}")
+    files = (file for file in os.listdir(ascii_dirname) if os.path.isfile(os.path.join(ascii_dirname, file)))
+    for name in files:
+        flag = flagNoiseInOpd(f"{ascii_dirname}/{name}")
+        if not flag:
+            count += 1
+            print(f"{name} : All NaN values - moving file")
+            os.system(f"mv {ascii_dirname}/{name} {bad_files_dir}")
+            movePlotFile(plot_dirname,bad_files_dir,name)
+            if name.endswith("opd.dat"):
+                bad_files.append(name.replace("_opd.dat",""))
+    print(bad_files)
+    print(f"{count} sources found with all NaN values. Associated plot and ascii files have been moved to {bad_files_dir}")
