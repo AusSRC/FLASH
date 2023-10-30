@@ -16,7 +16,7 @@ hi_rest=1420.40575177
 c=2.99792458e5
 
 PLOT = True # Generate the plots - GWHG
-PEAKFLUX = 0.045 # Only generate the plots for components where the peak flux is over this value
+PEAKFLUX = 0.030 # Only generate the plots for components where the peak flux is over this value
 ASCII = True # Generate the ascii files for the linefinder - GWHG
 ARCHIVE = False # tar and push results to Acacia - GWHG
 DEBUG = False
@@ -24,7 +24,7 @@ NUMCORES = 32 # Number of cores requested for multiprocessing - this will be lim
 
 #################################### DATA PATH templates - absolute #################
 # "/data" is the data directory set in run_slurm_spectral.sh. You can then 
-# reflect any subdirectory structures here
+# reflect any subdirectory structures here. Do NOT comment out any paths, even if not used!!
 
 GlobTemplate = '/data/sourceSpectra/4*' # only used if the sbid value from "run_slurm_spectrals.sh" is "all"
 
