@@ -10,7 +10,7 @@ import psycopg2
 #       Script to upload data to the FLASH database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.04 03/10/2023
+#       version 1.05 30/10/2023
 ##################################### USER SET VARIABLES ###################################################
 
 # For the below variables, set to "" if they don't apply.
@@ -46,7 +46,7 @@ import psycopg2
  
 # add a detection (Linefinder) processing run to the database (one or more SBID's). 
 # The SBID(s) must already be in the database from a prior spectral run.
-#RUN_TYPE = "DETECTION"   
+RUN_TYPE = "DETECTION"   
 
 # Set sbids to "GOOD" quality
 #RUN_TYPE = "GOOD"
@@ -55,8 +55,8 @@ import psycopg2
 # Set sbids to "UNCERTAIN" quality - this is the default when sbids are created in the db
 #RUN_TYPE = "UNCERTAIN"
 
-# Comment on sbid
-RUN_TYPE = "COMMENT_SBID"
+# Only add a comment on sbid
+#RUN_TYPE = "COMMENT_SBID"
 
 # 2. Add the run tag - eg pilot or survey 1 / 2 /3 ... data
 RUN_TAG = "FLASH survey 1"
@@ -64,32 +64,35 @@ RUN_TAG = "FLASH survey 1"
 # 3. List of sbids to process. 
 # On slow connections, you might need to do this one sbid at a time (as per the example),
 # in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [50019,50021,50022] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
+SBIDS = [50022] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
+
+SBID_COMMENT = "spectral and linefinder runs with min flux > 30 mJy"
+DETECT_COMMENT = ""
 
 # 4. Top level directory holding the SBID subdirs:
-DATA_DIR = "/scratch/ja3/ger063/data/casda"
+DATA_DIR = "/scratch/ja3/ger063/data/casda_2"
 
 # 5. A temp directory where you have space and write access, to hold tarballs created during this script - these can be large!!
 TMP_TAR_DIR = "/scratch/ja3/ger063/tmp"
 
 # 6. The SLURM error and stdout log files associated with the run (either spectral or linefinder)
-ERROR_LOG = "/scratch/ja3/ger063/data/casda/logs/finder_error_4698948.log"
-STDOUT_LOG = "/scratch/ja3/ger063/data/casda/logs/finder_output_4698948.log"
+ERROR_LOG = ""
+STDOUT_LOG = ""
 
 # 7. The compute platform used
 PLATFORM = "setonix.pawsey.org.au"
 
 # 8. The config dir holding the config file used for the spectral processing
-SPECTRAL_CONFIG_DIR = "/scratch/ja3/ger063/flash/config1"
+SPECTRAL_CONFIG_DIR = "/scratch/ja3/ger063/flash/config2"
 
 # 9. The config directory used for the linefinder processing (contains linefinder.ini, model.txt and sources.log)
-LINEFINDER_CONFIG_DIR = "/home/ger063/flashfinder_local_mpi/config"
+LINEFINDER_CONFIG_DIR = "/home/ger063/src/flashfinder_local_mpi/config/"
 
 # 10. The linefinder output directory, relative to each of the sbid directories
-LINEFINDER_OUTPUT_DIR = "outputs"
+LINEFINDER_OUTPUT_DIR = "chains"
 
 # 11. The collected results file from a linefinder run
-LINEFINDER_SUMMARY_FILE = "/scratch/ja3/ger063/data/results.dat"
+LINEFINDER_SUMMARY_FILE = "/scratch/ja3/ger063/data/casda_2/50022/chains/results.dat"
 
 ####################################################################################################################
 ############################################### USER SECTION 2 #####################################################
@@ -288,6 +291,8 @@ def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
         sbid_id,version = get_max_sbid_version(cur,sbid)
         version += 1
         add_sbid(conn,cur,sbid=sbid,spect_runid=runid,spectralF=True,dataDict=dataDict[sbid],datapath=dataDict["data_path"],ver=version,flux=flux)
+
+        add_sbid_comment(conn,sbid, SBID_COMMENT, version)
     return cur
 
 ###############################################
@@ -369,7 +374,7 @@ def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_
                 cur.execute(update,(mode_num,ln_mean,like,sbid_id))
                 print(f"        component {name} updated with linefinder results")
                 last_ln_mean = ln_mean
-
+        add_detect_comment(conn,sbid,DETECT_COMMENT,version)
     return cur
 
 ###############################################
@@ -414,6 +419,35 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
 def add_sbid_comment(conn,sbid,comment,ver=None):
 
     cur = get_cursor(conn)
+    if comment == "":
+        return cur
+    sbid_id,ver = get_max_sbid_version(cur,sbid,ver)
+    date = dt.datetime.now()
+    date_str = f"{date.day}/{date.month}/{date.year}"
+
+    # Get any existing comment
+    get_comment = "select comment from sbid where id = %s"
+    cur.execute(get_comment,(sbid_id,))
+    try:
+        old_comment = cur.fetchall()[0][0]
+    except IndexError:
+        print("Error getting previous comment")
+    if not old_comment:
+        old_comment = ""
+    print(f"Previous comment was: {old_comment}") 
+    comment = old_comment + "[" + date_str + ": " + comment + "]"
+
+    add_query = "update sbid set comment = %s where id = %s"
+    cur.execute(add_query,(comment,sbid_id))
+    print(f"Comment added to SB{sbid}")
+    return cur
+
+###############################################
+def add_detect_comment(conn,sbid,comment,ver=None):
+
+    cur = get_cursor(conn)
+    if comment == "":
+        return cur
     sbid_id,ver = get_max_sbid_version(cur,sbid,ver)
     date = dt.datetime.now()
     date_str = f"{date.day}/{date.month}/{date.year}"
@@ -478,7 +512,8 @@ def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral",f
         with open(flux,'rb') as f:
             fluxdata = f.read() 
     except IndexError:
-        print(f"WARNING: plot data missing for {comp}")
+        print(f"WARNING: plot data missing for {comp} - skipping")
+        return
         
     # add component
     insert_q = "INSERT into component(comp_id,processState,opd_plotname,flux_plotname,opd_image,flux_image,spectral_date,detection_date,sbid_id,fluxfilter) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"
