@@ -399,8 +399,9 @@ def get_results_for_sbid(cur,args,verbose=False):
     if verbose: # detailed output is saved to file
         f = open(f"{sbid}_{version}_linefinder_outputs.csv","w")
         # we want From component table - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
-        #         From linefinder outputs - Name, ModeNum, abs_peakz_median, abs_peakopd_median, abs_intopd_median(km/s), abs_width_median(km/s), ln(B)_mean
-        f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,abs_peakz_median,abs_peakopd_median,abs_intopd_median(km/s),abs_width_median(km/s),ln(B)_mean\n")
+        # From linefinder, all outputs except name: ModeNum x0_1_maxl dx_1_maxl y0_1_maxl abs_peakz_median abs_peakz_siglo abs_peakz_sighi abs_peakopd_median abs_peakopd_siglo abs_peakopd_sighi abs_intopd_median(km/s) abs_intopd_siglo(km/s) abs_intopd_sighi(km/s) abs_width_median(km/s) abs_width_siglo(km/s) abs_width_sighi(km/s) ln(B)_mean ln(B)_sigma chisq_mean chisq_sigma
+        #f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,abs_peakz_median,abs_peakopd_median,abs_intopd_median(km/s),abs_width_median(km/s),ln(B)_mean\n")
+        f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,x0_1_maxl,dx_1_maxl,y0_1_maxl,abs_peakz_median,abs_peakz_siglo,abs_peakz_sighi,abs_peakopd_median,abs_peakopd_siglo,abs_peakopd_sighi,abs_intopd_median(km/s),abs_intopd_siglo(km/s),abs_intopd_sighi(km/s),abs_width_median(km/s),abs_width_siglo(km/s),abs_width_sighi(km/s),ln(B)_mean,ln(B)_sigma,chisq_mean,chisq_sigma\n")
     print()
     print("component_name     comp_id   ra_hms_cont dec_dms_cont ra_deg_cont dec_deg mode ln_mean")
     print()
@@ -414,7 +415,7 @@ def get_results_for_sbid(cur,args,verbose=False):
                         linefinder_data = results_dict[comp]
                         for line in linefinder_data:
                             vals = line.split()
-                            f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{result[8]},{vals[5]},{vals[8]},{vals[11]},{vals[14]},{vals[17]}\n")
+                            f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{result[8]},{vals[2]},{vals[3]},{vals[4]},{vals[5]},{vals[6]},{vals[7]},{vals[8]},{vals[9]},{vals[10]},{vals[11]},{vals[12]},{vals[13]},{vals[14]},{vals[15]},{vals[16]},{vals[17]},{vals[18]},{vals[19]},{vals[20]}\n")
                     # Summary to screen:
                     print(result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10])
                     break
@@ -424,7 +425,7 @@ def get_results_for_sbid(cur,args,verbose=False):
                 linefinder_data = results_dict[comp]
                 for line in linefinder_data:
                     vals = line.split()
-                    f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{result[8]},{vals[5]},{vals[8]},{vals[11]},{vals[14]},{vals[17]}\n")
+                    f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{result[8]},{vals[2]},{vals[3]},{vals[4]},{vals[5]},{vals[6]},{vals[7]},{vals[8]},{vals[9]},{vals[10]},{vals[11]},{vals[12]},{vals[13]},{vals[14]},{vals[15]},{vals[16]},{vals[17]},{vals[18]},{vals[19]},{vals[20]}\n")
             # Summary to screen:
             print(result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10])
     print(f"{row_count} rows")
