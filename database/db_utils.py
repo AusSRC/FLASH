@@ -23,33 +23,15 @@ from casda_download import *
 ############################################### USER SECTION ###################################################
 # If an attribute doesn't apply, set it to ""
 
-# 1. Define the type of deletion run you want to run on the database from the following choices:
-
-
-# Delete an sbid from the database. Also deletes any reference in a spectral or detection run
-RUN_TYPE = "DELETESBIDS" 
-# Remove detection processing from an sbid -reverts to a 'spectral run' sbid
-#RUN_TYPE = "SBIDSPLOTONLY"
-# Add catalogue data - remember to add your Opal password as a command line arg with '-p'
-#RUN_TYPE = "CATALOGUE"
-DOWNLOAD_CAT = False # If the catalogues are not already downloaded, set this to True
+# Note that these are all now set via cmd line key arguments - see set_parser() below.
+RUN_TYPE = ""
+DOWNLOAD_CAT = True # If the catalogues are not already downloaded, set this to True
 ADD_CAT = True # Don't just download the catalogues - add them to the database too.
-
-# Check if the sbids exist in the db
-#RUN_TYPE = "CHECK_SBIDS"
-
-# Check for processed files in local sbid dirs
-#RUN_TYPE = "CHECK_LOCAL_SBIDS"
 SBIDDIR = "/scratch/ja3/ger063/data/casda"
-
-# 2. List of sbids (and their corresponding versions) to process. 
-# On slow connections, you might need to do this one sbid at a time, as per the example,
-# in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [50356,50358,50359,50360,51016,51017,51438,51439,51447,51453,51454,51455,51891,51943,51944,51945,51951,52504]
+DATADIR = SBIDDIR
+SBIDS = []
 VERSIONS = [] # This list should correspond to the above sbids list = set to empty for just the latest version of each sbid.
-
-# 3. If adding catalogue data, provide the directory that holds, or will hold, the catalogues by sbid
-CATDIR = "/scratch/ja3/ger063/data/casda/catalogues"
+CATDIR = SBIDDIR + "/catalogues"
 DATADIR = CATDIR
 UNTAR = False
 DELETE_CATS = False # save space by deleting catalogues after processing
@@ -58,6 +40,53 @@ ONLY_CATS = True # Only download catalogues - not spectral and noise data
 ####################################################################################################################
 ########################## DO NOT EDIT FURTHER #####################################################################
 ####################################################################################################################
+
+def set_parser():
+    # Set up the argument parser
+    parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
+    parser.add_argument('-m', '--mode',
+            default="CATALOGUE",
+            help='Specify run mode: DELETESBIDS, SBIDSPLOTONLY, CATALOGUE, CHECK_SBIDS, CHECK_LOCAL_SBIDS (default: %(default)s)')
+    parser.add_argument('-s', '--sbid_list',
+            default=None,
+            help='Specify the sbid list eg 11346,11348 (default: %(default)s)')    
+    parser.add_argument('-d', '--sbid_dir',
+            default="/scratch/ja3/ger063/data/casda",
+            help='Specify local directory to use (default: %(default)s)')    
+    parser.add_argument('-c', '--catalogues_only',
+            default=False,
+            action='store_true',
+            help='Specify whether you want to download catalogues only (default: %(default)s)')    
+    parser.add_argument('-e', '--email_address',
+            default="gordon.german@csiro.au",
+            help='Specify email address for login to CASDA (default: %(default)s)')
+    parser.add_argument('-p', '--password',
+            default=None,
+            help='Specify the password for login to CASDA (default: %(default)s)')    
+    parser.add_argument('-a', '--add_cat',
+            default=None,
+            help='Add the catalogue data to the database? (default: %(default)s)')    
+    args = parser.parse_args()
+    return args
+
+def set_mode_and_values(args):
+    global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT
+
+    RUN_TYPE = args.mode.strip().upper()
+    SBIDDIR = args.sbid_dir.strip()
+    DATADIR = SBIDDIR
+    CATDIR = SBIDDIR + "/catalogues"
+    sbids = args.sbid_list.split(',')
+    for sbid in sbids:
+        if ":" in sbid:
+            SBIDS.append(sbid.split(":")[0])
+            VERSIONS.append(sbid.split(":")[1])
+        else:
+            SBIDS.append(sbid)
+            VERSIONS.append(None)
+    ONLY_CATS = args.catalogues_only
+    ADD_CAT = args.add_cat
+
 
 def connect(db="flashdb",user="flash",host="146.118.64.208",password="aussrc"):
 
@@ -141,17 +170,18 @@ def check_local_processed_sbids(directory):
 ##########################################################################################################
 ###################################### Catalogue data ####################################################
 
-def get_catalogues(catalogue_only = ONLY_CATS):
+def get_catalogues(args):
     # These functions are defined in module 'casda_download'
+    print(DATADIR,CATDIR)
     if not DOWNLOAD_CAT:
         print("Catalogues not downloaded")
         return
-    args = set_parser()
-    args.catalogues_only = catalogue_only
+    #args = set_parser()
+    #args.catalogues_only = catalogue_only
     #sbid_list = get_sbids(args)
     sbid_list = SBIDS
     casda,casdatap = authenticate(args)
-    process_sbid_list(sbid_list,args,casda,casdatap,exists=True)
+    process_sbid_list(sbid_list,args,casda,casdatap,DATADIR,CATDIR,exists=True)
     print(f"Retrieved catalogues for sbids {sbid_list}")
     if not args.catalogues_only:
         print("   + spectra and noise data")
@@ -196,8 +226,8 @@ def __get_sbid_catalog_data(catname):
         datadict = {}
     return catdict
 
-def __get_sbid_components_in_db(cur,sbid):
-    sbid_id,version = get_max_sbid_version(cur,sbid)
+def __get_sbid_components_in_db(cur,sbid,version):
+    sbid_id,version = get_max_sbid_version(cur,sbid,version)
     query = "select comp_id from component where sbid_id = %s"
     cur.execute(query,(sbid_id,))
     components = cur.fetchall()
@@ -212,7 +242,7 @@ def __add_component_catalog_to_db(cur,comp_id,catdict):
     cur.execute(query,(catdict['component_name'],catdict['ra_hms_cont'],catdict['dec_dms_cont'],catdict['ra_deg_cont'],catdict['dec_deg_cont'],catdict['flux_peak'],catdict['flux_int'],catdict['has_siblings'],comp_id))
     print(".",end="")
 
-def add_sbid_catalogue(conn,sbid,casda_folder):
+def add_sbid_catalogue(conn,sbid,casda_folder,version=None):
 
     cur = get_cursor(conn)
     names = glob(f"{casda_folder}/*SB{sbid}*.components.xml")
@@ -225,7 +255,7 @@ def add_sbid_catalogue(conn,sbid,casda_folder):
     # Get components listed in catalogue
     components_data = __get_sbid_catalog_data(name)
     # Get components listed in db for this sbid (will be much less than in catalogue)
-    components_db = __get_sbid_components_in_db(cur,sbid)
+    components_db = __get_sbid_components_in_db(cur,sbid,version)
     print(f"Components in catalogue: {len(components_data.keys())}, in db: {len(components_db)}")
     for comp_id in components_db:
         name = comp_id.replace(".fits","").replace("spec_","")
@@ -306,7 +336,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
             cur.execute(oid_delete,(i,))
         
         # Remove detection flag and oid from the sbid
-        sbid_update = "UPDATE sbid SET detectionF = %s, detect_tar = NULL where id = %s;"
+        sbid_update = "UPDATE sbid SET detectionF = %s, detect_tar = NULL, detect_runid = NULL where id = %s;"
         cur.execute(sbid_update,(False,sbid_id))
 
         # Get detection that lists this sbid
@@ -391,6 +421,9 @@ if __name__ == "__main__":
     starttime = time.time()
     conn = connect()
 
+    args = set_parser()
+    set_mode_and_values(args)
+
     # Add run
     if RUN_TYPE == "DELETESBIDS":
         cur = delete_sbids(conn,SBIDS,VERSIONS)
@@ -404,10 +437,11 @@ if __name__ == "__main__":
         conn.close()
     elif RUN_TYPE == "CATALOGUE":
         print(f"Processing sbids {SBIDS}")
-        get_catalogues()
+        get_catalogues(args)
         if ADD_CAT:
-            for sbid in SBIDS:
-                cur = add_sbid_catalogue(conn,sbid,CATDIR)
+            for i,sbid in enumerate(SBIDS):
+                ver = VERSIONS[i]
+                cur = add_sbid_catalogue(conn,sbid,CATDIR,ver)
             conn.commit()
             cur.close()
         conn.close()

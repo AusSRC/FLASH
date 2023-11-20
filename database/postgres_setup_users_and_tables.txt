@@ -48,13 +48,28 @@ create table SBID (
     version int NOT NULL
 );
 
+alter table SBID add constraint check_types check (quality in ('GOOD','BAD','UNCERTAIN') );
+alter table sbid add column comment text;
+
 create table component (
     comp_id varchar(100) NOT NULL,
+    component_name varchar(100),
+    ra_hms_cont varchar(50,
+    dec_dms_cont varchar(50,
+    ra_deg_cont varchar(50,
+    dec_deg_cont varchar(50,
     processState varchar(50) NOT NULL,
     opd_plotname varchar(100),
     flux_plotname varchar(100),
+    fluxfilter real,
+    flux_cutoff varchar(50),
+    flux_peak real,
+    flux_int real,
+    has_siblings int,
     opd_image bytea,
     flux_image bytea,
+    mode_num int,
+    ln_mean real,
     spectral_date TIMESTAMP,
     detection_date TIMESTAMP,
     sbid_id int NOT NULL,
@@ -63,6 +78,10 @@ create table component (
         foreign key(sbid_id) references SBID(id) on delete cascade
 );
 
+alter table component add constraint check_flux check (flux_cutoff in ('ABOVE','BELOW') );
+alter table component add column comment text;
+
+
 #########################################################################################
 ######### NOT USED ######################################################################
 
@@ -70,8 +89,14 @@ alter TABLE spect_run ADD COLUMN run_tag varchar(100);
 update spect_run set run_tag = 'flash survey 1';
 alter TABLE detect_run ADD COLUMN run_tag varchar(100);
 update detect_run set run_tag = 'flash survey 1';
+# Search in ARRAY
+update spect_run set run_tag = 'ASKAP pilot' where 15211 = any(sbids);
 
+# Join table:
 select sbid.id,sbid.spect_runid,spect_run.run_tag from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%pilot%';
+# Join 3 tables:
+select c.comp_id,c.component_name,c.flux_peak,c.has_siblings,p.run_tag from component c inner join SBID s  on s.id = c.sbid_id inner join spect_run p on p.id = s.spect_runid where p.run_tag like '%survey 1' order by c.comp_id;
+
 
 # Finding large objects:
 select oid from pg_largeobject_metadata m inner join sbid on m.oid = sbid.detect_tar;
@@ -107,7 +132,7 @@ create table spectral_plot (
     constraint fk_run
         foreign key(runid) references spect_run(id)
         on delete cascade,
-    constraint fk_comp
+    constraint fk_comp50356,50358,50359,50360,51015,51016,51017,51438,51439,51440,51441,51442,51443
         foreign key(comp_id) references component(comp_id)
         on delete cascade
 );

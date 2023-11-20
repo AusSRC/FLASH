@@ -6,6 +6,8 @@ import datetime as dt
 import os.path
 import tarfile
 import psycopg2
+from argparse import ArgumentParser, RawTextHelpFormatter
+
 #######################################################################################
 #       Script to upload data to the FLASH database
 #       GWHG @ CSIRO, July 2023
@@ -17,6 +19,8 @@ import psycopg2
 
 # The expected data layout is:
 # DATA_DIR ---
+#       catalogues - all CASDA catalogue data
+#       logs       - all SLURM logs
 #       SBID 1 ---
 #                |
 #                |
@@ -39,60 +43,102 @@ import psycopg2
 ############################################### USER SECTION 1 ###################################################
 # If an attribute doesn't apply, set it to ""
 
-# 1. Define the type of processing run you want to store in the database from the following choices:
-
-# add a spectral processing run to the database (one or more SBID's)
-#RUN_TYPE = "SPECTRAL"  
- 
-# add a detection (Linefinder) processing run to the database (one or more SBID's). 
-# The SBID(s) must already be in the database from a prior spectral run.
-RUN_TYPE = "DETECTION"   
-
-# Set sbids to "GOOD" quality
-#RUN_TYPE = "GOOD"
-# Set sbids to "BAD" quality
-#RUN_TYPE = "BAD"
-# Set sbids to "UNCERTAIN" quality - this is the default when sbids are created in the db
-#RUN_TYPE = "UNCERTAIN"
-
-# Only add a comment on sbid
-#RUN_TYPE = "COMMENT_SBID"
-
-# 2. Add the run tag - eg pilot or survey 1 / 2 /3 ... data
-RUN_TAG = "FLASH survey 1"
-
-# 3. List of sbids to process. 
-# On slow connections, you might need to do this one sbid at a time (as per the example),
-# in case of timeouts when connected to the database for multiple sbids with many components
-SBIDS = [50022] # Or for eg 6 sbids: [45815,45823,45833,45835,45762,45828]
-
-SBID_COMMENT = "spectral and linefinder runs with min flux > 30 mJy"
-DETECT_COMMENT = ""
-
-# 4. Top level directory holding the SBID subdirs:
-DATA_DIR = "/scratch/ja3/ger063/data/casda_2"
-
-# 5. A temp directory where you have space and write access, to hold tarballs created during this script - these can be large!!
-TMP_TAR_DIR = "/scratch/ja3/ger063/tmp"
-
-# 6. The SLURM error and stdout log files associated with the run (either spectral or linefinder)
+RUN_TYPE = ""
+SBIDS = []
+VERSIONS = []
+DATA_DIR = ""
+TMP_TAR_DIR = ""
+SPECTRAL_CONFIG_DIR = ""
+LINEFINDER_CONFIG_DIR = ""
 ERROR_LOG = ""
 STDOUT_LOG = ""
+LINEFINDER_OUTPUT_DIR = ""
+LINEFINDER_SUMMARY_FILE = ""
+PLATFORM = ""
+RUN_TAG = ""
 
-# 7. The compute platform used
-PLATFORM = "setonix.pawsey.org.au"
 
-# 8. The config dir holding the config file used for the spectral processing
-SPECTRAL_CONFIG_DIR = "/scratch/ja3/ger063/flash/config2"
+def set_parser():
+    # Set up the argument parser
+    parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
+    parser.add_argument('-m', '--mode',
+            default=None,
+            help='Specify run mode: SPECTRAL, DETECTION, QUALITY, COMMENT (default: %(default)s)')
+    parser.add_argument('-q', '--quality',
+            default="UNCERTAIN",
+            help='If RUN_TYPE = "QUALITY", set value - GOOD, BAD or UNCERTAIN (default: %(default)s)')
+    parser.add_argument('-n', '--name_tag',
+            default="FLASH Survey 1",
+            help='name tag for this run (default: %(default)s)')
+    parser.add_argument('-s', '--sbid_list',
+            default=None,
+            help='Specify the sbid list eg 11346,11348,41050:1,50332 (default: %(default)s)')  
+    parser.add_argument('-d', '--parent_dir',
+            default="/scratch/ja3/ger063/data/casda",
+            help='Specify local directory to use (default: %(default)s)')    
+    parser.add_argument('-t', '--tmp_dir',
+            default="/scratch/ja3/ger063/tmp",
+            help='Specify local directory to use as tmp (default: %(default)s)')    
+    parser.add_argument('-p', '--platform',
+            default="setonix.pawsey.org.au",
+            help='Specify the compute platform used (default: %(default)s)')    
+    parser.add_argument('-c', '--config',
+            default="/scratch/ja3/ger063/flash/config",
+            help='Specify config directory used for processing (default: %(default)s)')
+    parser.add_argument('-o', '--detect_output',
+            default="chains",
+            help='Specify sub-dir to hold linefinder output - relative to the sbid directory (default: %(default)s)')
+    parser.add_argument('-C', '--comment',
+            default="",
+            help='Comment to add to sbid(s)')
+    parser.add_argument('-l', '--logfile',
+            default="/scratch/ja3/ger063/data/casda/logs/out.log",
+            help='Path to SLURM stdout logfile (default: %(default)s)')
+    parser.add_argument('-e', '--errfile',
+            default="/scratch/ja3/ger063/data/casda/logs/err.log",
+            help='Path to SLURM stderr logfile (default: %(default)s)')
+    parser.add_argument('-r', '--results',
+            default="/scratch/ja3/ger063/data/casda/results/results.dat",
+            help='Path to linefinder final results file  (default: %(default)s)')
+    args = parser.parse_args()
+    return args,parser
 
-# 9. The config directory used for the linefinder processing (contains linefinder.ini, model.txt and sources.log)
-LINEFINDER_CONFIG_DIR = "/home/ger063/src/flashfinder_local_mpi/config/"
 
-# 10. The linefinder output directory, relative to each of the sbid directories
-LINEFINDER_OUTPUT_DIR = "chains"
+def set_mode_and_values(args):
 
-# 11. The collected results file from a linefinder run
-LINEFINDER_SUMMARY_FILE = "/scratch/ja3/ger063/data/casda_2/50022/chains/results.dat"
+    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM
+    global SPECTRAL_CONFIG_DIR,LINEFINDER_CONFIG_DIR,LINEFINDER_OUTPUT_DIR,LINEFINDER_SUMMARY_FILE
+
+    RUN_TYPE = args.mode.strip().upper()
+    if RUN_TYPE == "QUALITY":
+        RUN_TYPE = args.quality.strip().upper()
+        if RUN_TYPE not in ['GOOD','BAD','UNCERTAIN']:
+            print(f"Quality value {RUN_TYPE} illegal!!")
+            return
+    sbids = args.sbid_list.split(',')
+    for sbid in sbids:
+        if ":" in sbid:
+            SBIDS.append(int(sbid.split(":")[0]))
+            VERSIONS.append(int(sbid.split(":")[1]))
+        else:
+            SBIDS.append(int(sbid))
+            VERSIONS.append(None)
+    DATA_DIR = args.parent_dir.strip()
+    TMP_TAR_DIR = args.tmp_dir.strip()
+    config_dir = args.config.strip()
+    if RUN_TYPE == "SPECTRAL":
+        SPECTRAL_CONFIG_DIR = config_dir
+    elif RUN_TYPE == "DETECTION":
+        LINEFINDER_CONFIG_DIR = config_dir
+    ERROR_LOG = args.errfile.strip()
+    STDOUT_LOG = args.logfile.strip()
+    LINEFINDER_OUTPUT_DIR = args.detect_output.strip()
+    LINEFINDER_SUMMARY_FILE = args.results.strip()
+    PLATFORM = args.platform.strip()
+    RUN_TAG = args.name_tag.strip()
+
+    print("CLI overriding defaults")
+
 
 ####################################################################################################################
 ############################################### USER SECTION 2 #####################################################
@@ -137,7 +183,7 @@ def get_cursor(conn):
 #########################################################################################################################
 
 
-def createDataDir(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH,plot_dir=SPECTRAL_PLOT_PATH,ascii_dir=SPECTRAL_ASCII_PATH,outputs=OUTPUT_PATH):
+def createDataDir(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH,plot_dir=SPECTRAL_PLOT_PATH,ascii_dir=SPECTRAL_ASCII_PATH,outputs=OUTPUT_PATH,versions = VERSIONS):
 
     sbidsDict = {"data_path":data_path}
     for sbid in sbids:
@@ -169,21 +215,23 @@ def createDataDir(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH,
 
 ###############################################
 
-def check_sbids(cur,SBIDS,table="spect_run"):
+def check_sbids(cur,sbids,versions,table="spect_run"):
 
     invalid_sbids = []
     if table == "spect_run":
-        for sbid in SBIDS:
-            select_query = "SELECT spectralF from SBID where id = %s;"
-            cur.execute(select_query,(sbid,))
+        for i,sbid in enumerate(sbids):
+            ver = versions[i]
+            select_query = "SELECT spectralF from SBID where sbid_num = %s and version = %s;"
+            cur.execute(select_query,(sbid,ver))
             result = cur.fetchall()
             if result and result[0][0]:
                 print(f"SBID {sbid} already processed for spectral results!")
                 invalid_sbids.append(sbid)
     elif table == "detect_run":
-        for sbid in SBIDS:
-            select_query = "SELECT detectionF from SBID where id = %s;"
-            cur.execute(select_query,(sbid,))
+        for i,sbid in enumerate(sbids):
+            ver = versions[i]
+            select_query = "SELECT detectionF from SBID where sbid_num = %s and version = %s;"
+            cur.execute(select_query,(sbid,ver))
             result = cur.fetchall()
             if result and result[0][0]:
                 print(f"SBID {sbid} already processed for detection results!")
@@ -236,7 +284,7 @@ def tar_dir(name,source_dir,pattern=None):
 
 
 ###############################################
-def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
+def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
 
     cur = get_cursor(conn)
 
@@ -279,14 +327,14 @@ def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
         
     # insert into spect_run table
         insert_query = "INSERT into spect_run(SBIDS,config_tar,errlog,stdlog,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
-        cur.execute(insert_query,(SBIDS,psycopg2.Binary(config_data),errdata,stddata,platform,spect_date,RUN_TAG))
+        cur.execute(insert_query,(sbids,psycopg2.Binary(config_data),errdata,stddata,platform,spect_date,RUN_TAG))
     else:
         insert_query = "INSERT into spect_run(SBIDS,errlog,stdlog,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id;"
-        cur.execute(insert_query,(SBIDS,errdata,stddata,platform,spect_date,RUN_TAG))
+        cur.execute(insert_query,(sbids,errdata,stddata,platform,spect_date,RUN_TAG))
     runid = cur.fetchone()[0]
     print(f"Data inserted into table 'spect_run': runid = {runid}")
     # Add the processed SBIDS
-    for sbid in SBIDS:
+    for sbid in sbids:
         # Check if sbid exits - if it does, add it with a version number += 1:
         sbid_id,version = get_max_sbid_version(cur,sbid)
         version += 1
@@ -296,16 +344,16 @@ def add_spect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform):
     return cur
 
 ###############################################
-def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_file,output_dir,version=None):
+def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_file,output_dir,versions=None):
 
     cur = get_cursor(conn)
 
     # Check if any of the sbids have been entered before
-    repeated_sbids = check_sbids(cur,SBIDS,table="detect_run")
+    repeated_sbids = check_sbids(cur,SBIDS,versions,table="detect_run")
     if repeated_sbids:
         print(f"*** SKIPPING sbids {repeated_sbids} from list {SBIDS}!!")
-        SBIDS = list(set(repeated_sbids).symmetric_difference(set(SBIDS)))
-    if not SBIDS:
+        sbids = list(set(repeated_sbids).symmetric_difference(set(SBIDS)))
+    if not sbids:
         return cur
 
     # Add the log files
@@ -344,15 +392,15 @@ def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_
 
     # insert into detect_run table
     insert_query = "INSERT into detect_run(SBIDS,config_tar,errlog,stdlog,result_filepath,results,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
-    cur.execute(insert_query,(SBIDS,psycopg2.Binary(config_data),errdata,stddata,result_file,results,platform,detect_date,RUN_TAG))
+    cur.execute(insert_query,(sbids,psycopg2.Binary(config_data),errdata,stddata,result_file,results,platform,detect_date,RUN_TAG))
     runid = cur.fetchone()[0]
     print(f"Data inserted into table 'detect_run': runid = {runid}")
 
     # Add the processed SBIDS
-    for sbid in SBIDS:
-        if not version:
-            # If sbid version is not specified, assume the latest one
-            sbid_id,version = get_max_sbid_version(cur,sbid)
+    for i,sbid in enumerate(sbids):
+        version = versions[i]
+        sbid_id = None
+        sbid_id,version = get_max_sbid_version(cur,sbid,version)
         # Check if sbid exists:
         if sbid_id:
             update_sbid_detection(cur,sbid=sbid,sbid_id=sbid_id,runid=runid,detectionF=True,dataDict=dataDict[sbid],datapath=output_dir,ver=version)
@@ -374,7 +422,6 @@ def add_detect_run(conn,SBIDS,config_dir,errlog,stdlog,dataDict,platform,result_
                 cur.execute(update,(mode_num,ln_mean,like,sbid_id))
                 print(f"        component {name} updated with linefinder results")
                 last_ln_mean = ln_mean
-        add_detect_comment(conn,sbid,DETECT_COMMENT,version)
     return cur
 
 ###############################################
@@ -549,72 +596,6 @@ def update_quality(conn,SBIDS,quality,version=None):
     print(f"Set quality {quality} for sbids {SBIDS}")
     
     return cur
-####################################################################################################################
-########################################## USAGE AND CLI PARSING ###################################################
-
-def usage():
-
-    print()
-    print("USAGE:")
-    print("python3 db_upload.py")
-    print("     will use defaults defined in script")
-    print("python3 db_upload.py <RUN_TYPE> <SBID LIST> <DATA_DIR> <TMP_DIR> <CONFIG DIR> <ERR LOG> <STD LOG> <OUTPUT DIR> <SUMMARY FILE> <PLATFORM> <RUN TAG>")
-    print("     will override some or all defaults defined in script")
-    print()
-     
-
-###############################################
-def set_mode_and_values(args):
-
-    global RUN_TYPE,SBIDS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM
-    global SPECTRAL_CONFIG_DIR,LINEFINDER_CONFIG_DIR,LINEFINDER_OUTPUT_DIR,LINEFINDER_SUMMARY_FILE
-
-    RUN_TYPE = args[0].strip().upper()
-    SBIDS = args[1].split(',')
-
-    try:
-        DATA_DIR = args[2].strip()
-    except IndexError:
-        return
-    try:
-        TMP_TAR_DIR = args[3].strip()
-    except IndexError:
-        return
-    try:
-        config_dir = args[4].strip()
-        if RUN_TYPE == "SPECTRAL":
-            SPECTRAL_CONFIG_DIR = config_dir
-        elif RUN_TYPE == "DETECTION":
-            LINEFINDER_CONFIG_DIR = config_dir
-    except IndexError:
-        return
-    try:
-        ERROR_LOG = args[5].strip()
-    except IndexError:
-        return
-    try:
-        STDOUT_LOG = args[6].strip()
-    except IndexError:
-        return
-    try:
-        LINEFINDER_OUTPUT_DIR = args[7].strip()
-    except IndexError:
-        return
-    try:
-        LINEFINDER_SUMMARY_FILE = args[8].strip()
-    except IndexError:
-        return
-    try:
-        PLATFORM = args[9].strip()
-    except IndexError:
-        return
-    try:
-        RUN_TAG = args[10].strip()
-    except IndexError:
-        return
-
-
-    print("CLI overriding defaults")
 
 ####################################################################################################################
 ####################################################################################################################
@@ -623,12 +604,11 @@ if __name__ == "__main__":
 
     starttime = time.time()
     conn = connect()
-
-    usage()
-    if (len(sys.argv) > 3):
-        # mode and sbids have been declared on command line
-        print("Using values on cmd line")
-        set_mode_and_values(sys.argv[1:])
+    args,parser = set_parser()
+    if len(sys.argv)==1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+    set_mode_and_values(args)
 
     # Add run
     if RUN_TYPE == "SPECTRAL":
@@ -636,7 +616,7 @@ if __name__ == "__main__":
         if DATA_DIR != "./":
             os.chdir(DATA_DIR)
         dataDict = createDataDir()
-        cur = add_spect_run(conn,SBIDS=SBIDS,
+        cur = add_spect_run(conn,sbids=SBIDS,
                         config_dir=SPECTRAL_CONFIG_DIR,
                         errlog=ERROR_LOG,
                         stdlog=STDOUT_LOG,
@@ -646,27 +626,19 @@ if __name__ == "__main__":
         # Change to data directory
         if DATA_DIR != "./":
             os.chdir(DATA_DIR)
-        dataDict = createDataDir()
+        print(f'main: DATA_DIR = {DATA_DIR}')
+        dataDict = createDataDir(data_path=DATA_DIR)
         cur = add_detect_run(conn,
-                        SBIDS=SBIDS,
+                        sbids=SBIDS,
                         config_dir=LINEFINDER_CONFIG_DIR,
                         errlog=ERROR_LOG,
                         stdlog=STDOUT_LOG,
                         dataDict=dataDict,
                         platform=PLATFORM,
                         result_file=LINEFINDER_SUMMARY_FILE,
-                        output_dir=LINEFINDER_OUTPUT_DIR)
+                        output_dir=LINEFINDER_OUTPUT_DIR,
+                        versions=VERSIONS)
 
-    elif RUN_TYPE == "COMMENT_SBID":
-        print("Adding comment to sbid")
-        sbid_arg = sys.argv[1]
-        if ":" in sbid_arg:
-            sbid,ver = sbid_arg.split(":")
-        else:
-            sbid = int(sbid_arg)
-            ver = None
-        cur = add_sbid_comment(conn,sbid, sys.argv[2], ver)
-        SBIDS = [sbid]
     elif RUN_TYPE == "GOOD":
         cur = update_quality(conn,SBIDS=SBIDS,quality="GOOD")
     elif RUN_TYPE == "BAD":
@@ -674,6 +646,16 @@ if __name__ == "__main__":
     elif RUN_TYPE == "UNCERTAIN":
         cur = update_quality(conn,SBIDS=SBIDS,quality="UNCERTAIN")
         
+    if args.comment.strip() != "":
+        print("Adding comment to sbid")
+        comment = args.comment.strip()
+        for i,sbid in enumerate(SBIDS):
+            ver = VERSIONS[i]
+            if RUN_TYPE in ["SPECTRAL","COMMENT"]:
+                cur = add_sbid_comment(conn,sbid,comment,ver)
+            else:        
+                cur = add_detect_comment(conn,sbid,comment,ver)
+
     conn.commit()
     cur.close()
     conn.close()

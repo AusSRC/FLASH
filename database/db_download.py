@@ -3,7 +3,7 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.04 03/10/2023
+#       version 1.05 01/11/2023
 ###################################################################################### 
 #       Usage 1:
 #       python3 db_download.py <directory to download to> <sbid> <'n' top brightest components>
@@ -397,7 +397,7 @@ def get_results_for_sbid(cur,args,verbose=False):
             notf += 1
 
     if verbose: # detailed output is saved to file
-        f = open(f"{sbid}_linefinder_outputs.csv","w")
+        f = open(f"{sbid}_{version}_linefinder_outputs.csv","w")
         # we want From component table - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
         #         From linefinder outputs - Name, ModeNum, abs_peakz_median, abs_peakopd_median, abs_intopd_median(km/s), abs_width_median(km/s), ln(B)_mean
         f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,abs_peakz_median,abs_peakopd_median,abs_intopd_median(km/s),abs_width_median(km/s),ln(B)_mean\n")

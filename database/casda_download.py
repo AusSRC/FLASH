@@ -20,9 +20,9 @@ def set_parser():
     parser.add_argument('-e', '--email_address',
             default="gordon.german@csiro.au",
             help='Specify email address for login to CASDA (default: %(default)s)')
-    #parser.add_argument('-p', '--password',
-    #        default=None,
-    #        help='Specify the password for login to CASDA (default: %(default)s)')    
+    parser.add_argument('-p', '--password',
+            default=None,
+            help='Specify the password for login to CASDA (default: %(default)s)')    
     parser.add_argument('-s', '--sbid_list',
             default=None,
             help='Specify list of SBIDs to download as a comma-separated list (default: %(default)s)')
@@ -51,10 +51,10 @@ def authenticate(args):
         username = args.email_address
     else:
         username = input("Enter your OPAL/CASDA email address: ")
-    #if args.password == None:
-    #    password = getpass.getpass(str("Enter your OPAL/CASDA password: "))
-    #else:
-    #    password = args.password
+    if args.password == None:
+        password = getpass.getpass(str("Enter your OPAL/CASDA password: "))
+    else:
+        password = args.password
     #casda = Casda(username, password)
     # New authentication for astroquery 0.4.7:
     casda = Casda()
@@ -64,19 +64,21 @@ def authenticate(args):
     return casda,casdatap
 ################################################################################################################
 
-def process_sbid_list(sbid_list,args,casda,casdatap,exists=False):
+def process_sbid_list(sbid_list,args,casda,casdatap,datadir=DATADIR,catdir=CATDIR,exists=False):
 
 
     # Loop over each SBID
+    cwd = os.getcwd()
+    os.mkdir(f'{catdir}')
     for sbid in sbid_list:
-        if exists and glob(f"{DATADIR}/{sbid}/*.xml") != []:
+        if exists and glob(f"{datadir}/{sbid}/*.xml") != []:
             continue
 
         # Make a folder
         try:
-            os.mkdir(f'{DATADIR}/%s' % sbid)
+            os.mkdir(f'{datadir}/%s' % sbid)
         except:
-            print(f"Error trying to make directory {DATADIR}/{sbid}")
+            print(f"Error trying to make directory {datadir}/{sbid}")
 
         # Start by downloading the catalogues - just the components (not islands)
         print('Querying CASDA to download catalogues...')
@@ -85,7 +87,7 @@ def process_sbid_list(sbid_list,args,casda,casdatap,exists=False):
         print(f'Staging and downloading the catalogues for {sbid}')
         url_list = casda.stage_data(r)
         #filelist = casda.download_files(url_list, savedir=f'{DATADIR}/%s/' % sbid)
-        filelist = casda.download_files(url_list, savedir=f'{CATDIR}')
+        filelist = casda.download_files(url_list, savedir=f'{catdir}')
         print('... done!')
         #if spectral download specified
         if not args.catalogues_only:
@@ -101,16 +103,16 @@ def process_sbid_list(sbid_list,args,casda,casdatap,exists=False):
                 #stage and download the data
                 print('Staging and downloading the %s data...' % variable)
                 url_list = casda.stage_data(filename)
-                filelist = casda.download_files(url_list, savedir=f'{DATADIR}/%s/' % sbid)
+                filelist = casda.download_files(url_list, savedir=f'{datadir}/%s/' % sbid)
                 print('... done!')
             if UNTAR:
                 # Untar the data and then delete the tar files
-                tarfiles = glob(f'{DATADIR}/%s/*.tar' % sbid)
+                tarfiles = glob(f'{datadir}/%s/*.tar' % sbid)
+                os.chdir(f'{datadir}/{sbid}')
                 for tarfile in tarfiles:
-                    os.system('tar -xvf %s -C %s' % (tarfile,sbid))
-
-                # Removal the tarballs after
-                os.system(f'rm {DATADIR}/%s/*.tar' % sbid)
+                    #os.system('tar -xvf %s -C %s' % (tarfile,sbid))
+                    os.system('tar -xvf %s' % tarfile)
+    os.chdir(cwd)
 
 
 ################################################################################################################
