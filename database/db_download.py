@@ -3,55 +3,73 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.05 01/11/2023
-###################################################################################### 
-#       Usage 1:
-#       python3 db_download.py <directory to download to> <sbid> <'n' top brightest components>
-#
-#       eg "python3 db_download.py /home/ger063/tmp 43426 20"
-#       will download the plots for the brightest 20 sources from the latest version of sbid 43426 in the db
-#
-#        "python3 db_download.py /home/ger063/tmp 43426:2 20"
-#       will download the plots for the brightest 20 sources from version 2 of sbid 43426 in the db
-#
-#       To get ALL the sources, use "-1" for n
-#       To get specific sources, replace 'n' with the name of a file containing a list of the
-#       required sources, 1 per line.
-#
-#       By default only the opd images are downloaded. To get the flux images, add "flux"
-#
-#       eg "python3 db_download.py /home/ger063/tmp 43426 20 flux"
-#
-#       Usage 2:
-#       python3 db_download.py <directory to download to> <sbid> ascii
-#
-#       eg "python3 db_download.py /home/ger063/tmp 43426:2 ascii"
-#       will download the tarball of ascii files stored for SBID 43426 version2
-#
-#       Usage 3:
-#       python3 db_download.py <directory to download to> <sbid> linefinder
-#
-#       eg "python3 db_download.py /home/ger063/tmp 43426:2 linefinder"
-#       will download the tarball of linefinder result files stored for SBID 43426 version2
-#
-#       Usage 4: Query SBID mode:
-#       python3 db_download.py 45833
-#
-#       will return metadata about SB45833 stored in the db (use '-1' to get all SBIDS)
-#       
-#       Usage 5: Query linefinder outputs per sbid:
-#       python db_download linefinder 50356 30
-#
-#       will return the linefinder result for each component of SB50356, if the ln_mean value is > 30 (use '-1' to get all components)
+#       version 1.06 21/11/2023
 #######################################################################################
 import sys
 import base64
 import psycopg2
 import re
+from argparse import ArgumentParser, RawTextHelpFormatter
 
 # default order for outputs from a query.
 ORDERBY = "SBID"
 #ORDERBY = "ID" # id is a proxy for date
+MODE = "QUERY"
+SBID = ""
+VERSION = None
+DIR = ""
+BRIGHT = "-1"
+LN_MEAN = "-1"
+#######################################################################################
+def set_parser():
+    # Set up the argument parser
+    parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
+    parser.add_argument('-m', '--mode',
+            default=None,
+            help='Specify run mode: PLOTS, ASCII, LINEFINDER, QUERY (default: %(default)s)')
+    parser.add_argument('-s', '--sbid',
+            default=None,
+            help='Specify the sbid eg 11346 or 41050:1 for a specific version (use "-1" to get all sbids) (default: %(default)s)')  
+    parser.add_argument('-d', '--dir',
+            default="/scratch/ja3/ger063/data/casda",
+            help='Specify local directory to download to (default: %(default)s)')    
+    parser.add_argument('-b', '--brightest',
+            default="-1",
+            help='in QUERY or PLOTS mode, enter number of top brightest sources to download (-1 for all). OR enter a filename that contains the source names to download, 1 per line (default: %(default)s)')
+    parser.add_argument('-l', '--ln_mean',
+            default="-1",
+            help='in LINEFINDER mode, enter min ln_mean value for sources to download (-1 for all). OR enter a filename that contains the source names to download, 1 per line (default: %(default)s)')
+    parser.add_argument('-f', '--flux',
+            default=False,
+            action='store_true',
+            help='in PLOTS mode, get the flux plots instead of the opd ones (default: %(default)s)')
+    args = parser.parse_args()
+    return args,parser
+
+
+def set_mode_and_values(args):
+
+    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN
+
+    MODE = args.mode.strip().upper()
+    if MODE in ["QUERY","PLOTS"]:
+        BRIGHT = args.brightest.strip()
+    SBID = args.sbid
+    if ":" in SBID:
+        SBID = (int(args.sbid.split(":")[0]))
+        VERSION = (int(args.sbid.split(":")[1]))
+    else:
+        SBID = int(args.sbid)
+        VERSION = None
+    DIR = args.dir.strip()
+    if MODE == "LINEFINDER":
+        LN_MEAN = args.ln_mean.strip()
+
+    print("CLI overriding defaults")
+
+
+
+
 #######################################################################################
 
 def connect(db="flashdb",user="flash",host="146.118.64.208",password="aussrc"):
@@ -137,9 +155,8 @@ def returnBrightestSources(names,number=None):
 def query_db_for_sbid(cur,sbid):
 
     # This will return metadata stored in the db for a particular sbid
-
     if sbid != -1:  # Query a specific SBID
-        query = "select sbid_num, version, spect_runid, id, detectionF from sbid where sbid_num = %s"
+        query = "select sbid_num, version, spect_runid, id, detectionF, comment from sbid where sbid_num = %s"
         cur.execute(query,(sbid,))
     else:           # Query all SBIDS in the db. Order by SBID is default
         if ORDERBY == "SBID":
@@ -173,29 +190,22 @@ def write_lob(lobj,filename):
 
 ##################################################################################################
 
-def get_files_for_sbid(conn,cur,args):
+def get_files_for_sbid(conn,cur,sbid,version):
 
     # This will return a tarball of ascii files stored for a particular sbid, 
     # or linefinder results files for an sbid, if available.
 
     # The directory for downloads:
-    dir_download = args[1]
+    dir_download = DIR
 
     # The sbid you want to use - if a version is not declared ("45833" rather than "45833:2"),
     # then use the latest version
-    version = None
-    sbid_str = args[2]
-    if ":" in sbid_str:
-        sbid = int(sbid_str.split(":")[0])
-        version = int(sbid_str.split(":")[1])
-    else:
-        sbid = int(sbid_str)
 
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
 
     # Download tar of ascii files for the sbid
-    if args[-1] == "ascii":
+    if MODE == "ASCII":
         query = "select ascii_tar from sbid where id = %s"
         cur.execute(query,(sid,))
         oid = cur.fetchone()[0]
@@ -208,7 +218,7 @@ def get_files_for_sbid(conn,cur,args):
         write_lob(loaded_lob,f"{dir_download}/{name}")
         print(f"Downloaded tar of ascii files for {sbid}:{version}")
 
-    elif args[-1] == "linefinder":
+    elif MODE == "LINEFINDER":
         query = "select detectionF from sbid where id = %s"    
         cur.execute(query,(sid,))
         detect = cur.fetchone()[0]
@@ -236,7 +246,7 @@ def get_files_for_sbid(conn,cur,args):
 
 ##################################################################################################
 
-def get_plots_for_sbid(cur,args):
+def get_plots_for_sbid(cur,sbid,version,get_flux=False):
 
     # This will return a tarball of spectral plots stored for a particular sbid
     # args[1] = directory for downloads
@@ -248,15 +258,7 @@ def get_plots_for_sbid(cur,args):
 
 
     # The directory for downloads:
-    dir_download = args[1]
-
-    version = None
-    sbid_str = args[2]
-    if ":" in sbid_str:
-        sbid = int(sbid_str.split(":")[0])
-        version = int(sbid_str.split(":")[1])
-    else:
-        sbid = int(sbid_str)
+    dir_download = DIR
 
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
@@ -266,11 +268,11 @@ def get_plots_for_sbid(cur,args):
     # be more than 20 files!)
     #
     try:
-        num_sources = int(args[3])
+        num_sources = int(BRIGHT)
         source_list = None
     except ValueError:
         # This arg should be a filename:
-        source_list_path = args[3]
+        source_list_path = BRIGHT
         num_sources = -1
         source_list = []
         with open(source_list_path,'r') as f:
@@ -278,10 +280,10 @@ def get_plots_for_sbid(cur,args):
                 name = line.strip().split("component_")[1].split("_")[0]
                 source_list.append("component_" + name)
 
-    try:
-        # The files type to download ("opd" or "flux")
-        data_type = args[4]
-    except IndexError: # default is to download opd files
+    # The files type to download ("opd" or "flux")
+    if get_flux:
+        data_type = "flux"
+    else:
         data_type = 'opd'
     if not sid:
         if version == 0:
@@ -327,7 +329,7 @@ def get_plots_for_sbid(cur,args):
     return
 ##################################################################################################
 
-def get_results_for_sbid(cur,args,verbose=False):
+def get_results_for_sbid(cur,sbid,version,verbose=False):
 
     # This will print out a table of linefinder output data for a given sbid
     # args[1] = 'linefinder'
@@ -336,24 +338,16 @@ def get_results_for_sbid(cur,args,verbose=False):
     # args[3] = ln_mean cutoff - only sources with an ln_mean() value larger than this will be shown
     #           Alternatively, supply a filename of a list of sources. Only those will be downloaded.
 
-    version = None
-    sbid_str = args[2]
-    if ":" in sbid_str:
-        sbid = int(sbid_str.split(":")[0])
-        version = int(sbid_str.split(":")[1])
-    else:
-        sbid = int(sbid_str)
-
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
     print(f"For {sbid}:{version} ...")
     # min val for ln_mean:
     try:
-        ln_mean = float(args[3])
+        ln_mean = float(LN_MEAN)
         source_list = None
     except ValueError: # a filename of sources was provided instead of ln_mean()
         ln_mean = 0.0
-        source_list_path = args[3]
+        source_list_path = LN_MEAN
         source_list = []
         with open(source_list_path,'r') as f:
             for line in f.readlines():
@@ -397,10 +391,9 @@ def get_results_for_sbid(cur,args,verbose=False):
             notf += 1
 
     if verbose: # detailed output is saved to file
-        f = open(f"{sbid}_{version}_linefinder_outputs.csv","w")
+        f = open(f"{DIR}/{sbid}_{version}_linefinder_outputs.csv","w")
         # we want From component table - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
         # From linefinder, all outputs except name: ModeNum x0_1_maxl dx_1_maxl y0_1_maxl abs_peakz_median abs_peakz_siglo abs_peakz_sighi abs_peakopd_median abs_peakopd_siglo abs_peakopd_sighi abs_intopd_median(km/s) abs_intopd_siglo(km/s) abs_intopd_sighi(km/s) abs_width_median(km/s) abs_width_siglo(km/s) abs_width_sighi(km/s) ln(B)_mean ln(B)_sigma chisq_mean chisq_sigma
-        #f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,abs_peakz_median,abs_peakopd_median,abs_intopd_median(km/s),abs_width_median(km/s),ln(B)_mean\n")
         f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,x0_1_maxl,dx_1_maxl,y0_1_maxl,abs_peakz_median,abs_peakz_siglo,abs_peakz_sighi,abs_peakopd_median,abs_peakopd_siglo,abs_peakopd_sighi,abs_intopd_median(km/s),abs_intopd_siglo(km/s),abs_intopd_sighi(km/s),abs_width_median(km/s),abs_width_siglo(km/s),abs_width_sighi(km/s),ln(B)_mean,ln(B)_sigma,chisq_mean,chisq_sigma\n")
     print()
     print("component_name     comp_id   ra_hms_cont dec_dms_cont ra_deg_cont dec_deg mode ln_mean")
@@ -434,84 +427,34 @@ def get_results_for_sbid(cur,args,verbose=False):
     return
 
 ##################################################################################################
-
-def usage():
-    print()
-    print("USAGE 1 - Get spectral plot files stored for SBID:")
-    print("python3 db_download.py <directory to download to> <sbid> <'n' top brightest components>")
-    print("     eg python3 db_download.py /home/ger063/tmp 43426 20")
-    print()
-    print("     will download brightest 20 sources from latest version of sbid 43426")
-    print("     For all sources, use '-1' for n")
-    print("     To get specific sources, replace 'n' with the name of a file containing a list of the")
-    print("     required sources, 1 per line.")
-    print()
-    print("     python3 db_download.py /home/ger063/tmp 43426:2 20")
-    print("     will download the brightest 20 sources from version 2 of sbid 43426 in the db")
-
-    print("     -- add 'flux' to download the flux images. Default is opd images only")
-    print()
-    print("USAGE 2 - Get tar of ascii files for SBID:")
-    print("python3 db_download.py <directory to download to> <sbid> ascii")
-    print("     eg python3 db_download.py /home/ger063/tmp 43426:2 ascii")
-    print()
-    print("     will download the tarball of ascii files stored for SBID 43426 version2")
-    print()
-    print("USAGE 3 - Get tar of linefinder results files for SBID:")
-    print("python3 db_download.py <directory to download to> <sbid> linefinder")
-    print("     eg python3 db_download.py /home/ger063/tmp 43426:2 linefinder")
-    print()
-    print("     will download the tarball of linefinder result files stored for SBID 43426 version2")
-    print()
-    print("USAGE 4 - query db for sbid metatdata")
-    print("python3 db_download.py 45833")
-    print()
-    print("     will return metadata on sbid, eg number of versions, tags etc")
-    print("     (use '-1' to get ALL sbids)")
-    print("USAGE 5 - Query linefinder outputs per sbid:")
-    print("python3 db_download.py linefinder 50356 30")
-    print()
-    print("     will return the linefinder result for each component of SB50356, if the ln_mean value is > 30")
-    print("     (use '-1' to get all components)")
-    print()
-    print("     To get specific sources, replace ln_mean with the name of a file containing a list of the")
-    print("     required sources, 1 per line.")
-    sys.exit()
-
-##################################################################################################
 ##################################################################################################
 
 if __name__ == "__main__":
 
-    if len(sys.argv) not in [2,3,4,5]:
-        usage()
-
     conn = connect()
+    args,parser = set_parser()
+    if len(sys.argv)==1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+    set_mode_and_values(args)
     cur = get_cursor(conn)
-    try: 
-        # Query db for sbid metadata
-        if len(sys.argv) == 2:
-            try:
-                sbid = int(sys.argv[1])
-            except:
-                usage()
-            query_db_for_sbid(cur,sbid)
+    # Query db for sbid metadata
+    if MODE == "QUERY":
+        query_db_for_sbid(cur,SBID)
 
-        # Get tar of either ascii files or linefinder results
-        elif sys.argv[-1] in ["ascii","linefinder"]:
-            get_files_for_sbid(conn,cur,sys.argv)
+    # Get plots for sbid
+    elif MODE == "PLOTS":
+        get_plots_for_sbid(cur,SBID,VERSION,args.flux)
 
-        # Get linfinder results for sbid
-        elif sys.argv[1] == "linefinder":
-            get_results_for_sbid(cur,sys.argv,verbose=True)
+    # Get tar of either ascii files or linefinder results
+    elif MODE in ["ASCII","LINEFINDER"]:
+        get_files_for_sbid(conn,cur,SBID,VERSION)
 
-        # Get plots for sbid
-        elif len(sys.argv) > 3:
-            get_plots_for_sbid(cur,sys.argv)
-        
-    except:
-        usage()
+    # Get linfinder results for sbid
+    if MODE == "LINEFINDER":
+        get_results_for_sbid(cur,SBID,VERSION,verbose=True)
 
+    
     cur.close()
     conn.close()
 

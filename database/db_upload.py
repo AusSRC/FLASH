@@ -12,7 +12,7 @@ from argparse import ArgumentParser, RawTextHelpFormatter
 #       Script to upload data to the FLASH database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.05 30/10/2023
+#       version 1.06 21/11/2023
 ##################################### USER SET VARIABLES ###################################################
 
 # For the below variables, set to "" if they don't apply.
