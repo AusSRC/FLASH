@@ -56,6 +56,7 @@ LINEFINDER_OUTPUT_DIR = ""
 LINEFINDER_SUMMARY_FILE = ""
 PLATFORM = ""
 RUN_TAG = ""
+SBID_COMMENT = ""
 
 
 def set_parser():
@@ -74,10 +75,10 @@ def set_parser():
             default=None,
             help='Specify the sbid list eg 11346,11348,41050:1,50332 (default: %(default)s)')  
     parser.add_argument('-d', '--parent_dir',
-            default="/scratch/ja3/ger063/data/casda",
+            default="/scratch/ja3",
             help='Specify local directory to use (default: %(default)s)')    
     parser.add_argument('-t', '--tmp_dir',
-            default="/scratch/ja3/ger063/tmp",
+            default="~/tmp",
             help='Specify local directory to use as tmp (default: %(default)s)')    
     parser.add_argument('-p', '--platform',
             default="setonix.pawsey.org.au",
@@ -92,13 +93,13 @@ def set_parser():
             default="",
             help='Comment to add to sbid(s)')
     parser.add_argument('-l', '--logfile',
-            default="/scratch/ja3/ger063/data/casda/logs/out.log",
+            default="",
             help='Path to SLURM stdout logfile (default: %(default)s)')
     parser.add_argument('-e', '--errfile',
-            default="/scratch/ja3/ger063/data/casda/logs/err.log",
+            default="",
             help='Path to SLURM stderr logfile (default: %(default)s)')
     parser.add_argument('-r', '--results',
-            default="/scratch/ja3/ger063/data/casda/results/results.dat",
+            default="",
             help='Path to linefinder final results file  (default: %(default)s)')
     args = parser.parse_args()
     return args,parser
@@ -106,7 +107,7 @@ def set_parser():
 
 def set_mode_and_values(args):
 
-    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM
+    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT
     global SPECTRAL_CONFIG_DIR,LINEFINDER_CONFIG_DIR,LINEFINDER_OUTPUT_DIR,LINEFINDER_SUMMARY_FILE
 
     RUN_TYPE = args.mode.strip().upper()
@@ -136,6 +137,7 @@ def set_mode_and_values(args):
     LINEFINDER_SUMMARY_FILE = args.results.strip()
     PLATFORM = args.platform.strip()
     RUN_TAG = args.name_tag.strip()
+    SBID_COMMENT = args.comment.strip()
 
     print("CLI overriding defaults")
 
@@ -184,7 +186,13 @@ def get_cursor(conn):
 
 
 def createDataDir(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH,plot_dir=SPECTRAL_PLOT_PATH,ascii_dir=SPECTRAL_ASCII_PATH,outputs=OUTPUT_PATH,versions = VERSIONS):
-
+    data_path = DATA_DIR
+    sbids = SBIDS
+    component_dir=COMPONENT_PATH
+    plot_dir=SPECTRAL_PLOT_PATH
+    ascii_dir=SPECTRAL_ASCII_PATH
+    outputs=OUTPUT_PATH
+    versions = VERSIONS
     sbidsDict = {"data_path":data_path}
     for sbid in sbids:
         sbidsDict[sbid] = {"components":[],"plots":[],"ascii":[]}

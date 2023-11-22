@@ -45,6 +45,8 @@ def ignore_previous_results(files,ignore_dirs):
 
 def write_header(summary_dir):
     dt_string = datetime.now().strftime("%d_%m_%Y_%H_%M_%S")
+    if summary_dir.endswith('/'):
+        summary_dir = summary_dir[:-1]
     result_file = f"{summary_dir}/results_{dt_string}.dat"
     
     f = open(result_file,"w")

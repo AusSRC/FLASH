@@ -172,7 +172,6 @@ def check_local_processed_sbids(directory):
 
 def get_catalogues(args):
     # These functions are defined in module 'casda_download'
-    print(DATADIR,CATDIR)
     if not DOWNLOAD_CAT:
         print("Catalogues not downloaded")
         return

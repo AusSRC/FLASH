@@ -518,12 +518,12 @@ def processComponent(sbid,specfile,cat_dict):
                 noiseflux.append(datanoise)
                 noiseopd.append(dataopdnoise)
     
-    ##Make outputs for FLASHfinder. Overwrites previous files everytime it is rerun.
-    if ASCII:
-        write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd)
-    
     ##only plot bright sources because it takes too long. Can use this as a way to skip over the plotting step. 
     if peak_flux>PEAKFLUX:
+        ##Make outputs for FLASHfinder. Overwrites previous files everytime it is rerun.
+        if ASCII:
+            write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd)
+    
         ##skip over sources already done
         plotfile=PlotTemplate%(sbid,sbid,compno)
         if not os.path.exists(plotfile) and PLOT:

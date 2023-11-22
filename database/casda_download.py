@@ -55,10 +55,10 @@ def authenticate(args):
         password = getpass.getpass(str("Enter your OPAL/CASDA password: "))
     else:
         password = args.password
-    #casda = Casda(username, password)
+    casda = Casda(username, password)
     # New authentication for astroquery 0.4.7:
-    casda = Casda()
-    casda.login(username=username)
+    #casda = Casda()
+    #casda.login(username=username)
     casdatap = TapPlus(url="https://casda.csiro.au/casda_vo_tools/tap")
     print("Logged in!")
     return casda,casdatap
@@ -69,7 +69,9 @@ def process_sbid_list(sbid_list,args,casda,casdatap,datadir=DATADIR,catdir=CATDI
 
     # Loop over each SBID
     cwd = os.getcwd()
-    os.mkdir(f'{catdir}')
+    # Make catalogue and SLURM log directories
+    os.makedirs(f'{catdir}',exist_ok=True)
+    os.makedirs(f'{datadir}/logs',exist_ok=True)
     for sbid in sbid_list:
         if exists and glob(f"{datadir}/{sbid}/*.xml") != []:
             continue

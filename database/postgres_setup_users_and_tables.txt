@@ -81,6 +81,15 @@ create table component (
 alter table component add constraint check_flux check (flux_cutoff in ('ABOVE','BELOW') );
 alter table component add column comment text;
 
+create table reports (
+    id int generated always as identity PRIMARY KEY,
+    name varchar(100) NOT NULL,
+    author varchar(100) NOT NULL,
+    sbid_id int,
+    spect_runid int,
+    detect_runid int,
+    report oid,
+    date TIMESTAMP
 
 #########################################################################################
 ######### NOT USED ######################################################################

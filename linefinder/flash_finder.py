@@ -31,7 +31,7 @@ else: # Force environment into python!!
     print(f"Forced PYMULTINEST into environ: {os.environ['PYMULTINEST']}",flush=True)
     sys.path.append(os.environ['PYMULTINEST'])
     import pymultinest
-    
+
 # Import habs nest python modules
 from options import *
 from data import *
@@ -82,7 +82,7 @@ def checkOptionsOverride(options,filename="/config/linefinder.ini"):
 ##############################################################################################################################
 # By default, the initialisation file is expected to be '/config/linefinder.ini' (for container
 # reasons). However, this can be overridden on the command line with '--inifile <filepath>'
-print(f'ini file = {options.inifile}')
+print(f'\nINI file = {options.inifile}')
 if options.inifile:
     options = checkOptionsOverride(options,filename=options.inifile)
 else:
@@ -111,7 +111,7 @@ if (mpi_rank == 0) or (not options.init_MPI):
     print('Python program to use MultiNest for spectral-line detection and modelling')
     print('')
     print('Copyright 2018 James R. Allison. All rights reserved.')
-    print('******************************************************************************\n')
+    print('******************************************************************************\n',flush=True)
 
     # Read source information from file or list spectra in directory
     if (mpi_rank == 0):
@@ -148,6 +148,10 @@ if (mpi_rank == 0) or (not options.init_MPI):
 
     if options.mpi_switch:
         source_list = mpi_comm.scatter(list_chunks,root=0)
+        #source_names = [i['name'].split('component_')[1].split('_')[0] for i in source_list]
+        source_names = [i['name'].split(options.comp_split)[1].split('_')[0] for i in source_list]
+        print('\nCPU %d: Working on Sources: ' % mpi_rank,flush=True)
+        print(source_names,flush=True)
 
     # Wait for all processors to reach this point
     if options.mpi_switch:
@@ -167,7 +171,7 @@ if (mpi_rank == 0) or (not options.init_MPI):
 
     # Loop program over each source spectral data 
     source_count = 0
-    print("looping over sources")
+    print("looping over sources",flush=True)
     for line in source_list:
         # Increment source count
         source_count += 1
@@ -180,7 +184,8 @@ if (mpi_rank == 0) or (not options.init_MPI):
         source.info = line
 
         # Report source name 
-        print('\nCPU %d: Working on Source %s.\n' % (mpi_rank,source.info['name']))
+        print('\nCPU %d: Working on Source %s' % (mpi_rank,source.info['name']))
+        print('%s of %s: ' % (source_count,len(source_names)),source_names,flush=True)
 
         # Assign output root name
         options.out_root = '%s/%s' % (options.out_path,source.info['name'])
@@ -209,7 +214,7 @@ if (mpi_rank == 0) or (not options.init_MPI):
         if 'continuum' in model.input.types:
 
             # Print message to screen
-            print('\nCPU %d: Started MultiNest for continuum model\n' % (mpi_rank))
+            print('\nCPU %d: Started MultiNest for continuum model\n' % (mpi_rank),flush=True)
 
             # Run pymultinest
             mnest_args['n_dims'] = model.input.cont_ndims
@@ -220,7 +225,7 @@ if (mpi_rank == 0) or (not options.init_MPI):
             pymultinest.run(**mnest_args)
 
             # Print message to screen
-            print('\nCPU %d: Finished MultiNest for continuum model\n' % (mpi_rank))
+            print('\nCPU %d: Finished MultiNest for continuum model\n' % (mpi_rank),flush=True)
 
             # Obtain output
             model.output.cont = pymultinest.Analyzer(n_params=mnest_args['n_params'],outputfiles_basename=mnest_args['outputfiles_basename'])
@@ -231,7 +236,7 @@ if (mpi_rank == 0) or (not options.init_MPI):
         # Run habs nest to fit for spectral-lines
 
         # Print message to screen
-        print('\nCPU %d: Started MultiNest for spectral line model\n' % (mpi_rank))
+        print('\nCPU %d: Started MultiNest for spectral line model\n' % (mpi_rank),flush=True)
 
         # Run pymultinest
         mnest_args['n_dims'] = model.input.all_ndims
@@ -241,11 +246,10 @@ if (mpi_rank == 0) or (not options.init_MPI):
         mnest_args['multimodal'] = options.mmodal
         mnest_args['null_log_evidence'] = -1.e99 # options.detection_limit
         mnest_args['mode_tolerance'] = -1.e99 # options.detection_limit
-        mnest_args['max_modes'] = 200 # sets max mem for modes - default is 100
         pymultinest.run(**mnest_args)
 
         # Print message to screen
-        print('\nCPU %d: Finished MultiNest for spectral line model\n' % (mpi_rank))
+        print('\nCPU %d: Finished MultiNest for spectral line model\n' % (mpi_rank),flush=True)
 
         # Obtain output
         pymultinest.Analyzer.get_separated_stats = get_separated_stats
@@ -260,9 +264,9 @@ if (mpi_rank == 0) or (not options.init_MPI):
             if mode_evidence >= options.detection_limit:
                 model.output.ndetections += 1
         if model.output.ndetections == 1:
-            print('\nCPU %d, Source %s: 1 spectral line detected\n' % (mpi_rank,source.info['name']))
+            print('\nCPU %d, Source %s: 1 spectral line detected\n' % (mpi_rank,source.info['name']),flush=True)
         else:
-            print('\nCPU %d, Source %s: %d spectral lines detected\n' % (mpi_rank,source.info['name'],model.output.ndetections))
+            print('\nCPU %d, Source %s: %d spectral lines detected\n' % (mpi_rank,source.info['name'],model.output.ndetections),flush=True)
 
         # Write results to file
         write_resultsfile(options,source,model)
@@ -277,6 +281,11 @@ if (mpi_rank == 0) or (not options.init_MPI):
 
             # Make plot of best-fitting spectrum for each mode
             bestfit_spectrum(options,source,model)
+        print('\nCPU %d: Finished on Source %s' % (mpi_rank,source.info['name']))
+        try:
+            print('\nCPU %d: Starting on Source %s.\n' % (mpi_rank,source_names[source_count]),flush=True)
+        except:
+            print('End of CPU %d list.\n' % mpi_rank,flush=True)
 
 timed = time() - starttime
 print(f"Linefinder took {timed:.2f} sec")

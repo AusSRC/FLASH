@@ -86,6 +86,8 @@ parser.add_argument('--y_units', choices = ['mJy','mJy/beam','Jy','Jy/beam','abs
                     help='units for the spectral y-axis (mJy, mJy/beam, Jy, Jy/beam or absorbed fraction)')
 parser.add_argument('--ylim_scale', default=1.5, type=float,
                     help='y-axis scaling in plots')
+parser.add_argument('--comp_split', default='component_', type=str,
+                    help='pattern to use to split component (source) name and get component number')
 options = parser.parse_args()
 
 

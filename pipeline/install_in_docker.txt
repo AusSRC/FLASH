@@ -78,7 +78,7 @@ sudo docker ps -l
 sudo docker commit <container_id> aussrc/flashfinder
 
 # Push to DockerHub repo:
-docker login --username=gordonwh # passwd = dh#....15
+sudo docker login --username=gordonwh # passwd = dh#....2020
 docker push aussrc/flashfinder
 
 # now can run without the mounted host files:
@@ -103,6 +103,11 @@ docker run --entrypoint $HOME/FLASH/pipeline/run_linefinder_absorption.sh -v /ho
 module load singularity
 singularity build linefinder.sif docker://aussrc/flashfinder
 
+# Store to Acacia
+mc alias set acacia https://projects.pawsey.org.au cdeab391c04c41d289fe7e5fcebc8c39 238d5dfbb91741318c5c0bd7b9c3fa61
+mc cp flashfinder.sif acacia/aussrc/flash/
+# Then use Objstore to generate presigned URL if required
+
 # run a shell:
 singularity shell --bind /mnt/shared/flash/data:/data,/mnt/shared/flash/config:/config linefinder.sif
 
@@ -123,7 +128,9 @@ find /data -type f -name "results_*.dat" -exec awk 'NR==1 || FNR>1' {} + > '/dat
 
 mc alias set acacia https://projects.pawsey.org.au cdeab391c04c41d289fe7e5fcebc8c39 238d5dfbb91741318c5c0bd7b9c3fa61
 
-mc cp linefinder.sif acacia/aussrc/flash/linefinder.sif 
+mc cp linefinder.sif acacia/aussrc/flash/linefinder.sif
+
+# Use Objstore/example_make_url.py to generate presigned url
 
 # In Python:
 
