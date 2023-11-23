@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # Imports
+import astroquery as aq
 from astroquery.utils.tap.core import TapPlus
 import numpy as np
 from astroquery.casda import Casda 
@@ -12,6 +13,7 @@ from argparse import ArgumentParser, RawTextHelpFormatter
 UNTAR = True
 DATADIR = "/scratch/ja3/ger063/data/casda" # The expected structure is subdirs under here for sbids
 CATDIR = "/scratch/ja3/ger063/data/casda/catalogues" # directory that holds catalogues
+
 ################################################################################################################
 
 def set_parser():
@@ -51,17 +53,20 @@ def authenticate(args):
         username = args.email_address
     else:
         username = input("Enter your OPAL/CASDA email address: ")
-    if args.password == None:
+    if args.password == None and aq.__version__[:5] < "0.4.7":
         password = getpass.getpass(str("Enter your OPAL/CASDA password: "))
     else:
         password = args.password
-    casda = Casda(username, password)
+    if aq.__version__[:5] < "0.4.7":
+        casda = Casda(username, password)
+    else:
     # New authentication for astroquery 0.4.7:
-    #casda = Casda()
-    #casda.login(username=username)
+        casda = Casda()
+        casda.login(username=username)
     casdatap = TapPlus(url="https://casda.csiro.au/casda_vo_tools/tap")
     print("Logged in!")
     return casda,casdatap
+
 ################################################################################################################
 
 def process_sbid_list(sbid_list,args,casda,casdatap,datadir=DATADIR,catdir=CATDIR,exists=False):

@@ -7,6 +7,7 @@ import os.path
 import tarfile
 import psycopg2
 from argparse import ArgumentParser, RawTextHelpFormatter
+import db_utils as dbu
 
 #######################################################################################
 #       Script to upload data to the FLASH database
@@ -610,6 +611,7 @@ def update_quality(conn,SBIDS,quality,version=None):
 
 if __name__ == "__main__":
 
+    ADD_CAT = True
     starttime = time.time()
     conn = connect()
     args,parser = set_parser()
@@ -630,6 +632,17 @@ if __name__ == "__main__":
                         stdlog=STDOUT_LOG,
                         dataDict=dataDict,
                         platform=PLATFORM)
+        conn.commit()
+        cur.close()
+        conn.close()
+        if ADD_CAT:
+            cat_dir = f"{DATA_DIR}/catalogues"
+            for i,sbid in enumerate(SBIDS):
+                ver = VERSIONS[i]
+                cur = dbu.add_sbid_catalogue(conn,sbid,cat_dir,ver)
+        conn.commit()
+        cur.close()
+        conn.close()
     elif RUN_TYPE == "DETECTION":
         # Change to data directory
         if DATA_DIR != "./":
@@ -646,15 +659,28 @@ if __name__ == "__main__":
                         result_file=LINEFINDER_SUMMARY_FILE,
                         output_dir=LINEFINDER_OUTPUT_DIR,
                         versions=VERSIONS)
+        conn.commit()
+        cur.close()
+        conn.close()
 
     elif RUN_TYPE == "GOOD":
         cur = update_quality(conn,SBIDS=SBIDS,quality="GOOD")
+        conn.commit()
+        cur.close()
+        conn.close()
     elif RUN_TYPE == "BAD":
         cur = update_quality(conn,SBIDS=SBIDS,quality="BAD")
+        conn.commit()
+        cur.close()
+        conn.close()
     elif RUN_TYPE == "UNCERTAIN":
         cur = update_quality(conn,SBIDS=SBIDS,quality="UNCERTAIN")
+        conn.commit()
+        cur.close()
+        conn.close()
         
     if args.comment.strip() != "":
+        conn = connect()
         print("Adding comment to sbid")
         comment = args.comment.strip()
         for i,sbid in enumerate(SBIDS):
@@ -664,9 +690,9 @@ if __name__ == "__main__":
             else:        
                 cur = add_detect_comment(conn,sbid,comment,ver)
 
-    conn.commit()
-    cur.close()
-    conn.close()
+        conn.commit()
+        cur.close()
+        conn.close()
     print(f"Job took {time.time()-starttime} sec for sbids {SBIDS}")
 
 
