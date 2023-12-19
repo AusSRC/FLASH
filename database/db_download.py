@@ -20,16 +20,20 @@ VERSION = None
 DIR = ""
 BRIGHT = "-1"
 LN_MEAN = "-1"
+SQL = ""
 #######################################################################################
 def set_parser():
     # Set up the argument parser
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default=None,
-            help='Specify run mode: PLOTS, ASCII, LINEFINDER, QUERY (default: %(default)s)')
+            help='Specify run mode: PLOTS, ASCII, LINEFINDER, QUERY, SQL (default: %(default)s)')
     parser.add_argument('-s', '--sbid',
             default=None,
-            help='Specify the sbid eg 11346 or 41050:1 for a specific version (use "-1" to get all sbids) (default: %(default)s)')  
+            help='Specify the sbid eg 11346 or 41050:1 for a specific version (use "-1" to get all sbids) (default: %(default)s)') 
+    parser.add_argument('-S', '--sql_stat',
+            default=None,
+            help='SQL statement to pass to db (only with --mode SQL)') 
     parser.add_argument('-d', '--dir',
             default="/scratch/ja3/ger063/data/casda",
             help='Specify local directory to download to (default: %(default)s)')    
@@ -49,9 +53,14 @@ def set_parser():
 
 def set_mode_and_values(args):
 
-    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN
+    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN, SQL
 
     MODE = args.mode.strip().upper()
+
+    if MODE == "SQL":
+        SQL = args.sql_stat.strip()
+        return
+
     if MODE in ["QUERY","PLOTS"]:
         BRIGHT = args.brightest.strip()
     SBID = args.sbid
@@ -150,6 +159,18 @@ def returnBrightestSources(names,number=None):
         for source in sources:
             bright_sources.append(source)
     return bright_sources,idx
+##################################################################################################
+
+def get_sql_result(conn,cur):
+
+    query = SQL
+    cur.execute(query)
+    res = cur.fetchall()
+    print("SQL statement returned:")
+    for result in res:
+        print(result)
+    return
+
 ##################################################################################################
 
 def query_db_for_sbid(cur,sbid):
@@ -451,6 +472,10 @@ if __name__ == "__main__":
     # Get tar of either ascii files or linefinder results
     elif MODE in ["ASCII","LINEFINDER"]:
         get_files_for_sbid(conn,cur,SBID,VERSION)
+
+    # send a general SQL statement to the db
+    elif MODE == "SQL":
+        get_sql_result(conn,cur)
 
     # Get linfinder results for sbid
     if MODE == "LINEFINDER":
