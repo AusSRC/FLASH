@@ -3,7 +3,7 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.06 21/11/2023
+#       version 1.07 18/12/2023
 #######################################################################################
 import sys
 import base64
