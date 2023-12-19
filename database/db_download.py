@@ -164,6 +164,9 @@ def returnBrightestSources(names,number=None):
 def get_sql_result(conn,cur):
 
     query = SQL
+    if "select" not in SQL and "SELECT" not in SQL:
+        print("WARNING!! Only 'SELECT' statements allowed")
+        return
     cur.execute(query)
     res = cur.fetchall()
     print("SQL statement returned:")
