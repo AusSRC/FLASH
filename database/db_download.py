@@ -169,6 +169,7 @@ def get_sql_result(conn,cur):
     print("SQL statement returned:")
     for result in res:
         print(result)
+    print(f"{len(res)} records returned")
     return
 
 ##################################################################################################
