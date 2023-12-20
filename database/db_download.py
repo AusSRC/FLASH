@@ -163,6 +163,8 @@ def returnBrightestSources(names,number=None):
 
 def get_sql_result(conn,cur):
 
+    # Send an SQL statement directly to the db. This is restricted to a 'SELECT' statement
+
     query = SQL
     if "select" not in SQL and "SELECT" not in SQL:
         print("WARNING!! Only 'SELECT' statements allowed")
@@ -181,7 +183,7 @@ def query_db_for_sbid(cur,sbid):
 
     # This will return metadata stored in the db for a particular sbid
     if sbid != -1:  # Query a specific SBID
-        query = "select sbid_num, version, spect_runid, id, detectionF, comment from sbid where sbid_num = %s"
+        query = "select sbid_num, version, spect_runid, id, detectionF, comment from sbid where sbid_num = %s order by version"
         cur.execute(query,(sbid,))
     else:           # Query all SBIDS in the db. Order by SBID is default
         if ORDERBY == "SBID":

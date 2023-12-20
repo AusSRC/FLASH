@@ -47,17 +47,17 @@ import db_utils as dbu
 RUN_TYPE = ""
 SBIDS = []
 VERSIONS = []
-DATA_DIR = ""
-TMP_TAR_DIR = ""
-SPECTRAL_CONFIG_DIR = ""
+DATA_DIR = "/scratch/ja3/ger063/data/casda"
+TMP_TAR_DIR = "/scratch/ja3/ger063/tmp"
+SPECTRAL_CONFIG_DIR = "/scratch/ja3/ger063/flash/config1"
 LINEFINDER_CONFIG_DIR = ""
 ERROR_LOG = ""
 STDOUT_LOG = ""
 LINEFINDER_OUTPUT_DIR = ""
 LINEFINDER_SUMMARY_FILE = ""
-PLATFORM = ""
-RUN_TAG = ""
-SBID_COMMENT = ""
+PLATFORM = "setonix.pawsey.org.au"
+RUN_TAG = "FLASH survey 1"
+SBID_COMMENT = "flux cutoff = 30 mJy"
 
 
 def set_parser():
@@ -76,28 +76,31 @@ def set_parser():
             default=None,
             help='Specify the sbid list eg 11346,11348,41050:1,50332 (default: %(default)s)')  
     parser.add_argument('-d', '--parent_dir',
-            default="/scratch/ja3",
+            default=DATA_DIR,
             help='Specify local directory to use (default: %(default)s)')    
     parser.add_argument('-t', '--tmp_dir',
-            default="~/tmp",
+            default=TMP_TAR_DIR,
             help='Specify local directory to use as tmp (default: %(default)s)')    
     parser.add_argument('-p', '--platform',
-            default="setonix.pawsey.org.au",
+            default=PLATFORM,
             help='Specify the compute platform used (default: %(default)s)')    
-    parser.add_argument('-c', '--config',
-            default="/scratch/ja3/ger063/flash/config",
-            help='Specify config directory used for processing (default: %(default)s)')
+    parser.add_argument('-cs', '--config_spectral',
+            default=SPECTRAL_CONFIG_DIR,
+            help='Specify spectral config directory used for processing (default: %(default)s)')
+    parser.add_argument('-cl', '--config_linefinder',
+            default=LINEFINDER_CONFIG_DIR,
+            help='Specify linefinder config directory used for processing (default: %(default)s)')
     parser.add_argument('-o', '--detect_output',
             default="chains",
             help='Specify sub-dir to hold linefinder output - relative to the sbid directory (default: %(default)s)')
     parser.add_argument('-C', '--comment',
-            default="",
-            help='Comment to add to sbid(s)')
+            default=SBID_COMMENT,
+            help='Comment to add to sbid(s) (default: %(default)s)')
     parser.add_argument('-l', '--logfile',
-            default="",
+            default=STDOUT_LOG,
             help='Path to SLURM stdout logfile (default: %(default)s)')
     parser.add_argument('-e', '--errfile',
-            default="",
+            default=ERROR_LOG,
             help='Path to SLURM stderr logfile (default: %(default)s)')
     parser.add_argument('-r', '--results',
             default="",
@@ -127,11 +130,12 @@ def set_mode_and_values(args):
             VERSIONS.append(None)
     DATA_DIR = args.parent_dir.strip()
     TMP_TAR_DIR = args.tmp_dir.strip()
-    config_dir = args.config.strip()
+    s_config_dir = args.config_spectral.strip()
+    l_config_dir = args.config_linefinder.strip()
     if RUN_TYPE == "SPECTRAL":
-        SPECTRAL_CONFIG_DIR = config_dir
+        SPECTRAL_CONFIG_DIR = s_config_dir
     elif RUN_TYPE == "DETECTION":
-        LINEFINDER_CONFIG_DIR = config_dir
+        LINEFINDER_CONFIG_DIR = l_config_dir
     ERROR_LOG = args.errfile.strip()
     STDOUT_LOG = args.logfile.strip()
     LINEFINDER_OUTPUT_DIR = args.detect_output.strip()
@@ -634,7 +638,6 @@ if __name__ == "__main__":
                         platform=PLATFORM)
         conn.commit()
         cur.close()
-        conn.close()
         if ADD_CAT:
             cat_dir = f"{DATA_DIR}/catalogues"
             for i,sbid in enumerate(SBIDS):

@@ -58,7 +58,7 @@ def set_parser():
             action='store_true',
             help='Specify whether you want to download catalogues only (default: %(default)s)')    
     parser.add_argument('-e', '--email_address',
-            default="gordon.german@csiro.au",
+            default=None,
             help='Specify email address for login to CASDA (default: %(default)s)')
     parser.add_argument('-p', '--password',
             default=None,
@@ -274,7 +274,8 @@ if __name__ == "__main__":
 
     args = set_parser()
     set_mode_and_values(args)
-
+    print(RUN_TYPE)
+    sys.exit()
     if RUN_TYPE == "CATALOGUE":
         print(f"Processing sbids {SBIDS}")
         get_catalogues(args)
@@ -296,6 +297,13 @@ if __name__ == "__main__":
         conn.close()
     elif RUN_TYPE == "CHECK_LOCAL_SBIDS":
         cur = check_local_processed_sbids(SBIDDIR)
+        conn.commit()
+        cur.close()
+        conn.close()
+    elif RUN_TYPE == "CAT_TO_DB":
+        for i,sbid in enumerate(SBIDS):
+            ver = VERSIONS[i]
+            cur = add_sbid_catalogue(conn,sbid,CATDIR,ver)
         conn.commit()
         cur.close()
         conn.close()

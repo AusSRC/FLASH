@@ -20,7 +20,7 @@ def set_parser():
     # Set up the argument parser
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-e', '--email_address',
-            default="gordon.german@csiro.au",
+            default=None,
             help='Specify email address for login to CASDA (default: %(default)s)')
     parser.add_argument('-p', '--password',
             default=None,

@@ -46,36 +46,22 @@ def set_parser():
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default="CATALOGUE",
-            help='Specify run mode: DELETESBIDS, SBIDSPLOTONLY, CATALOGUE, CHECK_SBIDS, CHECK_LOCAL_SBIDS (default: %(default)s)')
+            help='Specify run mode: DELETESBIDS, SBIDSPLOTONLY, CHECK_SBIDS, CHECK_LOCAL_SBIDS (default: %(default)s)')
     parser.add_argument('-s', '--sbid_list',
             default=None,
             help='Specify the sbid list eg 11346,11348 (default: %(default)s)')    
     parser.add_argument('-d', '--sbid_dir',
             default="/scratch/ja3/ger063/data/casda",
             help='Specify local directory to use (default: %(default)s)')    
-    parser.add_argument('-c', '--catalogues_only',
-            default=False,
-            action='store_true',
-            help='Specify whether you want to download catalogues only (default: %(default)s)')    
-    parser.add_argument('-e', '--email_address',
-            default="gordon.german@csiro.au",
-            help='Specify email address for login to CASDA (default: %(default)s)')
-    parser.add_argument('-p', '--password',
-            default=None,
-            help='Specify the password for login to CASDA (default: %(default)s)')    
-    parser.add_argument('-a', '--add_cat',
-            default=None,
-            help='Add the catalogue data to the database? (default: %(default)s)')    
     args = parser.parse_args()
     return args
 
 def set_mode_and_values(args):
-    global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT
+    global RUN_TYPE, SBIDDIR, DATADIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT
 
     RUN_TYPE = args.mode.strip().upper()
     SBIDDIR = args.sbid_dir.strip()
     DATADIR = SBIDDIR
-    CATDIR = SBIDDIR + "/catalogues"
     sbids = args.sbid_list.split(',')
     for sbid in sbids:
         if ":" in sbid:
