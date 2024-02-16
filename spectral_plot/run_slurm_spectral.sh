@@ -8,17 +8,41 @@
 #
 ######################################################################################
 ######################################################################################
+# The SBIDS to process:
+SBIDARRAY=(55464 55460 55420 55400 55399 55398 55394 55328 55247)
+SBIDSIZE=${#SBIDARRAY[@]}
 
-# pass to container script: 
-#   1) parent input data directory (holds the sbid, noise, catalogues subdirectories)
-#   2) string of sbids to process
-#   3) plot_spectral config directory (holds config.py)
-jid1=$(/bin/bash ./run_container_spectral.sh /scratch/ja3/ger063/data "43424" /scratch/ja3/ger063/flash/config1)
-jid2=$(/bin/bash ./run_container_spectral.sh /scratch/ja3/ger063/data "41050 42300" /scratch/ja3/ger063/flash/config2)
+# Config file to use for all the sbids
+CONFIGFILE="./config.py"
 
-j1=$(echo $jid1 | awk '{print $4}')
-j2=$(echo $jid2 | awk '{print $4}')
-echo "Sumbitted jobs"
-echo $j1
-echo $j2
+# The parent directory holding the SBIDS
+PARENT_DIR="/scratch/ja3/ger063/data/casda"
+
+######################################################################################
+######################################################################################
+
+# config directories used (relative to each SBID directory)
+CONFIGARRAY=("config")
+for (( i=1; i<$SBIDSIZE; i++ ))
+do
+    CONFIGARRAY+=("config")
+done
+
+
+for i in "${!SBIDARRAY[@]}"; do
+    SBID="${SBIDARRAY[$i]}"
+    CONFIG="${CONFIGARRAY[$i]}"
+ 
+    # pass to container script: 
+    #   1) parent input data directory (holds the sbid, noise, catalogues subdirectories)
+    #   2) string of sbids to process
+    #   3) plot_spectral config directory (holds config.py)
+    mkdir -p $PARENT_DIR/$SBID/$CONFIG
+    cp $CONFIGFILE $PARENT_DIR/$SBID/$CONFIG
+    jid1=$(/bin/bash ./run_container_spectral.sh $PARENT_DIR "$SBID" $PARENT_DIR/$SBID/$CONFIG)
+    j1=$(echo $jid1 | awk '{print $4}')
+    echo "Sumbitted job $j1"
+    echo "$j1 = sbid $SBID" >> jobs_to_sbids.txt
+
+done
 
