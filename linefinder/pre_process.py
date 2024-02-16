@@ -9,20 +9,28 @@
 import os
 import os.path
 import sys
+import fnmatch
+import subprocess
 
 def usage():
-    print("python3 pre_process.py <directory of spectral ascii files> <dir of spectral plot files> <directory to move bad files to>")
+    print("python3 pre_process.py <directory to move bad files to> <directory of spectral ascii files> <optional dir of spectral plot files>")
 
 def flagNoiseInOpd(name):
     data = []
+    # Ensure every line has 3 columns
+    output = subprocess.check_output("awk 'NF!=3{print $0}' %s" % name, shell=True)
+    if output != b'':
+        return False, "malformed"
+    # Ensure file has at least ONE valid line
     with open(name,"r") as f:
         for line in f:
             if line.startswith("#"):
                 continue
             data = line.split()[-1].lower()
+            # See if there are any valid numerics
             if data != "nan":
-                return True
-    return False
+                return True, "OK"
+    return False, "NaN"
 
 def movePlotFile(source_dir,dest_dir,ascii_name):
     # Find plot file associated with the given ascii file
@@ -39,21 +47,36 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         usage()
         sys.exit()
+
+    do_plot_files = False
     count = 0
     bad_files = []
-    ascii_dirname = sys.argv[1]
-    plot_dirname = sys.argv[2]
-    bad_files_dir = sys.argv[-1]
+    bad_files_dir = sys.argv[1]
+    ascii_dirname = sys.argv[2]
+    if len(sys.argv) == 4: 
+        do_plot_files = True
+        plot_dirname = sys.argv[3]
     os.system(f"mkdir -p {bad_files_dir}")
     files = (file for file in os.listdir(ascii_dirname) if os.path.isfile(os.path.join(ascii_dirname, file)))
+    tot_files = (len(fnmatch.filter(os.listdir(ascii_dirname), '*.dat')))
     for name in files:
-        flag = flagNoiseInOpd(f"{ascii_dirname}/{name}")
+        if not name.endswith(".dat"):
+            continue
+        flag,status = flagNoiseInOpd(f"{ascii_dirname}/{name}")
         if not flag:
             count += 1
-            print(f"{name} : All NaN values - moving file")
+            if status == "malformed":
+                print(f"{name} : Missing values on line - moving file")
+            else:
+                print(f"{name} : All NaN values - moving file")
             os.system(f"mv {ascii_dirname}/{name} {bad_files_dir}")
-            movePlotFile(plot_dirname,bad_files_dir,name)
-            if name.endswith("opd.dat"):
-                bad_files.append(name.replace("_opd.dat",""))
+            if do_plot_files:
+                movePlotFile(plot_dirname,bad_files_dir,name)
+            if name.endswith(".dat"):
+                bad_files.append(name.replace(".dat",""))
+    print()
     print(bad_files)
-    print(f"{count} sources found with all NaN values. Associated plot and ascii files have been moved to {bad_files_dir}")
+    if do_plot_files:
+        print(f"From total {tot_files} files, {count} sources found with all NaN values, or malformed lines")
+    else:
+        print(f"From total {tot_files} files, {count} sources found with all NaN values, or malformed lines")

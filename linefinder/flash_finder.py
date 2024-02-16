@@ -49,7 +49,7 @@ warnings.simplefilter("ignore")
 ##############################################################################################################################
 
 
-def checkOptionsOverride(options,filename="/config/linefinder.ini"):
+def checkOptionsOverride(options,filename="./config/linefinder.ini"):
     ''' Check if any of the command-line arguments are to be over-ridden'''
 
     with open(filename) as f:
@@ -76,12 +76,13 @@ def checkOptionsOverride(options,filename="/config/linefinder.ini"):
                     except ValueError:
                         pass
                 setattr(options,attr,val)
+        
     return options
 
 ##############################################################################################################################
 ##############################################################################################################################
-# By default, the initialisation file is expected to be '/config/linefinder.ini' (for container
-# reasons). However, this can be overridden on the command line with '--inifile <filepath>'
+# By default, the initialisation file is expected to be './config/linefinder.ini'
+# However, this is normally overridden on the command line with '--inifile <filepath>'
 print(f'\nINI file = {options.inifile}')
 if options.inifile:
     options = checkOptionsOverride(options,filename=options.inifile)
@@ -115,10 +116,9 @@ if (mpi_rank == 0) or (not options.init_MPI):
 
     # Read source information from file or list spectra in directory
     if (mpi_rank == 0):
-
         source_list = Table()
-        if os.path.exists(options.data_path+'sources.log'):
-            source_list = ascii.read(options.data_path+'sources.log',format='commented_header',comment='#')
+        if os.path.exists(options.sourcelog):
+            source_list = ascii.read(options.sourcelog,format='commented_header',comment='#')
         else:
             source_list['name'] = glob(options.data_path+'/*opd.dat')
             index = 0
@@ -131,6 +131,7 @@ if (mpi_rank == 0) or (not options.init_MPI):
         if 'name' not in source_list.colnames:
             print('\nCPU %d:Please specify source names in %s\n' % (mpi_rank,options.data_path+'sources.log'))
             sys.exit(1)
+
 
     # Distribute source list amongst processors
     if options.mpi_switch:
@@ -193,9 +194,13 @@ if (mpi_rank == 0) or (not options.init_MPI):
         # Generate spectral data
         source.spectrum.filename = '%s/%s.dat' % (options.data_path,source.info['name'])
         if os.path.exists(source.spectrum.filename):
-            source.spectrum.generate_data(options)
+            try:
+                source.spectrum.generate_data(options)
+            except ValueError:
+                print(f"\nCPU {mpi_rank}: ERROR: in file {source.spectrum.filename}! Skipping", flush=True)
+                continue
         else:
-            print('\nCPU %d: Spectrum for source %s does not exist. Moving on.\n' % (mpi_rank,source.info['name']))
+            print('\nCPU %d: ERROR: Spectrum for source %s does not exist. Moving on.\n' % (mpi_rank,source.info['name']), flush=True)
             continue
             
         # Initialize and generate model object
@@ -274,18 +279,22 @@ if (mpi_rank == 0) or (not options.init_MPI):
         # Make grahpical output
         if options.plot_switch:
             from plotting import *
-            print('CPU %d, Source %s: Making graphical output\n' % (mpi_rank,source.info['name']))
+            print('CPU %d, Source %s: Making graphical output\n' % (mpi_rank,source.info['name']),flush=True)
 
             # Make plot of posterior probabilities for absorption parameters
             posterior_plot(options,source,model)
 
             # Make plot of best-fitting spectrum for each mode
             bestfit_spectrum(options,source,model)
-        print('\nCPU %d: Finished on Source %s' % (mpi_rank,source.info['name']))
+        print('\nCPU %d: Finished on Source %s' % (mpi_rank,source.info['name']),flush=True)
         try:
             print('\nCPU %d: Starting on Source %s.\n' % (mpi_rank,source_names[source_count]),flush=True)
-        except:
+        except IndexError:
             print('End of CPU %d list.\n' % mpi_rank,flush=True)
 
-timed = time() - starttime
-print(f"Linefinder took {timed:.2f} sec")
+# Wait for all processors to reach this point
+if options.mpi_switch:
+    mpi_comm.Barrier()
+if mpi_rank == 0:
+    timed = time() - starttime
+    print(f"Linefinder took {timed:.2f} sec", flush=True)
