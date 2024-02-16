@@ -13,7 +13,7 @@ import db_utils as dbu
 #       Script to upload data to the FLASH database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.06 21/11/2023
+#       version 1.08 12/02/2024
 ##################################### USER SET VARIABLES ###################################################
 
 # For the below variables, set to "" if they don't apply.
@@ -44,6 +44,8 @@ import db_utils as dbu
 ############################################### USER SECTION 1 ###################################################
 # If an attribute doesn't apply, set it to ""
 
+# These are the default values (overridden by command line args):
+
 RUN_TYPE = ""
 SBIDS = []
 VERSIONS = []
@@ -58,7 +60,9 @@ LINEFINDER_SUMMARY_FILE = ""
 PLATFORM = "setonix.pawsey.org.au"
 RUN_TAG = "FLASH survey 1"
 SBID_COMMENT = "flux cutoff = 30 mJy"
+QUALITY = "UNCERTAIN"
 
+# These are the allowed command line overrides:
 
 def set_parser():
     # Set up the argument parser
@@ -68,7 +72,7 @@ def set_parser():
             help='Specify run mode: SPECTRAL, DETECTION, QUALITY, COMMENT (default: %(default)s)')
     parser.add_argument('-q', '--quality',
             default="UNCERTAIN",
-            help='If RUN_TYPE = "QUALITY", set value - GOOD, BAD or UNCERTAIN (default: %(default)s)')
+            help='Set value - GOOD, BAD, "NOT VALIDATED" or UNCERTAIN (default: %(default)s)')
     parser.add_argument('-n', '--name_tag',
             default="FLASH Survey 1",
             help='name tag for this run (default: %(default)s)')
@@ -111,8 +115,8 @@ def set_parser():
 
 def set_mode_and_values(args):
 
-    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT
-    global SPECTRAL_CONFIG_DIR,LINEFINDER_CONFIG_DIR,LINEFINDER_OUTPUT_DIR,LINEFINDER_SUMMARY_FILE
+    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT, QUALITY
+    global SPECTRAL_CONFIG_DIR,LINEFINDER_CONFIG_DIR,LINEFINDER_OUTPUT_DIR,LINEFINDER_SUMMARY_FILE, QUALITY
 
     RUN_TYPE = args.mode.strip().upper()
     if RUN_TYPE == "QUALITY":
@@ -143,6 +147,7 @@ def set_mode_and_values(args):
     PLATFORM = args.platform.strip()
     RUN_TAG = args.name_tag.strip()
     SBID_COMMENT = args.comment.strip()
+    QUALITY = args.quality.strip()
 
     print("CLI overriding defaults")
 
@@ -210,9 +215,12 @@ def createDataDir(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH,
         sbidsDict[sbid]["plots_path"] = plots_path
         sbidsDict[sbid]["ascii_path"] = ascii_path
         sbidsDict[sbid]["output_path"] = output_path
-
-        components = [f for f in os.listdir(component_path) if f.endswith(".fits")]
-        plots = [f for f in os.listdir(plots_path) if f.endswith(".png")]
+        if RUN_TYPE != "DETECTION":
+            components = [f for f in os.listdir(component_path) if f.endswith(".fits")]
+            plots = [f for f in os.listdir(plots_path) if f.endswith(".png")]
+        else:
+            components = None
+            plots = None
         asciis = [f for f in os.listdir(ascii_path) if f.endswith(".dat")]
         try:
             output_files = [f for f in os.listdir(output_path)]
@@ -300,7 +308,7 @@ def tar_dir(name,source_dir,pattern=None):
 def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
 
     cur = get_cursor(conn)
-
+    print(f"Adding spectral run for sbids {sbids}")
     # Add the log files
     errdata = ""
     if errlog:
@@ -321,39 +329,37 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
     # tar up the config files:
     flux = None
     config_data = None
-    if config_dir:
-        config_tarball = f"{TMP_TAR_DIR}/spectral_config.tar.gz"
-        tar_dir(config_tarball,config_dir,pattern="config.py")
-        config_data = None
-        with open(config_tarball,'rb') as f:
-            config_data = f.read()
-        # Try to get the peak flux value in the config file:
-        try:
-            with open(f"{config_dir}/config.py","r") as f:
-                config = f.readlines()
-            for line in config:
-                if line.startswith("PEAKFLUX"):
-                    flux = float(line.split("=")[1].split("#")[0])
-                    print(f"Set flux cutoff to {flux}")
-        except:
-            print("Could not determine PEAKFLUX from config file")
-        
-    # insert into spect_run table
-        insert_query = "INSERT into spect_run(SBIDS,config_tar,errlog,stdlog,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
-        cur.execute(insert_query,(sbids,psycopg2.Binary(config_data),errdata,stddata,platform,spect_date,RUN_TAG))
-    else:
-        insert_query = "INSERT into spect_run(SBIDS,errlog,stdlog,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id;"
-        cur.execute(insert_query,(sbids,errdata,stddata,platform,spect_date,RUN_TAG))
+    insert_query = "INSERT into spect_run(SBIDS,errlog,stdlog,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id;"
+    cur.execute(insert_query,(sbids,errdata,stddata,platform,spect_date,RUN_TAG))
     runid = cur.fetchone()[0]
     print(f"Data inserted into table 'spect_run': runid = {runid}")
     # Add the processed SBIDS
     for sbid in sbids:
-        # Check if sbid exits - if it does, add it with a version number += 1:
+        # Check if sbid exists - if it does, add it with a version number += 1:
         sbid_id,version = get_max_sbid_version(cur,sbid)
         version += 1
-        add_sbid(conn,cur,sbid=sbid,spect_runid=runid,spectralF=True,dataDict=dataDict[sbid],datapath=dataDict["data_path"],ver=version,flux=flux)
-
-        add_sbid_comment(conn,sbid, SBID_COMMENT, version)
+        # tar up the config files:
+        flux = None
+        config_data = None
+        if config_dir:
+            config_tardir = f"{DATA_DIR}/{sbid}/{config_dir}"
+            config_tarball = f"{TMP_TAR_DIR}/spectral_config.tar.gz"
+            tar_dir(config_tarball,config_tardir,pattern="config.py")
+            config_data = None
+            with open(config_tarball,'rb') as f:
+                config_data = f.read()
+            # Try to get the peak flux value in the config file:
+            try:
+                with open(f"{config_tardir}/config.py","r") as f:
+                    config = f.readlines()
+                for line in config:
+                    if line.startswith("PEAKFLUX"):
+                        flux = float(line.split("=")[1].split("#")[0])
+                        print(f"Found flux cutoff at {flux} mJy")
+            except FileNotFoundError:
+                print(f"Could not find config file {config_tardir}/config.py")
+        add_sbid(conn,cur,sbid=sbid,spect_runid=runid,spectralF=True,dataDict=dataDict[sbid],datapath=dataDict["data_path"],ver=version,config=config_data,flux=flux)
+        print(f"Added sbid {sbid} and its components to db")
     return cur
 
 ###############################################
@@ -361,6 +367,7 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
 
     cur = get_cursor(conn)
 
+    print(f"Adding detection run for sbids {sbids}")
     # Check if any of the sbids have been entered before
     repeated_sbids = check_sbids(cur,SBIDS,versions,table="detect_run")
     if repeated_sbids:
@@ -404,8 +411,8 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
             results = results + line.strip() + "\n"
 
     # insert into detect_run table
-    insert_query = "INSERT into detect_run(SBIDS,config_tar,errlog,stdlog,result_filepath,results,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
-    cur.execute(insert_query,(sbids,psycopg2.Binary(config_data),errdata,stddata,result_file,results,platform,detect_date,RUN_TAG))
+    insert_query = "INSERT into detect_run(SBIDS,errlog,stdlog,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id;"
+    cur.execute(insert_query,(sbids,errdata,stddata,platform,detect_date,RUN_TAG))
     runid = cur.fetchone()[0]
     print(f"Data inserted into table 'detect_run': runid = {runid}")
 
@@ -414,9 +421,27 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
         version = versions[i]
         sbid_id = None
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
+        # tar up the config files:
+        config_tarball = f"{TMP_TAR_DIR}/detect_config.tar.gz"
+        config_data = None
+        try:
+            config_dir = f"{DATA_DIR}/{sbid}/{config_dir}"
+            tar_dir(config_tarball,config_dir)
+            with open(config_tarball,'rb') as f:
+                config_data = f.read()
+        except FileNotFoundError:
+            print(f"Config dir {config_dir} not found!!")
+
+        # Add the results file
+        results = ""
+        with open(result_file,'r') as f:
+            for line in f:
+                line = line.replace("\"","'")
+                results = results + line.strip() + "\n"
+
         # Check if sbid exists:
         if sbid_id:
-            update_sbid_detection(cur,sbid=sbid,sbid_id=sbid_id,runid=runid,detectionF=True,dataDict=dataDict[sbid],datapath=output_dir,ver=version)
+            update_sbid_detection(cur,sbid=sbid,sbid_id=sbid_id,runid=runid,detectionF=True,dataDict=dataDict[sbid],datapath=output_dir,ver=version,config=config_data,results=results)
         else:
             print(f"ERROR: sbid:version {sbid}:{version} does not exist in database!! Skipping")
 
@@ -438,9 +463,10 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
     return cur
 
 ###############################################
-def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict={},datapath="./",ver=1,flux=None,quality="UNCERTAIN"):
+def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict={},datapath="./",ver=1,config=None,flux=None):
 
-    insert_query = "INSERT into SBID(sbid_num,spect_runid,spectralF,detectionF,ascii_tar,quality,version) VALUES (%s,%s,%s,%s,%s,%s,%s);"
+    quality = QUALITY
+    insert_query = "INSERT into SBID(sbid_num,spect_runid,spectralF,detectionF,spectral_config_tar,ascii_tar,quality,version) VALUES (%s,%s,%s,%s,%s,%s,%s,%s);"
     run_table = "spect_run"
     runid = spect_runid
     # Check runid exists
@@ -461,7 +487,7 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
     new_oid = lob.oid
     lob.close()
      
-    cur.execute(insert_query, (sbid,runid,spectralF,detectionF,new_oid,quality,ver))
+    cur.execute(insert_query, (sbid,runid,spectralF,detectionF,psycopg2.Binary(config),new_oid,quality,ver))
     # Get the generated id of the sbid just added:
     cur.execute(f"SELECT id from SBID where sbid_num = {sbid} and version = {ver};")
     sbid_id = int(cur.fetchall()[0][0])
@@ -530,7 +556,7 @@ def add_detect_comment(conn,sbid,comment,ver=None):
     return cur
 
 ###############################################
-def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ver):
+def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ver,config,results):
 
     # Create tarball of linefinder output files:
     output_tarball = f"{TMP_TAR_DIR}/{sbid}_linefinder_output.tar.gz"
@@ -543,13 +569,14 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ve
     new_oid = lob.oid
     lob.close()
 
-    update_query = "UPDATE SBID SET detect_runid = %s, detectionF = %s, detect_tar = %s where id = %s;"
-    cur.execute(update_query,(runid,detectionF,new_oid,sbid_id))
+    update_query = "UPDATE SBID SET detect_runid = %s, detectionF = %s, detect_tar = %s , detect_config_tar = %s, results = %s where id = %s;"
+    cur.execute(update_query,(runid,detectionF,new_oid,psycopg2.Binary(config),results,sbid_id))
     print(f"sbid table updated with detection for sbid = {sbid}, version {ver}")
 
     # Update the component table with the detection
-    for comp in dataDict["components"]:
-        update_component_detection(cur,comp,sbid_id,processState="detection")
+    for comp in dataDict["ascii"]:
+        if ("_opd") in comp:
+            update_component_detection(cur,comp,sbid_id,processState="detection")
 
 ###############################################
 def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral",fluxcutoff=None):
@@ -589,6 +616,11 @@ def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral",f
 def update_component_detection(cur,comp,sbid_id,processState):
     # Get current datetime and format for postgres
     detect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S") 
+
+    # change the component name into the right format
+    if not comp.startswith("spec_"):
+        comp = "spec_" + comp
+    comp.replace(".dat",".fits")
 
     update_query = "UPDATE component SET processState = %s, detection_date = %s where comp_id = %s and sbid_id = %s;"
     cur.execute(update_query,(processState,detect_date,comp,sbid_id))

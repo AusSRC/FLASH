@@ -3,8 +3,9 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.07 18/12/2023
+#       version 1.08 12/02/2024
 #######################################################################################
+import os
 import sys
 import base64
 import psycopg2
@@ -21,6 +22,7 @@ DIR = ""
 BRIGHT = "-1"
 LN_MEAN = "-1"
 SQL = ""
+UNTAR = False
 #######################################################################################
 def set_parser():
     # Set up the argument parser
@@ -47,13 +49,17 @@ def set_parser():
             default=False,
             action='store_true',
             help='in PLOTS mode, get the flux plots instead of the opd ones (default: %(default)s)')
+    parser.add_argument('-t', '--untar',
+            default=False,
+            action='store_true',
+            help='untar the downloaded file (default: %(default)s)')
     args = parser.parse_args()
     return args,parser
 
 
 def set_mode_and_values(args):
 
-    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN, SQL
+    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN, SQL, UNTAR
 
     MODE = args.mode.strip().upper()
 
@@ -71,6 +77,8 @@ def set_mode_and_values(args):
         SBID = int(args.sbid)
         VERSION = None
     DIR = args.dir.strip()
+    os.system(f"mkdir -p {DIR}")
+    UNTAR = args.untar
     if MODE == "LINEFINDER":
         LN_MEAN = args.ln_mean.strip()
 
@@ -183,23 +191,27 @@ def query_db_for_sbid(cur,sbid):
 
     # This will return metadata stored in the db for a particular sbid
     if sbid != -1:  # Query a specific SBID
-        query = "select sbid_num, version, spect_runid, id, detectionF, comment from sbid where sbid_num = %s order by version"
+        query = "select sbid_num, version, spect_runid, quality, detectionF, comment from sbid where sbid_num = %s order by version"
         cur.execute(query,(sbid,))
     else:           # Query all SBIDS in the db. Order by SBID is default
         if ORDERBY == "SBID":
-            query = "select sbid_num, version, spect_runid, id, detectionF, comment from sbid order by sbid_num;"
+            query = "select sbid_num, version, spect_runid, quality, detectionF, comment from sbid order by sbid_num, version;"
         elif ORDERBY in ["ID","DATE"]:
-            query = "select sbid_num, version, spect_runid, id, detectionF, comment from sbid order by id;"
+            query = "select sbid_num, version, spect_runid, quality, detectionF, comment from sbid order by id;"
         cur.execute(query)
     res = cur.fetchall()
-    title_str = "\nDATE\t\t\tSBID\tVERSION\tID\tTAG\t\t\tLINEFINDER RUN\t COMMENT"
+    title_str = "\nDATE\t\t\tSBID\tVERSION\tQUALITY\t\tTAG\t\t\tLINEFINDER RUN\t COMMENT"
     for i,result in enumerate(res):
         if i % 60 == 0:
             print(title_str)
         # get the run tags from the spect_run table
         spect_q = "select run_tag, date from spect_run where id = %s"
         cur.execute(spect_q,(result[2],))
-        spect_tag,date = cur.fetchall()[0]
+        try:
+            spect_tag,date = cur.fetchall()[0]
+        except IndexError:
+            spect_tag = 'None'
+            date = 'No date recorded'
         print(f"{date}\t{result[0]}\t{result[1]}\t{result[3]}\t{spect_tag}\t\t\t{result[4]}\t{result[5]}")
     print()
     print(f"Number of records: {len(res)}")
@@ -244,6 +256,7 @@ def get_files_for_sbid(conn,cur,sbid,version):
         # So use streaming function:
         write_lob(loaded_lob,f"{dir_download}/{name}")
         print(f"Downloaded tar of ascii files for {sbid}:{version}")
+        return name
 
     elif MODE == "LINEFINDER":
         query = "select detectionF from sbid where id = %s"    
@@ -339,7 +352,7 @@ def get_plots_for_sbid(cur,sbid,version,get_flux=False):
         sources,number = returnBrightestSources(comps,num_sources)
     # Get the image data for the component and write it to a local file:
     for idx,source in enumerate(sources):
-        print(f"    {idx+1} of {len(sources)} : {source}")
+        print(f"    {idx+1} of {len(sources)} : {source.split('.fits')[0]}")
         query = f"select {data_type}_image from component where comp_id = %s"
         cur.execute(query,(source,))
         data = cur.fetchone()
@@ -381,6 +394,7 @@ def get_results_for_sbid(cur,sbid,version,verbose=False):
                 name = line.strip().split("component_")[1].split("_")[0]
                 source_list.append("component_" + name)
 
+    
     # Get the relevant results file from the detect_run table:
     query = "select detect_runid from sbid where id = %s;"
     cur.execute(query,(sid,))
@@ -477,7 +491,10 @@ if __name__ == "__main__":
 
     # Get tar of either ascii files or linefinder results
     elif MODE in ["ASCII","LINEFINDER"]:
-        get_files_for_sbid(conn,cur,SBID,VERSION)
+        tar_name = get_files_for_sbid(conn,cur,SBID,VERSION)
+        if UNTAR:
+            print(f"Untarring download {tar_name}")
+            os.system(f"cd {DIR}; tar -zxvf {tar_name} &> ../tar_msg.txt; rm {tar_name}")
 
     # send a general SQL statement to the db
     elif MODE == "SQL":

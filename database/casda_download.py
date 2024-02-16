@@ -1,4 +1,9 @@
 #!/usr/bin/python
+################################################################################################################
+#
+#       NOTE: FLASH project code is AS209
+#
+################################################################################################################
 # Imports
 import astroquery as aq
 from astroquery.utils.tap.core import TapPlus
@@ -77,25 +82,43 @@ def process_sbid_list(sbid_list,args,casda,casdatap,datadir=DATADIR,catdir=CATDI
     # Make catalogue and SLURM log directories
     os.makedirs(f'{catdir}',exist_ok=True)
     os.makedirs(f'{datadir}/logs',exist_ok=True)
+    bad_sbids = []
     for sbid in sbid_list:
+        #try:
         if exists and glob(f"{datadir}/{sbid}/*.xml") != []:
             continue
 
         # Make a folder
         try:
-            os.mkdir(f'{datadir}/%s' % sbid)
+            os.makedirs(f'{datadir}/{sbid}',exist_ok=True)
         except:
             print(f"Error trying to make directory {datadir}/{sbid}")
-
-        # Start by downloading the catalogues - just the components (not islands)
+        # Next is downloading the catalogues - just the components (not islands)
         print('Querying CASDA to download catalogues...')
         job = casdatap.launch_job_async("SELECT * FROM ivoa.obscore where obs_id = '%s' and obs_publisher_did like 'catalogue%%' and dataproduct_subtype like '%%component'" % sbid)
         r = job.get_results()
-        print(f'Staging and downloading the catalogues for {sbid}')
-        url_list = casda.stage_data(r)
-        #filelist = casda.download_files(url_list, savedir=f'{DATADIR}/%s/' % sbid)
-        filelist = casda.download_files(url_list, savedir=f'{catdir}')
-        print('... done!')
+        # checking the quality level of the observation - if it's been rejected, skip
+        quality = str(r['quality_level']).split()[-1]
+        print(f"Quality = {quality}",end="")
+        if quality == "REJECTED":
+            print("  skipping ...")
+            bad_sbids.append(sbid)
+            continue
+        else:
+            # Log the quality level to file for later use
+            with open(f"{datadir}/{sbid}/data_quality.txt","w") as fh:
+                fh.write("%s" % quality)
+            print()
+            print(f'Staging and downloading the catalogues for {sbid}')
+        try:
+            url_list = casda.stage_data(r)
+            filelist = casda.download_files(url_list, savedir=f'{catdir}')
+            print('... done!')
+        except Exception as e:
+            print(f"Error in staging data for sbid {sbid}: {e}")
+            bad_sbids.append(sbid)
+            continue
+
         #if spectral download specified
         if not args.catalogues_only:
             # Loop over the variable list
@@ -109,17 +132,46 @@ def process_sbid_list(sbid_list,args,casda,casdatap,datadir=DATADIR,catdir=CATDI
 
                 #stage and download the data
                 print('Staging and downloading the %s data...' % variable)
-                url_list = casda.stage_data(filename)
-                filelist = casda.download_files(url_list, savedir=f'{datadir}/%s/' % sbid)
-                print('... done!')
+                try:
+                    url_list = casda.stage_data(filename)
+                    filelist = casda.download_files(url_list, savedir=f'{datadir}/%s/' % sbid)
+                    print('... done!')
+                except Exception as e:
+                    print(f"Error downloading {variable} in {sbid}: {e}")
+                    bad_sbids.append(sbid)
+                    continue
             if UNTAR:
                 # Untar the data and then delete the tar files
                 tarfiles = glob(f'{datadir}/%s/*.tar' % sbid)
                 os.chdir(f'{datadir}/{sbid}')
                 for tarfile in tarfiles:
-                    #os.system('tar -xvf %s -C %s' % (tarfile,sbid))
                     os.system('tar -xvf %s' % tarfile)
     os.chdir(cwd)
+    return bad_sbids
+
+################################################################################################################
+
+def get_sbids_in_casda(args,casda,casdatap):
+    print('Querying CASDA for FLASH sbids')
+    job = casdatap.launch_job_async("SELECT obs_id,quality_level FROM ivoa.obscore where obs_collection = 'FLASH' and obs_publisher_did like 'catalogue%%' and dataproduct_subtype like '%%component' and quality_level not like 'REJECTED%%'")
+    r = job.get_results()
+    sbids = list(r['obs_id'][0:-1])
+    sbids.sort(reverse=True)
+    print(f"Valid at CASDA: {sbids}")
+    return sbids
+
+################################################################################################################
+
+def get_rejects_from_casda(args,casda=None,casdatap=None):
+    print("Querying CASDA for rejected sbids")
+    if not casda:
+        casda,casdatap = authenticate(args)
+    rejected_sbids = []
+    job = casdatap.launch_job_async("SELECT obs_id,quality_level FROM ivoa.obscore where obs_collection = 'FLASH' and obs_publisher_did like 'catalogue%%' and dataproduct_subtype like '%%component' and quality_level like 'REJECTED%%'")
+    r = job.get_results()
+    for res in r:
+        rejected_sbids.append(res['obs_id'])
+    return rejected_sbids
 
 
 ################################################################################################################

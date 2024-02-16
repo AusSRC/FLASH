@@ -1,10 +1,15 @@
 # flashdb is hosted on 146.118.64.208
+ssh -i ~/src/aussrc.pem ubuntu@146.118.64.208
 
 sudo -u postgres psql
 create user flash with password 'aussrc';
 drop database flashdb with (FORCE);
 create database flashdb;
 grant all privileges on database flashdb to flash;
+
+# Removing orphaned large objects:
+# You can use the utility 'vauumlo' outside of postgres, ie on the linux command line:
+vacuumlo -U flash flashdb
 
 # Re-login as flash user:
 psql -U flash -d flashdb
@@ -48,8 +53,11 @@ create table SBID (
     version int NOT NULL
 );
 
-alter table SBID add constraint check_types check (quality in ('GOOD','BAD','UNCERTAIN') );
+alter table SBID add constraint check_types check (quality in ('GOOD','BAD','UNCERTAIN','NOT VALIDATED') );
 alter table sbid add column comment text;
+alter table sbid add column results text;
+alter table SBID add column spectral_config_tar bytea;
+alter table SBID add column detect_config_tar bytea;
 
 create table component (
     comp_id varchar(100) NOT NULL,
@@ -105,10 +113,15 @@ update spect_run set run_tag = 'ASKAP pilot' where 15211 = any(sbids);
 select sbid.id,sbid.spect_runid,spect_run.run_tag from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%pilot%';
 # Join 3 tables:
 select c.comp_id,c.component_name,c.flux_peak,c.has_siblings,p.run_tag from component c inner join SBID s  on s.id = c.sbid_id inner join spect_run p on p.id = s.spect_runid where p.run_tag like '%survey 1' order by c.comp_id;
+select distinct s.sbid_num from component c inner join SBID s on s.id = c.sbid_id where c.flux_peak < 45;
 
+# Update with join:
+update sbid s set version = 1 from spect_run r where s.spect_runid = r.id and r.run_tag = 'FLASH Survey 1';
+update sbid s set spectral_config_tar = r.config_tar from spect_run r where s.spect_runid = r.id;
+update sbid s set results = r.results from detect_run r where s.spect_runid = r.id;
 
 # Finding large objects:
-select oid from pg_largeobject_metadata m inner join sbid on m.oid = sbid.detect_tar;
+select oid, s.sbid_num from pg_largeobject_metadata m inner join sbid s on m.oid = s.detect_tar;
 # delete large object:
 lo_unlink(oid)
 

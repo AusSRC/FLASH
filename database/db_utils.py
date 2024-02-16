@@ -16,7 +16,7 @@ from casda_download import *
 #       This script deletes data held in the FLASH db at 146.118.64.208
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.02 02/10/2023
+#       version 1.03 12/02/2024
 #
 #       Edit USER SECTION below to define the type of operation
 
@@ -46,7 +46,7 @@ def set_parser():
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default="CATALOGUE",
-            help='Specify run mode: DELETESBIDS, SBIDSPLOTONLY, CATALOGUE, CHECK_SBIDS, CHECK_LOCAL_SBIDS (default: %(default)s)')
+            help='Specify run mode: CATALOGUE, CHECK_SBIDS, CHECK_LOCAL_SBIDS (default: %(default)s)')
     parser.add_argument('-s', '--sbid_list',
             default=None,
             help='Specify the sbid list eg 11346,11348 (default: %(default)s)')    
@@ -76,14 +76,15 @@ def set_mode_and_values(args):
     SBIDDIR = args.sbid_dir.strip()
     DATADIR = SBIDDIR
     CATDIR = SBIDDIR + "/catalogues"
-    sbids = args.sbid_list.split(',')
-    for sbid in sbids:
-        if ":" in sbid:
-            SBIDS.append(sbid.split(":")[0])
-            VERSIONS.append(sbid.split(":")[1])
-        else:
-            SBIDS.append(sbid)
-            VERSIONS.append(None)
+    if args.sbid_list:
+        sbids = args.sbid_list.split(',')
+        for sbid in sbids:
+            if ":" in sbid:
+                SBIDS.append(sbid.split(":")[0])
+                VERSIONS.append(sbid.split(":")[1])
+            else:
+                SBIDS.append(sbid)
+                VERSIONS.append(None)
     ONLY_CATS = args.catalogues_only
     ADD_CAT = args.add_cat
 
@@ -170,6 +171,28 @@ def check_local_processed_sbids(directory):
 ##########################################################################################################
 ###################################### Catalogue data ####################################################
 
+def get_new_sbids(conn,args):
+    # These functions are defined in module 'casda_download'
+    casda,casdatap = authenticate(args)
+    casda_sbids = get_sbids_in_casda(args,casda,casdatap)
+
+    # Get existing sbids in db
+    cur = get_cursor(conn)
+    query = "select sbid_num from sbid;"
+    cur.execute(query,)
+    results = cur.fetchall()
+    db_sbids = []
+    for res in results:
+        db_sbids.append("%s" % res[0])
+    db_sbids.sort(reverse=True)
+
+    # Return only sbids that are not in the FLASH db
+    new_sbids = list(set(casda_sbids) - set(db_sbids))
+    new_sbids.sort(reverse=True)
+
+    return cur,new_sbids
+    
+
 def get_catalogues(args):
     # These functions are defined in module 'casda_download'
     if not DOWNLOAD_CAT:
@@ -180,10 +203,12 @@ def get_catalogues(args):
     #sbid_list = get_sbids(args)
     sbid_list = SBIDS
     casda,casdatap = authenticate(args)
-    process_sbid_list(sbid_list,args,casda,casdatap,DATADIR,CATDIR,exists=True)
-    print(f"Retrieved catalogues for sbids {sbid_list}")
+    bad_sbids = process_sbid_list(sbid_list,args,casda,casdatap,DATADIR,CATDIR,exists=True)
+    sbid_list = list(set(sbid_list) - set(bad_sbids))
+    print(f"Retrieved catalogues for sbids: {sbid_list}")
     if not args.catalogues_only:
         print("   + spectra and noise data")
+    return bad_sbids
 
 def __get_component_catalog_data(catname,comp_name):
 
@@ -271,14 +296,23 @@ if __name__ == "__main__":
 
     starttime = time.time()
     conn = connect()
+    bad_sbids = []
 
     args = set_parser()
     set_mode_and_values(args)
-    print(RUN_TYPE)
-    sys.exit()
+
+    if RUN_TYPE == "GETNEWSBIDS":
+        cur,SBIDS = get_new_sbids(conn,args)
+        print(f"\nValid sbids to process are: {SBIDS}")
+        cur.close()
+        RUN_TYPE = "CATALOGUE"
     if RUN_TYPE == "CATALOGUE":
         print(f"Processing sbids {SBIDS}")
-        get_catalogues(args)
+        bad_sbids = get_catalogues(args)
+        if bad_sbids:
+            print(f"These sbids were not downloaded correctly: {bad_sbids}")
+        SBIDS = list(set(SBIDS) - set(bad_sbids))
+        
         if ADD_CAT:
             for i,sbid in enumerate(SBIDS):
                 ver = VERSIONS[i]
@@ -288,7 +322,10 @@ if __name__ == "__main__":
         conn.close()
         if ADD_CAT and DELETE_CATS:
             for sbid in SBIDS:
-                os.system(f"rm -R {CATDIR}/{sbid}")
+                try:
+                    os.system(f"rm -R {CATDIR}/{sbid}")
+                except:
+                    continue
             print(f"Downloaded catalogues deleted: {SBIDS}")
     elif RUN_TYPE == "CHECK_SBIDS":
         cur = check_sbids_in_db(conn)
@@ -310,4 +347,4 @@ if __name__ == "__main__":
             
     print(f"Job took {time.time()-starttime} sec for {len(SBIDS)} sbids {SBIDS}")
 
-
+#python $FLASHDB/db_utils.py -m CATALOGUE -s 52688,52640,52627,52620,52618,52594,52548,52547,52542,52541,52540,52537,52536,52528,52527,52526,51955,51954,51947,51946,51452,51451,51450,51449,51446,51444,51443,51442,51441,51440,51015,50022,50021,50019,45835,45833,45828,45825,45823,45815,45762 -e Gordon.German@csiro.au
