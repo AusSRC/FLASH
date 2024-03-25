@@ -18,9 +18,9 @@ UPLOAD="SPECTRAL_PLOTS"
 # The tag to give the data: eg "FLASH Survey 1", or "FLASH Pilot2" etc
 TAG="FLASH Survey 1"
 
-# The SBIDS to process:
-SBIDARRAY=(55247 55328 55394 55398 55399 55400 55420 55460 55464)
-SBIDSIZE=${#SBIDARRAY[@]}
+# The SBIDS to process - leave as () for auto checking of the parent directory:
+#SBIDARRAY=(45754 45756 50000 50002 50003)
+SBIDARRAY=()
 
 # The parent directory holding the SBIDS
 PARENTDIR="/scratch/ja3/ger063/data/casda"
@@ -32,10 +32,42 @@ TMPDIR="/scratch/ja3/ger063/tmp"
 PLATFORM="setonix@pawsey"
 
 # Comment to add (no spaces!)
-COMMENT="reload after CASDA outage"
+COMMENT="Processing_REJECTED_sbids_from_CASDA"
 
 # config directories used (relative to SBID directory)
 CONFIGARRAY=("config")
+
+#####################################################################################
+########### DO NOT EDIT FURTHER #####################################################
+#####################################################################################
+
+# If the SBIDARRAY is not declared, then do an automatic check of the parent dir for sbid directories - sbid directory names should be a number only eg 45756
+if [[ -z "${SBIDARRAY[@]}" ]]; then
+    re='^[0-9]+$'
+    cwd=$(pwd)
+    cd $PARENTDIR
+    set -- */
+    ARR1="$@"
+    ARR2=$(echo $ARR1 | tr "/ " "\n")
+    for id in $ARR2
+    do
+        if [[ $id =~ $re ]]; then
+            logname=$(ls -tp "$id/logs" | grep -v /$ | head -1)
+            logfile="$id/logs/$logname"
+            tag=$( tail -n 1 $logfile ) # Check the logfile to see if the job completed
+            if [[ $tag =~ "Job took" ]]; then
+                echo "Completed - adding $id to upload list"
+                SBIDARRAY+=($id)
+            else
+                echo "Job not complete - $id not added"
+            fi
+        fi
+    done
+    cd $cwd
+fi
+
+SBIDSIZE=${#SBIDARRAY[@]}
+
 for (( i=1; i<$SBIDSIZE; i++ ))
 do
     CONFIGARRAY+=("config")
@@ -57,7 +89,6 @@ do
 done
 
 #####################################################################################
-########### DO NOT EDIT FURTHER #####################################################
 #####################################################################################
 
 source /software/projects/ja3/ger063/setonix/FLASH/set_local_env.sh

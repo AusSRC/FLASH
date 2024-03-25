@@ -53,11 +53,14 @@ create table SBID (
     version int NOT NULL
 );
 
-alter table SBID add constraint check_types check (quality in ('GOOD','BAD','UNCERTAIN','NOT VALIDATED') );
+alter table SBID drop constraint check_types;
+alter table SBID add constraint check_types check (quality in ('GOOD','BAD','UNCERTAIN','REJECTED','NOT_VALIDATED') );
+
 alter table sbid add column comment text;
 alter table sbid add column results text;
 alter table SBID add column spectral_config_tar bytea;
 alter table SBID add column detect_config_tar bytea;
+alter table SBID add column pointing text;
 
 create table component (
     comp_id varchar(100) NOT NULL,

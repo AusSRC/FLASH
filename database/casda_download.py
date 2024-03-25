@@ -2,6 +2,10 @@
 ################################################################################################################
 #
 #       NOTE: FLASH project code is AS209
+#       NOTE: casda ivoa.obscore defines 'obs_collection' as 'FLASH' for survey, and 'ASKAP Pilot Survey for FLASH' for pilot
+#       NOTE: FLASH Pilot 1 dates are: before 11/2021
+#       NOTE: FLASH Pilot 2 dates are: 11/2021 ~ 08/2022
+#       NOTE: FLASH Survey dates are: 11/2022 on
 #
 ################################################################################################################
 # Imports
@@ -74,7 +78,7 @@ def authenticate(args):
 
 ################################################################################################################
 
-def process_sbid_list(sbid_list,args,casda,casdatap,datadir=DATADIR,catdir=CATDIR,exists=False):
+def process_sbid_list(sbid_list,args,casda,casdatap,datadir=DATADIR,catdir=CATDIR,exists=False,get_rejected=False):
 
 
     # Loop over each SBID
@@ -94,13 +98,13 @@ def process_sbid_list(sbid_list,args,casda,casdatap,datadir=DATADIR,catdir=CATDI
         except:
             print(f"Error trying to make directory {datadir}/{sbid}")
         # Next is downloading the catalogues - just the components (not islands)
-        print('Querying CASDA to download catalogues...')
-        job = casdatap.launch_job_async("SELECT * FROM ivoa.obscore where obs_id = '%s' and obs_publisher_did like 'catalogue%%' and dataproduct_subtype like '%%component'" % sbid)
+        print(f'Querying CASDA to download {sbid} catalogues...')
+        job = casdatap.launch_job_async("SELECT * FROM ivoa.obscore where obs_id = 'ASKAP-%s' and obs_publisher_did like 'catalogue%%' and dataproduct_subtype like '%%component'" % sbid)
         r = job.get_results()
         # checking the quality level of the observation - if it's been rejected, skip
         quality = str(r['quality_level']).split()[-1]
         print(f"Quality = {quality}",end="")
-        if quality == "REJECTED":
+        if not get_rejected and quality == "REJECTED":
             print("  skipping ...")
             bad_sbids.append(sbid)
             continue
@@ -113,7 +117,7 @@ def process_sbid_list(sbid_list,args,casda,casdatap,datadir=DATADIR,catdir=CATDI
         try:
             url_list = casda.stage_data(r)
             filelist = casda.download_files(url_list, savedir=f'{catdir}')
-            print('... done!')
+            print(f'{sbid} from list {sbid_list}... done!')
         except Exception as e:
             print(f"Error in staging data for sbid {sbid}: {e}")
             bad_sbids.append(sbid)
@@ -146,19 +150,30 @@ def process_sbid_list(sbid_list,args,casda,casdatap,datadir=DATADIR,catdir=CATDI
                 os.chdir(f'{datadir}/{sbid}')
                 for tarfile in tarfiles:
                     os.system('tar -xvf %s' % tarfile)
+            print(f"Untarred all files for {sbid}")
     os.chdir(cwd)
     return bad_sbids
 
 ################################################################################################################
 
-def get_sbids_in_casda(args,casda,casdatap):
+def get_sbids_in_casda(args,casda,casdatap,get_rejected=False):
     print('Querying CASDA for FLASH sbids')
-    job = casdatap.launch_job_async("SELECT obs_id,quality_level FROM ivoa.obscore where obs_collection = 'FLASH' and obs_publisher_did like 'catalogue%%' and dataproduct_subtype like '%%component' and quality_level not like 'REJECTED%%'")
+    quality_dict = {}
+    if not get_rejected:
+        job = casdatap.launch_job_async("SELECT obs_id,quality_level FROM ivoa.obscore where obs_collection = 'FLASH' and obs_publisher_did like 'catalogue%%' and dataproduct_subtype like '%%component' and quality_level not like 'REJECTED%%'")
+    else:
+        job = casdatap.launch_job_async("SELECT obs_id,quality_level FROM ivoa.obscore where obs_collection = 'FLASH' and obs_publisher_did like 'catalogue%%' and dataproduct_subtype like '%%component'")
+        
     r = job.get_results()
     sbids = list(r['obs_id'][0:-1])
+    quality = list(r['quality_level'][0:-1])
+    for i,sbid in enumerate(sbids):
+        sbid = sbid.split("-")[1]
+        sbids[i] = sbid
+        quality_dict[sbid] = quality[i]
     sbids.sort(reverse=True)
     print(f"Valid at CASDA: {sbids}")
-    return sbids
+    return sbids,quality_dict
 
 ################################################################################################################
 

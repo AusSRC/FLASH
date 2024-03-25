@@ -36,6 +36,8 @@ DATADIR = CATDIR
 UNTAR = False
 DELETE_CATS = False # save space by deleting catalogues after processing
 ONLY_CATS = True # Only download catalogues - not spectral and noise data
+DUMMY=False # Set to true to only query - don't download or upload anything.
+REJECTED=True # If set, process sbids even if marked as 'REJECTED'.
 
 ####################################################################################################################
 ########################## DO NOT EDIT FURTHER #####################################################################
@@ -65,12 +67,21 @@ def set_parser():
             help='Specify the password for login to CASDA (default: %(default)s)')    
     parser.add_argument('-a', '--add_cat',
             default=None,
-            help='Add the catalogue data to the database? (default: %(default)s)')    
+            help='Add the catalogue data to the database? (default: %(default)s)')  
+    parser.add_argument('-n', '--no_action',
+            default=False,
+            action='store_true',
+            help='If set, only query - dont download or upload anything. (default: %(default)s)')  
+    parser.add_argument('-r', '--rejected',
+            default=False,
+            action='store_true',
+            help='If set, process sbids even if marked as "REJECTED". (default: %(default)s)')  
+  
     args = parser.parse_args()
     return args
 
 def set_mode_and_values(args):
-    global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT
+    global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, DUMMY, REJECTED
 
     RUN_TYPE = args.mode.strip().upper()
     SBIDDIR = args.sbid_dir.strip()
@@ -87,6 +98,8 @@ def set_mode_and_values(args):
                 VERSIONS.append(None)
     ONLY_CATS = args.catalogues_only
     ADD_CAT = args.add_cat
+    DUMMY = args.no_action
+    REJECTED = args.rejected
 
 
 def connect(db="flashdb",user="flash",host="146.118.64.208",password="aussrc"):
@@ -168,16 +181,73 @@ def check_local_processed_sbids(directory):
         if len(ascii_files) > 0:
             print(f"{sbid},",end="")
 
+################################################
+def update_pointings_from_casda(conn,args):
+
+    # This function is defined in module 'casda_download'
+    casda,casdatap = authenticate(args)
+
+    cur =  get_cursor(conn)
+    # Get all the sbids in the FLASHDB
+    query = "select sbid_num from sbid where pointing = 'Unknown'"
+    cur.execute(query)
+    result = cur.fetchall()
+    sbids = []
+    for res in result:
+        sbids.append(res[0])
+    
+# Now query CASDA for pointing field of each sbid
+    for sbid in sbids:
+        job = casdatap.launch_job_async("SELECT filename FROM casda.observation_evaluation_file oef inner join casda.observation o on oef.observation_id = o.id where o.sbid = %s and filename like 'SourceSpectra-image%%'" % sbid)
+        r = job.get_results()
+        name = str(r['filename'])
+        try:
+            fieldname = "FLASH_" + name.split('FLASH_')[1].split('.')[0]
+        except:
+            print(f"{sbid} does not have a valid SourceSpectra filename ({name}), so skipping")
+            continue
+        flash_query = "update sbid set pointing = %s where sbid_num = %s"
+        cur.execute(flash_query,(fieldname,sbid))
+        print(f"Updated sbid {sbid} with pointing field = {fieldname}")
+
+    return cur
+
 ##########################################################################################################
 ###################################### Catalogue data ####################################################
-
-def get_new_sbids(conn,args):
-    # These functions are defined in module 'casda_download'
-    casda,casdatap = authenticate(args)
-    casda_sbids = get_sbids_in_casda(args,casda,casdatap)
-
-    # Get existing sbids in db
+def update_quality_from_casda(conn,casda,casdatap,get_rejected):
+    # This function is defined in module 'casda_download'
+    casda_sbids,quality_dict = get_sbids_in_casda(args,casda,casdatap,get_rejected)
     cur = get_cursor(conn)
+    print("Updating QUALITY tag in FLASHDB")
+    # For each sbid, find it in the FLASHDB and update the quality
+    for sbid in casda_sbids:
+        print(f"\t{sbid}",end="")
+        sbid_id,version = get_max_sbid_version(cur,sbid)
+        query = "select sbid_num,quality from sbid where id = %s"
+        cur.execute(query,(sbid_id,))
+        result = cur.fetchone()
+
+        if result and int(result[0]) == int(sbid):
+            db_quality = result[1]
+            if db_quality == quality_dict[sbid]:
+                print(f" quality current at {db_quality}")
+                continue
+            else:
+                print(f" : updating quality from {db_quality} to {quality_dict[sbid]}")
+                sql = "update sbid set quality = %s where id = %s"
+                cur.execute(sql,(quality_dict[sbid],sbid_id))
+        else:
+            print(" not found in FLASHDB")
+    return cur,casda_sbids
+        
+
+def get_new_sbids(conn,args,get_rejected=False):
+
+    # This function is defined in module 'casda_download'
+    casda,casdatap = authenticate(args)
+
+    cur,casda_sbids = update_quality_from_casda(conn,casda,casdatap,get_rejected)
+    # Get existing sbids in db
     query = "select sbid_num from sbid;"
     cur.execute(query,)
     results = cur.fetchall()
@@ -189,11 +259,14 @@ def get_new_sbids(conn,args):
     # Return only sbids that are not in the FLASH db
     new_sbids = list(set(casda_sbids) - set(db_sbids))
     new_sbids.sort(reverse=True)
+    # if arg '-s' is given, limit size of array to first 's' values
+    if args.sbid_list:
+        new_sbids = new_sbids[0:int(args.sbid_list)]
 
-    return cur,new_sbids
+    return cur,new_sbids,casda,casdatap
     
 
-def get_catalogues(args):
+def get_catalogues(args,casda=None,casdatap=None,get_rejected=False):
     # These functions are defined in module 'casda_download'
     if not DOWNLOAD_CAT:
         print("Catalogues not downloaded")
@@ -202,8 +275,9 @@ def get_catalogues(args):
     #args.catalogues_only = catalogue_only
     #sbid_list = get_sbids(args)
     sbid_list = SBIDS
-    casda,casdatap = authenticate(args)
-    bad_sbids = process_sbid_list(sbid_list,args,casda,casdatap,DATADIR,CATDIR,exists=True)
+    if not casda or not casdatap:
+        casda,casdatap = authenticate(args)
+    bad_sbids = process_sbid_list(sbid_list,args,casda,casdatap,DATADIR,CATDIR,exists=True,get_rejected=get_rejected)
     sbid_list = list(set(sbid_list) - set(bad_sbids))
     print(f"Retrieved catalogues for sbids: {sbid_list}")
     if not args.catalogues_only:
@@ -297,18 +371,21 @@ if __name__ == "__main__":
     starttime = time.time()
     conn = connect()
     bad_sbids = []
+    casda = None
+    casdatap = None
 
     args = set_parser()
     set_mode_and_values(args)
 
     if RUN_TYPE == "GETNEWSBIDS":
-        cur,SBIDS = get_new_sbids(conn,args)
-        print(f"\nValid sbids to process are: {SBIDS}")
+        cur,SBIDS,casda,casdatap = get_new_sbids(conn,args,get_rejected=REJECTED)
+        print(f"\nValid sbids to process are: {SBIDS}\n")
         cur.close()
-        RUN_TYPE = "CATALOGUE"
-    if RUN_TYPE == "CATALOGUE":
+        if not DUMMY:
+            RUN_TYPE = "CATALOGUE"
+    if RUN_TYPE == "CATALOGUE" and not DUMMY:
         print(f"Processing sbids {SBIDS}")
-        bad_sbids = get_catalogues(args)
+        bad_sbids = get_catalogues(args,casda,casdatap,get_rejected=REJECTED)
         if bad_sbids:
             print(f"These sbids were not downloaded correctly: {bad_sbids}")
         SBIDS = list(set(SBIDS) - set(bad_sbids))
@@ -319,7 +396,6 @@ if __name__ == "__main__":
                 cur = add_sbid_catalogue(conn,sbid,CATDIR,ver)
             conn.commit()
             cur.close()
-        conn.close()
         if ADD_CAT and DELETE_CATS:
             for sbid in SBIDS:
                 try:
@@ -327,6 +403,8 @@ if __name__ == "__main__":
                 except:
                     continue
             print(f"Downloaded catalogues deleted: {SBIDS}")
+        conn.commit()
+        conn.close()
     elif RUN_TYPE == "CHECK_SBIDS":
         cur = check_sbids_in_db(conn)
         conn.commit()
@@ -341,6 +419,11 @@ if __name__ == "__main__":
         for i,sbid in enumerate(SBIDS):
             ver = VERSIONS[i]
             cur = add_sbid_catalogue(conn,sbid,CATDIR,ver)
+        conn.commit()
+        cur.close()
+        conn.close()
+    elif RUN_TYPE == "UPDATE_POINTING":
+        cur = update_pointings_from_casda(conn,args)
         conn.commit()
         cur.close()
         conn.close()

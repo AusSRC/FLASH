@@ -45,7 +45,7 @@ def set_parser():
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default="CATALOGUE",
-            help='Specify run mode: DELETESBIDS, SBIDSPLOTONLY, CHECK_SBIDS, CHECK_LOCAL_SBIDS (default: %(default)s)')
+            help='Specify run mode: DELETESBIDS, DELETEDETECTION, CHECK_SBIDS, CHECK_LOCAL_SBIDS (default: %(default)s)')
     parser.add_argument('-s', '--sbid_list',
             default=None,
             help='Specify the sbid list eg 11346,11348 (default: %(default)s)')    
@@ -352,7 +352,7 @@ if __name__ == "__main__":
         conn.commit()
         cur.close()
         conn.close()
-    elif RUN_TYPE == "SBIDSPLOTONLY":
+    elif RUN_TYPE == "DELETEDETECTION":
         cur = remove_sbids_from_detection(conn,SBIDS,VERSIONS)
         conn.commit()
         cur.close()

@@ -59,7 +59,7 @@ LINEFINDER_OUTPUT_DIR = ""
 LINEFINDER_SUMMARY_FILE = ""
 PLATFORM = "setonix.pawsey.org.au"
 RUN_TAG = "FLASH survey 1"
-SBID_COMMENT = "flux cutoff = 30 mJy"
+SBID_COMMENT = ""
 QUALITY = "UNCERTAIN"
 
 # These are the allowed command line overrides:
@@ -69,7 +69,7 @@ def set_parser():
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default=None,
-            help='Specify run mode: SPECTRAL, DETECTION, QUALITY, COMMENT (default: %(default)s)')
+            help='Specify run mode: SPECTRAL, DETECTION, QUALITY, COMMENT , POINTING (default: %(default)s)')
     parser.add_argument('-q', '--quality',
             default="UNCERTAIN",
             help='Set value - GOOD, BAD, "NOT VALIDATED" or UNCERTAIN (default: %(default)s)')
@@ -112,7 +112,6 @@ def set_parser():
     args = parser.parse_args()
     return args,parser
 
-
 def set_mode_and_values(args):
 
     global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT, QUALITY
@@ -136,7 +135,7 @@ def set_mode_and_values(args):
     TMP_TAR_DIR = args.tmp_dir.strip()
     s_config_dir = args.config_spectral.strip()
     l_config_dir = args.config_linefinder.strip()
-    if RUN_TYPE == "SPECTRAL":
+    if RUN_TYPE in ["SPECTRAL","POINTING"]:
         SPECTRAL_CONFIG_DIR = s_config_dir
     elif RUN_TYPE == "DETECTION":
         LINEFINDER_CONFIG_DIR = l_config_dir
@@ -195,7 +194,7 @@ def get_cursor(conn):
 #########################################################################################################################
 
 
-def createDataDir(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH,plot_dir=SPECTRAL_PLOT_PATH,ascii_dir=SPECTRAL_ASCII_PATH,outputs=OUTPUT_PATH,versions = VERSIONS):
+def createDataDict(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH,plot_dir=SPECTRAL_PLOT_PATH,ascii_dir=SPECTRAL_ASCII_PATH,outputs=OUTPUT_PATH,versions = VERSIONS):
     data_path = DATA_DIR
     sbids = SBIDS
     component_dir=COMPONENT_PATH
@@ -203,6 +202,7 @@ def createDataDir(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH,
     ascii_dir=SPECTRAL_ASCII_PATH
     outputs=OUTPUT_PATH
     versions = VERSIONS
+    pointing_field = "Unknown"
     sbidsDict = {"data_path":data_path}
     for sbid in sbids:
         sbidsDict[sbid] = {"components":[],"plots":[],"ascii":[]}
@@ -221,7 +221,13 @@ def createDataDir(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH,
         else:
             components = None
             plots = None
+        # Get the list of ascii files
         asciis = [f for f in os.listdir(ascii_path) if f.endswith(".dat")]
+        if RUN_TYPE != "DETECTION":
+            # Get the name of the SourceSpectra tarball, so we can extract the pointing field value
+            sspectraname = [f for f in os.listdir(f'{data_path}/{sbid}') if f.startswith("SourceSpectra-image")][0]
+            pointing_field = "FLASH_" + sspectraname.split("FLASH_")[1].split(".")[0]
+            print(f'{sbid} pointing field = {pointing_field}')
         try:
             output_files = [f for f in os.listdir(output_path)]
         except FileNotFoundError:
@@ -232,6 +238,8 @@ def createDataDir(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH,
         sbidsDict[sbid]["plots"] = plots
         sbidsDict[sbid]["ascii"] = asciis
         sbidsDict[sbid]["outputs"] = output_files
+        sbidsDict[sbid]["pointing"] = pointing_field
+    print("Data dictionary created",flush=True)
     return sbidsDict
 
 ###############################################
@@ -308,7 +316,7 @@ def tar_dir(name,source_dir,pattern=None):
 def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
 
     cur = get_cursor(conn)
-    print(f"Adding spectral run for sbids {sbids}")
+    print(f"Adding spectral run for sbids {sbids}",flush=True)
     # Add the log files
     errdata = ""
     if errlog:
@@ -332,7 +340,7 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
     insert_query = "INSERT into spect_run(SBIDS,errlog,stdlog,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id;"
     cur.execute(insert_query,(sbids,errdata,stddata,platform,spect_date,RUN_TAG))
     runid = cur.fetchone()[0]
-    print(f"Data inserted into table 'spect_run': runid = {runid}")
+    print(f"Data inserted into table 'spect_run': runid = {runid}",flush=True)
     # Add the processed SBIDS
     for sbid in sbids:
         # Check if sbid exists - if it does, add it with a version number += 1:
@@ -357,9 +365,9 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
                         flux = float(line.split("=")[1].split("#")[0])
                         print(f"Found flux cutoff at {flux} mJy")
             except FileNotFoundError:
-                print(f"Could not find config file {config_tardir}/config.py")
+                print(f"Could not find config file {config_tardir}/config.py",flush=True)
         add_sbid(conn,cur,sbid=sbid,spect_runid=runid,spectralF=True,dataDict=dataDict[sbid],datapath=dataDict["data_path"],ver=version,config=config_data,flux=flux)
-        print(f"Added sbid {sbid} and its components to db")
+        print(f"Added sbid {sbid} and its components to db",flush=True)
     return cur
 
 ###############################################
@@ -367,7 +375,7 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
 
     cur = get_cursor(conn)
 
-    print(f"Adding detection run for sbids {sbids}")
+    print(f"Adding detection run for sbids {sbids}",flush=True)
     # Check if any of the sbids have been entered before
     repeated_sbids = check_sbids(cur,SBIDS,versions,table="detect_run")
     if repeated_sbids:
@@ -414,7 +422,7 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
     insert_query = "INSERT into detect_run(SBIDS,errlog,stdlog,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id;"
     cur.execute(insert_query,(sbids,errdata,stddata,platform,detect_date,RUN_TAG))
     runid = cur.fetchone()[0]
-    print(f"Data inserted into table 'detect_run': runid = {runid}")
+    print(f"Data inserted into table 'detect_run': runid = {runid}",flush=True)
 
     # Add the processed SBIDS
     for i,sbid in enumerate(sbids):
@@ -458,7 +466,7 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
                 update = "update component set mode_num = %s, ln_mean = %s where comp_id like %s and sbid_id = %s;"
                 like= '%{}%'.format(name)
                 cur.execute(update,(mode_num,ln_mean,like,sbid_id))
-                print(f"        component {name} updated with linefinder results")
+                print(f"        component {name} updated with linefinder results",flush=True)
                 last_ln_mean = ln_mean
     return cur
 
@@ -466,7 +474,8 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
 def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict={},datapath="./",ver=1,config=None,flux=None):
 
     quality = QUALITY
-    insert_query = "INSERT into SBID(sbid_num,spect_runid,spectralF,detectionF,spectral_config_tar,ascii_tar,quality,version) VALUES (%s,%s,%s,%s,%s,%s,%s,%s);"
+    pointing_field = dataDict['pointing']
+    insert_query = "INSERT into SBID(sbid_num,spect_runid,spectralF,detectionF,spectral_config_tar,ascii_tar,quality,version,pointing) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s);"
     run_table = "spect_run"
     runid = spect_runid
     # Check runid exists
@@ -487,7 +496,7 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
     new_oid = lob.oid
     lob.close()
      
-    cur.execute(insert_query, (sbid,runid,spectralF,detectionF,psycopg2.Binary(config),new_oid,quality,ver))
+    cur.execute(insert_query, (sbid,runid,spectralF,detectionF,psycopg2.Binary(config),new_oid,quality,ver,pointing_field))
     # Get the generated id of the sbid just added:
     cur.execute(f"SELECT id from SBID where sbid_num = {sbid} and version = {ver};")
     sbid_id = int(cur.fetchall()[0][0])
@@ -528,6 +537,19 @@ def add_sbid_comment(conn,sbid,comment,ver=None):
     print(f"Comment added to SB{sbid}")
     return cur
 
+###############################################
+def add_sbid_pointing(conn,sbid,dataDict,cur=None,ver=None):
+
+    if not cur:
+        cur = get_cursor(conn)
+    sbid_id,ver = get_max_sbid_version(cur,sbid,ver)
+    pointing = dataDict["pointing"]
+    if pointing == "":
+        return cur
+    add_query = "update sbid set pointing = %s where id = %s"
+    cur.execute(add_query,(pointing,sbid_id))
+    print(f"Pointing field {pointing} added to SB{sbid}")
+    return cur
 ###############################################
 def add_detect_comment(conn,sbid,comment,ver=None):
 
@@ -661,7 +683,7 @@ if __name__ == "__main__":
         # Change to data directory
         if DATA_DIR != "./":
             os.chdir(DATA_DIR)
-        dataDict = createDataDir()
+        dataDict = createDataDict()
         cur = add_spect_run(conn,sbids=SBIDS,
                         config_dir=SPECTRAL_CONFIG_DIR,
                         errlog=ERROR_LOG,
@@ -683,7 +705,7 @@ if __name__ == "__main__":
         if DATA_DIR != "./":
             os.chdir(DATA_DIR)
         print(f'main: DATA_DIR = {DATA_DIR}')
-        dataDict = createDataDir(data_path=DATA_DIR)
+        dataDict = createDataDict(data_path=DATA_DIR)
         cur = add_detect_run(conn,
                         sbids=SBIDS,
                         config_dir=LINEFINDER_CONFIG_DIR,
@@ -712,6 +734,15 @@ if __name__ == "__main__":
         cur = update_quality(conn,SBIDS=SBIDS,quality="UNCERTAIN")
         conn.commit()
         cur.close()
+        conn.close()
+    elif RUN_TYPE == "POINTING":
+        print("Adding Pointing field to sbids")
+        dataDict = createDataDict(data_path=DATA_DIR)
+        for i,sbid in enumerate(SBIDS):
+            ver = VERSIONS[i]
+            cur = add_sbid_pointing(conn,sbid,dataDict[sbid],ver)
+            conn.commit()
+            cur.close()
         conn.close()
         
     if args.comment.strip() != "":

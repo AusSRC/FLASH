@@ -62,6 +62,7 @@ def set_mode_and_values(args):
     global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN, SQL, UNTAR
 
     MODE = args.mode.strip().upper()
+    DIR = args.dir.strip()
 
     if MODE == "SQL":
         SQL = args.sql_stat.strip()
@@ -76,8 +77,9 @@ def set_mode_and_values(args):
     else:
         SBID = int(args.sbid)
         VERSION = None
-    DIR = args.dir.strip()
-    os.system(f"mkdir -p {DIR}")
+    if MODE not in ["QUERY","SQL"]:
+        os.system(f"mkdir -p {DIR}")
+        
     UNTAR = args.untar
     if MODE == "LINEFINDER":
         LN_MEAN = args.ln_mean.strip()
@@ -191,16 +193,16 @@ def query_db_for_sbid(cur,sbid):
 
     # This will return metadata stored in the db for a particular sbid
     if sbid != -1:  # Query a specific SBID
-        query = "select sbid_num, version, spect_runid, quality, detectionF, comment from sbid where sbid_num = %s order by version"
+        query = "select sbid_num, version, spect_runid, quality, detectionF, comment, pointing from sbid where sbid_num = %s order by version"
         cur.execute(query,(sbid,))
     else:           # Query all SBIDS in the db. Order by SBID is default
         if ORDERBY == "SBID":
-            query = "select sbid_num, version, spect_runid, quality, detectionF, comment from sbid order by sbid_num, version;"
+            query = "select sbid_num, version, spect_runid, quality, detectionF, comment, pointing from sbid order by sbid_num, version;"
         elif ORDERBY in ["ID","DATE"]:
-            query = "select sbid_num, version, spect_runid, quality, detectionF, comment from sbid order by id;"
+            query = "select sbid_num, version, spect_runid, quality, detectionF, comment, pointing from sbid order by id;"
         cur.execute(query)
     res = cur.fetchall()
-    title_str = "\nDATE\t\t\tSBID\tVERSION\tQUALITY\t\tTAG\t\t\tLINEFINDER RUN\t COMMENT"
+    title_str = "\n{0:<12}{1:<6}{2:<8}{3:<15}{4:<15}{5:<15}{6:<10}{7:<35}".format("DATE","SBID","VER","QUALITY","TAG","LINEFINDER","FIELD","COMMENT")
     for i,result in enumerate(res):
         if i % 60 == 0:
             print(title_str)
@@ -212,7 +214,15 @@ def query_db_for_sbid(cur,sbid):
         except IndexError:
             spect_tag = 'None'
             date = 'No date recorded'
-        print(f"{date}\t{result[0]}\t{result[1]}\t{result[3]}\t{spect_tag}\t\t\t{result[4]}\t{result[5]}")
+        datestr = date.strftime('%Y-%m-%d')
+        detect = 'Run'
+        if result[4] == 0:
+            detect = 'False'
+        pointing = str(result[6])
+        if not result[6]:
+            pointing = 'UNKNOWN'
+        ppline = "{0:<12}{1:<6}{2:<8}{3:<15}{4:<18}{5:<10}{6:<12}{7:<35}".format(datestr,result[0],result[1],result[3],spect_tag,detect,pointing,result[5])
+        print(ppline)
     print()
     print(f"Number of records: {len(res)}")
     return

@@ -19,7 +19,7 @@
 #
 ####################### USER EDIT VALUES #############################################
 # The SBIDS to process:
-SBIDARRAY=(51950 51951 51952 51953 51954 51955 52504 52506 52507)
+SBIDARRAY=(52526 52527 52548)
 
 # The parent directory holding the SBIDS
 PARENT_DIR="/scratch/ja3/ger063/data/casda"
