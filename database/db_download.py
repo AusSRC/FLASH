@@ -23,6 +23,8 @@ BRIGHT = "-1"
 LN_MEAN = "-1"
 SQL = ""
 UNTAR = False
+PASSWD = ""
+
 #######################################################################################
 def set_parser():
     # Set up the argument parser
@@ -49,6 +51,9 @@ def set_parser():
             default=False,
             action='store_true',
             help='in PLOTS mode, get the flux plots instead of the opd ones (default: %(default)s)')
+    parser.add_argument('-pw', '--flashpw',
+            default=None,
+            help='Specify the password for login to FLASHDB (default: %(default)s)')    
     parser.add_argument('-t', '--untar',
             default=False,
             action='store_true',
@@ -59,10 +64,11 @@ def set_parser():
 
 def set_mode_and_values(args):
 
-    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN, SQL, UNTAR
+    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN, SQL, UNTAR, PASSWD
 
     MODE = args.mode.strip().upper()
     DIR = args.dir.strip()
+    PASSWD = args.flashpw
 
     if MODE == "SQL":
         SQL = args.sql_stat.strip()
@@ -79,7 +85,7 @@ def set_mode_and_values(args):
         VERSION = None
     if MODE not in ["QUERY","SQL"]:
         os.system(f"mkdir -p {DIR}")
-        
+
     UNTAR = args.untar
     if MODE == "LINEFINDER":
         LN_MEAN = args.ln_mean.strip()
@@ -91,8 +97,10 @@ def set_mode_and_values(args):
 
 #######################################################################################
 
-def connect(db="flashdb",user="flash",host="146.118.64.208",password="aussrc"):
+def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
 
+    if not password:
+        password = PASSWD
     conn = psycopg2.connect(
         database = db,
         user = user,
@@ -484,12 +492,12 @@ def get_results_for_sbid(cur,sbid,version,verbose=False):
 
 if __name__ == "__main__":
 
-    conn = connect()
     args,parser = set_parser()
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
         sys.exit(1)
     set_mode_and_values(args)
+    conn = connect()
     cur = get_cursor(conn)
     # Query db for sbid metadata
     if MODE == "QUERY":

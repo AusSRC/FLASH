@@ -35,6 +35,8 @@ CATDIR = SBIDDIR + "/catalogues"
 UNTAR = False
 DELETE_CATS = False # save space by deleting catalogues after processing
 ONLY_CATS = True # Only download catalogues - not spectral and noise data
+PASSWD = ""
+
 
 ####################################################################################################################
 ########################## DO NOT EDIT FURTHER #####################################################################
@@ -58,11 +60,14 @@ def set_parser():
     parser.add_argument('-p', '--password',
             default=None,
             help='Specify the password for login to CASDA (default: %(default)s)')    
+    parser.add_argument('-pw', '--flashpw',
+            default=None,
+            help='Specify the password for login to FLASHDB (default: %(default)s)')    
     args = parser.parse_args()
     return args
 
 def set_mode_and_values(args):
-    global RUN_TYPE, SBIDDIR, DATADIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT
+    global RUN_TYPE, SBIDDIR, DATADIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, PASSWD
 
     RUN_TYPE = args.mode.strip().upper()
     SBIDDIR = args.sbid_dir.strip()
@@ -76,10 +81,14 @@ def set_mode_and_values(args):
             else:
                 SBIDS.append(sbid)
                 VERSIONS.append(None)
+    PASSWD = args.flashpw
 
 
-def connect(db="flashdb",user="flash",host="146.118.64.208",password="aussrc"):
 
+def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
+
+    if not password:
+        password = PASSWD
     conn = psycopg2.connect(
         database = db,
         user = user,
@@ -326,10 +335,10 @@ def delete_detection(conn,runid):
 if __name__ == "__main__":
 
     starttime = time.time()
-    conn = connect()
 
     args = set_parser()
     set_mode_and_values(args)
+    conn = connect()
 
     # Add run
     if RUN_TYPE == "REJECTED":

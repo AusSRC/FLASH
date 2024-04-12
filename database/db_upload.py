@@ -61,6 +61,8 @@ PLATFORM = "setonix.pawsey.org.au"
 RUN_TAG = "FLASH survey 1"
 SBID_COMMENT = ""
 QUALITY = "UNCERTAIN"
+PASSWD = ""
+
 
 # These are the allowed command line overrides:
 
@@ -88,6 +90,9 @@ def set_parser():
     parser.add_argument('-p', '--platform',
             default=PLATFORM,
             help='Specify the compute platform used (default: %(default)s)')    
+    parser.add_argument('-pw', '--flashpw',
+            default=None,
+            help='Specify the password for login to FLASHDB (default: %(default)s)')    
     parser.add_argument('-cs', '--config_spectral',
             default=SPECTRAL_CONFIG_DIR,
             help='Specify spectral config directory used for processing (default: %(default)s)')
@@ -114,7 +119,7 @@ def set_parser():
 
 def set_mode_and_values(args):
 
-    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT, QUALITY
+    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT. PASSWD
     global SPECTRAL_CONFIG_DIR,LINEFINDER_CONFIG_DIR,LINEFINDER_OUTPUT_DIR,LINEFINDER_SUMMARY_FILE, QUALITY
 
     RUN_TYPE = args.mode.strip().upper()
@@ -147,6 +152,7 @@ def set_mode_and_values(args):
     RUN_TAG = args.name_tag.strip()
     SBID_COMMENT = args.comment.strip()
     QUALITY = args.quality.strip()
+    PASSWD = args.flashpw
 
     print("CLI overriding defaults")
 
@@ -172,8 +178,10 @@ NOISE_PATH = ""
 ########################## DO NOT EDIT FURTHER #####################################################################
 ####################################################################################################################
 
-def connect(db="flashdb",user="flash",host="146.118.64.208",password="aussrc"):
+def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
 
+    if not password:
+        password = PASSWD
     conn = psycopg2.connect(
         database = db,
         user = user,
@@ -671,12 +679,12 @@ if __name__ == "__main__":
 
     ADD_CAT = True
     starttime = time.time()
-    conn = connect()
     args,parser = set_parser()
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
         sys.exit(1)
     set_mode_and_values(args)
+    conn = connect()
 
     # Add run
     if RUN_TYPE == "SPECTRAL":

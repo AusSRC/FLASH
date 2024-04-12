@@ -38,6 +38,7 @@ DELETE_CATS = False # save space by deleting catalogues after processing
 ONLY_CATS = True # Only download catalogues - not spectral and noise data
 DUMMY=False # Set to true to only query - don't download or upload anything.
 REJECTED=True # If set, process sbids even if marked as 'REJECTED'.
+PASSWD = ""
 
 ####################################################################################################################
 ########################## DO NOT EDIT FURTHER #####################################################################
@@ -65,6 +66,9 @@ def set_parser():
     parser.add_argument('-p', '--password',
             default=None,
             help='Specify the password for login to CASDA (default: %(default)s)')    
+    parser.add_argument('-pw', '--flashpw',
+            default=None,
+            help='Specify the password for login to FLASHDB (default: %(default)s)')    
     parser.add_argument('-a', '--add_cat',
             default=None,
             help='Add the catalogue data to the database? (default: %(default)s)')  
@@ -81,7 +85,7 @@ def set_parser():
     return args
 
 def set_mode_and_values(args):
-    global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, DUMMY, REJECTED
+    global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, DUMMY, REJECTED, PASSWD
 
     RUN_TYPE = args.mode.strip().upper()
     SBIDDIR = args.sbid_dir.strip()
@@ -100,10 +104,13 @@ def set_mode_and_values(args):
     ADD_CAT = args.add_cat
     DUMMY = args.no_action
     REJECTED = args.rejected
+    PASSWD = args.flashpw
 
 
-def connect(db="flashdb",user="flash",host="146.118.64.208",password="aussrc"):
+def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
 
+    if not password:
+        password = PASSWD
     conn = psycopg2.connect(
         database = db,
         user = user,
@@ -369,13 +376,13 @@ def add_sbid_catalogue(conn,sbid,casda_folder,version=None):
 if __name__ == "__main__":
 
     starttime = time.time()
+    args = set_parser()
+    set_mode_and_values(args)
+
     conn = connect()
     bad_sbids = []
     casda = None
     casdatap = None
-
-    args = set_parser()
-    set_mode_and_values(args)
 
     if RUN_TYPE == "GETNEWSBIDS":
         cur,SBIDS,casda,casdatap = get_new_sbids(conn,args,get_rejected=REJECTED)
