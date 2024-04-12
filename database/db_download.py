@@ -217,7 +217,7 @@ def query_db_for_sbid(cur,sbid):
         datestr = date.strftime('%Y-%m-%d')
         detect = 'Run'
         if result[4] == 0:
-            detect = 'False'
+            detect = '----'
         pointing = str(result[6])
         if not result[6]:
             pointing = 'UNKNOWN'
