@@ -8,9 +8,9 @@
 #
 ######################################################################################
 ######################################################################################
-# The SBIDS to process:
-SBIDARRAY=(55464 55460 55420 55400 55399 55398 55394 55328 55247)
-SBIDSIZE=${#SBIDARRAY[@]}
+# The SBIDS to process - leave as () for auto checking of the parent directory:
+#SBIDARRAY=(50019 51443 45833 45828 51444 45815 50022 45823 50021 51441 51440 45762 45835 51015 45825 51442)
+SBIDARRAY=()
 
 # Config file to use for all the sbids
 CONFIGFILE="./config.py"
@@ -18,11 +18,30 @@ CONFIGFILE="./config.py"
 # The parent directory holding the SBIDS
 PARENT_DIR="/scratch/ja3/ger063/data/casda"
 
-######################################################################################
-######################################################################################
-
 # config directories used (relative to each SBID directory)
 CONFIGARRAY=("config")
+
+######################################################################################
+########### DO NOT EDIT FURTHER #####################################################
+######################################################################################
+# If the SBIDARRAY is not declared, then do an automatic check of the parent dir for sbid directories - sbid directory names should be a number only eg 45756
+if [[ -z "${SBIDARRAY[@]}" ]]; then
+    re='^[0-9]+$'
+    cwd=$(pwd)
+    cd $PARENTDIR
+    set -- */
+    ARR1="$@"
+    ARR2=$(echo $ARR1 | tr "/ " "\n")
+    for id in $ARR2
+    do
+        if [[ $id =~ $re ]]; then
+            SBIDARRAY+=($id)
+        fi
+    done
+    cd $cwd
+fi
+
+SBIDSIZE=${#SBIDARRAY[@]}
 for (( i=1; i<$SBIDSIZE; i++ ))
 do
     CONFIGARRAY+=("config")
