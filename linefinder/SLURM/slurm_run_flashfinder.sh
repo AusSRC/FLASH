@@ -35,13 +35,17 @@ module load py-scipy/1.8.1
 
 
 ## Set the path variables for FLASHFINDER:
-source ~/set_local_env.sh
+source /software/projects/ja3/ger063/setonix/FLASH/set_local_env.sh
 
 export MPICH_GNI_MALLOC_FALLBACK=enabled
 export MPICH_OFI_STARTUP_CONNECT=1
 export MPICH_OFI_VERBOSE=1
 export FI_CXI_DEFAULT_VNI=$(od -vAn -N4 -tu < /dev/urandom)
 export SLURM_EXPORT_ENV=ALL
+
+echo "Checking for bad files"
+python $FINDER/pre_process.py '$3' '$1/$2'
+
 
 echo "Starting with $1/$2"
 ## Ensure the correct linefinder.ini is specified here:

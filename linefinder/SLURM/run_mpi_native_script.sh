@@ -24,7 +24,7 @@
 ######################################################################################
 ####################### USER EDIT VALUES #############################################
 # The SBIDS to process:
-SBIDARRAY=(55247 55328 55394 55398 55399 55400 55420 55460 55464)
+SBIDARRAY=(55247 55398 55460)
 
 # The parent directory holding the SBIDS
 PARENT_DIR="/scratch/ja3/ger063/data/casda"
@@ -42,7 +42,7 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     PARENT1=$PARENT_DIR/$SBID1
     cp slurm_linefinder.ini model.txt $PARENT1/config
      # pass to slurm_run scripts: 
-    jid1=$(/bin/bash $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii)
+    jid1=$(/bin/bash $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR)
     # Report
     j1=$(echo $jid1 | awk '{print $4}')
     echo "Sumbitted job $j1"
