@@ -8,7 +8,7 @@ create database flashdb;
 grant all privileges on database flashdb to flash;
 
 # Removing orphaned large objects:
-# You can use the utility 'vauumlo' outside of postgres, ie on the linux command line:
+# You can use the utility 'vacuumlo' outside of postgres, ie on the linux command line:
 vacuumlo -U flash flashdb
 
 # Re-login as flash user:
@@ -127,6 +127,9 @@ update sbid s set results = r.results from detect_run r where s.spect_runid = r.
 select oid, s.sbid_num from pg_largeobject_metadata m inner join sbid s on m.oid = s.detect_tar;
 # delete large object:
 lo_unlink(oid)
+
+# Delete duplicate records - join table to itself:
+delete from component a using component b where a.id < b.id and a.comp_id = b.comp_id;
 
 # Changing primary keys:
 alter table sbid drop constraint sbid_pkey cascade;

@@ -60,7 +60,7 @@ def set_parser():
             action='store_true',
             help='Specify whether you want to download catalogues only (default: %(default)s)')    
     parser.add_argument('-e', '--email_address',
-            default=None,
+            default='Gordon.German@csiro.au',
             help='Specify email address for login to CASDA (default: %(default)s)')
     parser.add_argument('-p', '--password',
             default=None,
@@ -218,7 +218,7 @@ def update_quality_from_casda(conn,casda,casdatap,get_rejected):
     # This function is defined in module 'casda_download'
     casda_sbids,quality_dict = get_sbids_in_casda(args,casda,casdatap,get_rejected)
     cur = get_cursor(conn)
-    print("Updating QUALITY tag in FLASHDB")
+    print("Checking QUALITY tags in FLASHDB")
     # For each sbid, find it in the FLASHDB and update the quality
     for sbid in casda_sbids:
         print(f"\t{sbid}",end="")
