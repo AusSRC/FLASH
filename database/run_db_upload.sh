@@ -8,9 +8,12 @@
 #               1) "run_db_upload.sh", (this file) which calls:
 #                   2) "slurm_run_db_upload.sh"
 #
+#       This requires the FLASHDB password to be passed on the command line eg:
+#               ./run_db_upload.sh my_password
 
 #####################################################################################
 #####################################################################################
+FLASHPASS=$1
 # The type of upload:
 UPLOAD="SPECTRAL_PLOTS"
 #UPLOAD="LINEFINDER"
@@ -100,9 +103,9 @@ for i in "${!SBIDARRAY[@]}"; do
     RESULT="${RESARRAY[$i]}"
 
     if [ "$UPLOAD" == "LINEFINDER" ]; then
-        jid1=$(/bin/bash $FLASHDB/slurm_linefinder_db_upload.sh $SBID $CONFIG $OUT $RESULT $PARENTDIR $PLATFORM $COMMENT)
+        jid1=$(/bin/bash $FLASHDB/slurm_linefinder_db_upload.sh $SBID $CONFIG $OUT $RESULT $PARENTDIR $PLATFORM $COMMENT $FLASHPASS)
     elif [ "$UPLOAD" == "SPECTRAL_PLOTS" ]; then
-        jid1=$(/bin/bash $FLASHDB/slurm_plot_db_upload.sh $SBID "$TAG" $TMPDIR $CONFIG $PARENTDIR $PLATFORM $COMMENT)
+        jid1=$(/bin/bash $FLASHDB/slurm_plot_db_upload.sh $SBID "$TAG" $TMPDIR $CONFIG $PARENTDIR $PLATFORM $COMMENT $FLASHPASS)
     fi
     # Report
     j1=$(echo $jid1 | awk '{print $4}')

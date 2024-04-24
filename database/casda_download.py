@@ -165,8 +165,8 @@ def get_sbids_in_casda(args,casda,casdatap,get_rejected=False):
         job = casdatap.launch_job_async("SELECT obs_id,quality_level FROM ivoa.obscore where obs_collection = 'FLASH' and obs_publisher_did like 'catalogue%%' and dataproduct_subtype like '%%component'")
         
     r = job.get_results()
-    sbids = list(r['obs_id'][0:-1])
-    quality = list(r['quality_level'][0:-1])
+    sbids = list(r['obs_id'][0:])
+    quality = list(r['quality_level'][0:])
     for i,sbid in enumerate(sbids):
         sbid = sbid.split("-")[1]
         sbids[i] = sbid

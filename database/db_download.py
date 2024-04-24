@@ -219,10 +219,10 @@ def query_db_for_sbid(cur,sbid):
         cur.execute(spect_q,(result[2],))
         try:
             spect_tag,date = cur.fetchall()[0]
+            datestr = date.strftime('%Y-%m-%d')
         except IndexError:
             spect_tag = 'None'
             date = 'No date recorded'
-        datestr = date.strftime('%Y-%m-%d')
         detect = 'Run'
         if result[4] == 0:
             detect = '----'
@@ -238,12 +238,8 @@ def query_db_for_sbid(cur,sbid):
 ##################################################################################################
 
 def write_lob(lobj,filename):
-    with open(filename, 'wb') as f:
-        while True:
-            chunk = lobj.read(4096*4096)
-            if not chunk:
-                break
-            f.write(chunk)  
+    lobj.export(filename)
+    return
 
 ##################################################################################################
 
@@ -273,6 +269,7 @@ def get_files_for_sbid(conn,cur,sbid,version):
         #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
         # So use streaming function:
         write_lob(loaded_lob,f"{dir_download}/{name}")
+        loaded_lob.close()
         print(f"Downloaded tar of ascii files for {sbid}:{version}")
         return name
 
@@ -296,6 +293,7 @@ def get_files_for_sbid(conn,cur,sbid,version):
         #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
         # So use streaming function:
         write_lob(loaded_lob,f"{dir_download}/{name}")
+        loaded_lob.close()
         print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
 
     return

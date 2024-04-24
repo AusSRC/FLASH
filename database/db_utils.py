@@ -29,6 +29,7 @@ DOWNLOAD_CAT = True # If the catalogues are not already downloaded, set this to 
 ADD_CAT = True # Don't just download the catalogues - add them to the database too.
 SBIDDIR = "/scratch/ja3/ger063/data/casda"
 DATADIR = SBIDDIR
+BADFILES = "bad_ascii_files" # relative to SBIDDIR
 SBIDS = []
 VERSIONS = [] # This list should correspond to the above sbids list = set to empty for just the latest version of each sbid.
 CATDIR = SBIDDIR + "/catalogues"
@@ -49,7 +50,7 @@ def set_parser():
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default="CATALOGUE",
-            help='Specify run mode: CATALOGUE, CHECK_SBIDS, CHECK_LOCAL_SBIDS (default: %(default)s)')
+            help='Specify run mode: CATALOGUE, CHECK_SBIDS, BAD_COMPS, CHECK_LOCAL_SBIDS (default: %(default)s)')
     parser.add_argument('-s', '--sbid_list',
             default=None,
             help='Specify the sbid list eg 11346,11348 (default: %(default)s)')    
@@ -218,6 +219,30 @@ def update_pointings_from_casda(conn,args):
         print(f"Updated sbid {sbid} with pointing field = {fieldname}")
 
     return cur
+
+def set_bad_components(conn, args):
+
+    cur =  get_cursor(conn)
+    # get a list of files in the bad_ascii_files directory
+    bad_files_dir = f"{SBIDDIR}/{BADFILES}"
+    bad_files_list = [f.split("_opd.dat")[0] for f in os.listdir(bad_files_dir) if f.endswith("opd.dat")]
+
+    for fname in bad_files_list:
+        # check the last word of the file
+        last_word = 'eof error'
+        with open(f'{bad_files_dir}/{fname}_opd.dat') as f:
+            for line in f:
+                pass
+            last_word = line.split()[-1]        
+        if last_word == 'nan':
+            comment = 'nan'
+        update = "update component set processState = 'BAD', comment = %s where comp_id like %s;"
+        like = '%{}%'.format(fname)
+        cur.execute(update,(comment,like))
+        print(f"Set component {fname} to processState = 'BAD' - due to {comment}")
+
+    return cur
+    
 
 ##########################################################################################################
 ###################################### Catalogue data ####################################################
@@ -431,6 +456,11 @@ if __name__ == "__main__":
         conn.close()
     elif RUN_TYPE == "UPDATE_POINTING":
         cur = update_pointings_from_casda(conn,args)
+        conn.commit()
+        cur.close()
+        conn.close()
+    elif RUN_TYPE == "BAD_COMPS":
+        cur = set_bad_components(conn,args)
         conn.commit()
         cur.close()
         conn.close()

@@ -13,7 +13,7 @@ sbatch <<EOT
 #SBATCH --time=1:00:00
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --job-name=db_upload
+#SBATCH --job-name=db_download
 #SBATCH --no-requeue
 #SBATCH --output=logs/"$1"_db_down_out.log
 #SBATCH --error=logs/"$1"_db_down_err.log
@@ -23,7 +23,8 @@ source /software/projects/ja3/ger063/setonix/python/bin/activate
 export SLURM_EXPORT_ENV=ALL
 
 echo "Downloading $1 spectral ascii files from database"
-python $FLASHDB/db_download.py -m ASCII -s '$1' -d '$2' -t
+echo "Starting with python3.9 $FLASHDB/db_download.py -m ASCII -s '$1' -d '$2' -pw '$4' -t"
+python3.9 $FLASHDB/db_download.py -m ASCII -s '$1' -d '$2' -pw '$4' -t
 
 echo "Checking for bad files"
 python $FINDER/pre_process.py '$3' '$2'

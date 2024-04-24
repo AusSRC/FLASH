@@ -89,6 +89,11 @@ create table component (
         foreign key(sbid_id) references SBID(id) on delete cascade
 );
 
+alter table component drop constraint fk_sbid_id; # No longer need this - it slows down deletes
+
+# This should be done for all BYTEA columns that store compressed data (to stop Postgresql from trying to re-compress):
+#alter table component alter column opd_image set storage EXTERNAL;
+
 alter table component add constraint check_flux check (flux_cutoff in ('ABOVE','BELOW') );
 alter table component add column comment text;
 
@@ -149,38 +154,14 @@ alter table component add column sbid_id int;
 update component c set sbid_id = id from sbid s where c.sbid = s.sbid_num;
 alter table component add constraint fk_sbid_id foreign key(sbid_id) REFERENCES sbid(id) on delete cascade;
 
-create table spectral_plot (
-    plot_id varchar(100) PRIMARY KEY,
-    comp_id varchar(100) NOT NULL,
-    runid int,
-    creation_date TIMESTAMP NOT NULL,
-    plot_type varchar(20) NOT NULL,
-    platform varchar(50),
-    plot bytea NOT NULL,
-    constraint fk_run
-        foreign key(runid) references spect_run(id)
-        on delete cascade,
-    constraint fk_comp50356,50358,50359,50360,51015,51016,51017,51438,51439,51440,51441,51442,51443
-        foreign key(comp_id) references component(comp_id)
-        on delete cascade
-);
+# Getting list of BAD components:
+select c.comp_id,c.component_name,s.sbid_num, s.pointing, c.comment as FIELD from component c inner join sbid s on s.id = c.sbid_id where c.processState = 'BAD' order by s.sbid_num;
 
-create table detection (
-    id int generated always as identity PRIMARY KEY,
-    comp_id varchar(100) NOT NULL,
-    runid int,
-    creation_date TIMESTAMP NOT NULL,
-    platform varchar(50),
-    constraint fk_comp
-        foreign key(comp_id) references component(comp_id)
-        on delete cascade,
-    constraint fk_run
-        foreign key(runid) references detect_run(id)
-        on delete cascade
-);
+# Getting list of BAD components, splitting the comp_id, eg 'spec_SB45762_component_84a.fits' becomes 'SB45762_component_84a':
+select s.sbid_num,split_part(split_part(c.comp_id,'spec_',2),'.fits',1),c.component_name, s.pointing, c.comment as FIELD from component c inner join sbid s on s.id = c.sbid_id where c.processState = 'BAD' order by s.sbid_num;
 
 #########################################################################################
-######## Delelte tables ######################################
+######## Delete tables ######################################
 drop table detection cascade;
 drop table spectral_plot cascade;
 drop table component cascade;
@@ -198,8 +179,63 @@ GRANT EXECUTE ON FUNCTION pg_read_file(text) TO flash;
 GRANT EXECUTE ON FUNCTION pg_read_file(text,bigint,bigint) TO flash;
 GRANT EXECUTE ON FUNCTION pg_read_file(text,bigint,bigint,boolean) TO flash;
     
-######### ADDING DATA ###########################################
-######### with SQL:
+#########################################################################################
+######## Creating Functions ######################################
+# Function to find size of lob
+CREATE OR REPLACE FUNCTION get_lo_size(oid) RETURNS text
+VOLATILE STRICT
+LANGUAGE 'plpgsql'
+AS $$
+DECLARE
+    fd integer;
+    sz bigint;
+BEGIN
+    -- Open the LO; N.B. it needs to be in a transaction otherwise it will close immediately.
+    -- Luckily a function invocation makes its own transaction if necessary.
+    -- The mode x'40000'::int corresponds to the PostgreSQL LO mode INV_READ = 0x40000.
+    fd := lo_open($1, x'40000'::int);
+    -- Seek to the end.  2 = SEEK_END.
+    PERFORM lo_lseek(fd, 0, 2);
+    -- Fetch the current file position; since we're at the end, this is the size.
+    sz := lo_tell(fd);
+    -- Remember to close it, since the function may be called as part of a larger transaction.
+    PERFORM lo_close(fd);
+    -- Return the size.
+    RETURN pg_size_pretty(sz);
+END;
+$$; 
+
+# Use function as:
+SELECT get_lo_size(1234567);
+
+# Function to delete components one by one:
+CREATE OR REPLACE FUNCTION delete_comps(integer) RETURNS void 
+LANGUAGE 'plpgsql'
+AS $$
+DECLARE
+    comp_arr integer[];
+BEGIN
+    select array_agg(id::integer) into comp_arr from component where sbid_id = $1;
+    raise NOTICE 'array: %',comp_arr;
+    FOR i in 1..CARDINALITY(comp_arr) LOOP
+        delete from component where id = comp_arr[i];
+        raise NOTICE 'deleted % component %', i, comp_arr[i];
+    END LOOP;
+END;
+$$;
+
+# Use function as:
+SELECT delete_comps(310);
+
+############################################################################################
+
+# Find the objects / tables taking up the most space in the database:
+SELECT oid::regclass, pg_relation_size(oid), relkind FROM pg_class ORDER BY 2 DESC;
+
+# Find storage and data types used in database:
+SELECT table_name, column_name, attstorage, atttypid::regtype FROM information_schema.columns JOIN pg_attribute ON ( columns.table_name = pg_attribute.attrelid::regclass::text AND columns.column_name = pg_attribute.attname) where table_name = 'sbid';
+
+######### Psycopg2 ###########################################
 
 # install psycopg2
 sudo apt install pip

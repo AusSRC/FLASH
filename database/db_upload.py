@@ -1,5 +1,6 @@
 import os
 import sys
+import subprocess
 import logging
 import time
 import datetime as dt
@@ -71,7 +72,7 @@ def set_parser():
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default=None,
-            help='Specify run mode: SPECTRAL, DETECTION, QUALITY, COMMENT , POINTING (default: %(default)s)')
+            help='Specify run mode: SPECTRAL, DETECTION, QUALITY, COMMENT , POINTING, ASCII_UPLOAD (default: %(default)s)')
     parser.add_argument('-q', '--quality',
             default="UNCERTAIN",
             help='Set value - GOOD, BAD, "NOT VALIDATED" or UNCERTAIN (default: %(default)s)')
@@ -119,7 +120,7 @@ def set_parser():
 
 def set_mode_and_values(args):
 
-    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT. PASSWD
+    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT, PASSWD
     global SPECTRAL_CONFIG_DIR,LINEFINDER_CONFIG_DIR,LINEFINDER_OUTPUT_DIR,LINEFINDER_SUMMARY_FILE, QUALITY
 
     RUN_TYPE = args.mode.strip().upper()
@@ -321,6 +322,36 @@ def tar_dir(name,source_dir,pattern=None):
 
 
 ###############################################
+
+def tar_dir2(name,source_dir,pattern=None):
+
+    cwd = os.getcwd()
+    print(cwd,source_dir,name,pattern)
+    if not pattern:
+        print("No tar pattern")
+        subprocess.check_call(f"cd {source_dir}; tar -zcvf {name} *",executable='/bin/bash',shell=True)
+    else:
+        print(f"tar pattern = {pattern}")
+        # Use process substitution with tar -T option (works for GNU tar and bash)
+        # Use 'subprocess' instead of 'os.system' because the latter doesn't use bash
+        subprocess.check_call(f"cd {source_dir}; tar -zcvf {name} -T <(\ls -1 *{pattern}*)",executable='/bin/bash',shell=True)
+
+    os.system(f"cd {cwd}")
+ 
+###############################################
+def create_large_object(conn,data):
+
+    print(f"Trying to create lob from {data}")
+    with open(data, "rb") as fd:
+        try:
+            lob = conn.lobject(0,'r',0)
+            lob.write(fd.read())
+            print("Created lob in db")
+        except (psycopg2.Warning, psycopg2.Error) as e:
+            print("Exception: {}".format(e))
+    return lob
+    
+###############################################
 def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
 
     cur = get_cursor(conn)
@@ -359,11 +390,12 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
         config_data = None
         if config_dir:
             config_tardir = f"{DATA_DIR}/{sbid}/{config_dir}"
-            config_tarball = f"{TMP_TAR_DIR}/spectral_config.tar.gz"
+            config_tarball = f"{TMP_TAR_DIR}/{sbid}_spectral_config.tar.gz"
             tar_dir(config_tarball,config_tardir,pattern="config.py")
             config_data = None
             with open(config_tarball,'rb') as f:
                 config_data = f.read()
+            print(f"Tarred config for {sbid}:{version}",flush=True)
             # Try to get the peak flux value in the config file:
             try:
                 with open(f"{config_tardir}/config.py","r") as f:
@@ -371,7 +403,7 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
                 for line in config:
                     if line.startswith("PEAKFLUX"):
                         flux = float(line.split("=")[1].split("#")[0])
-                        print(f"Found flux cutoff at {flux} mJy")
+                        print(f"Found flux cutoff at {flux} mJy",flush=True)
             except FileNotFoundError:
                 print(f"Could not find config file {config_tardir}/config.py",flush=True)
         add_sbid(conn,cur,sbid=sbid,spect_runid=runid,spectralF=True,dataDict=dataDict[sbid],datapath=dataDict["data_path"],ver=version,config=config_data,flux=flux)
@@ -385,10 +417,10 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
 
     print(f"Adding detection run for sbids {sbids}",flush=True)
     # Check if any of the sbids have been entered before
-    repeated_sbids = check_sbids(cur,SBIDS,versions,table="detect_run")
+    repeated_sbids = check_sbids(cur,sbids,versions,table="detect_run")
     if repeated_sbids:
-        print(f"*** SKIPPING sbids {repeated_sbids} from list {SBIDS}!!")
-        sbids = list(set(repeated_sbids).symmetric_difference(set(SBIDS)))
+        print(f"*** SKIPPING sbids {repeated_sbids} from list {sbids}!!")
+        sbids = list(set(repeated_sbids).symmetric_difference(set(sbids)))
     if not sbids:
         return cur
 
@@ -409,16 +441,6 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
     # Get current datetime and format for postgres
     detect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
  
-    # tar up the config files:
-    config_tarball = f"{TMP_TAR_DIR}/detect_config.tar.gz"
-    config_data = None
-    try:
-        tar_dir(config_tarball,config_dir)
-        with open(config_tarball,'rb') as f:
-            config_data = f.read()
-    except FileNotFoundError:
-        pass
-
     # Add the results file
     results = ""
     with open(result_file,'r') as f:
@@ -431,18 +453,16 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
     cur.execute(insert_query,(sbids,errdata,stddata,platform,detect_date,RUN_TAG))
     runid = cur.fetchone()[0]
     print(f"Data inserted into table 'detect_run': runid = {runid}",flush=True)
-
     # Add the processed SBIDS
     for i,sbid in enumerate(sbids):
         version = versions[i]
         sbid_id = None
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
         # tar up the config files:
-        config_tarball = f"{TMP_TAR_DIR}/detect_config.tar.gz"
+        config_tarball = f"{TMP_TAR_DIR}/{sbid}_detect_config.tar.gz"
         config_data = None
         try:
-            config_dir = f"{DATA_DIR}/{sbid}/{config_dir}"
-            tar_dir(config_tarball,config_dir)
+            tar_dir(config_tarball,config_dir,pattern=".")
             with open(config_tarball,'rb') as f:
                 config_data = f.read()
         except FileNotFoundError:
@@ -479,6 +499,44 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
     return cur
 
 ###############################################
+def upload_ascii_tarball(conn,sbids,versions,dataDictMain):
+
+    cur = get_cursor(conn)
+    for i,sbid in enumerate(sbids):
+        dataDict = dataDictMain[sbid]
+        version = versions[i]
+        sbid_id,version = get_max_sbid_version(cur,sbid,version)
+        # Create the tarball of ascii output files
+        ascii_tarball = f"{TMP_TAR_DIR}/{sbid}_ascii_tarball.tar.gz"
+        print(f"Creating tarball {ascii_tarball}")
+        tar_dir(ascii_tarball,f"{dataDict['ascii_path']}")
+        # Delete old large object of ascii files
+        oid_query = "select ascii_tar from sbid where id = %s;"
+        cur.execute(oid_query,(sbid_id,))
+        lon = cur.fetchone()
+        print("\tDone!\nNOT deleting old ascii LOB. Use 'vacuumlo -U flash flashdb' after",flush=True)
+        #oid_delete = "SELECT lo_unlink(%s);"
+        #try:
+        #    for i in lon:
+        #        cur.execute(oid_delete,(i,))
+        #    print("\tDeleted ascii LOB",flush=True)
+        #except TypeError:
+        #    print(f"ascii LOB for {sbid}:{version} not found")
+            
+        # Create a new large object in the database:
+        print("    -- loading to database")
+        lob = create_large_object(conn,ascii_tarball)
+        new_oid = lob.oid
+        lob.close()
+        print("    -- Done!",flush=True)
+
+        # Update oid in sbid table
+        update_query = "update sbid set ascii_tar = %s where id = %s;"
+        cur.execute(update_query,(new_oid,sbid_id))
+    return cur
+             
+
+###############################################
 def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict={},datapath="./",ver=1,config=None,flux=None):
 
     quality = QUALITY
@@ -500,7 +558,8 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
 
     # Create a large object in the database:
     print("    -- loading to database")
-    lob = conn.lobject(mode="wb", new_file=ascii_tarball)
+    lob = create_large_object(conn,ascii_tarball)
+    #lob = conn.lobject(oid=0,mode="wb", new_file=ascii_tarball)
     new_oid = lob.oid
     lob.close()
      
@@ -595,7 +654,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ve
 
     # Create a large object in the database:
     print("    -- loading to database")
-    lob = conn.lobject(mode="wb", new_file=output_tarball)
+    lob = conn.lobject(oid=0,mode="wb", new_file=output_tarball)
     new_oid = lob.oid
     lob.close()
 
@@ -688,6 +747,7 @@ if __name__ == "__main__":
 
     # Add run
     if RUN_TYPE == "SPECTRAL":
+        print("Starting SPECTRAL upload")
         # Change to data directory
         if DATA_DIR != "./":
             os.chdir(DATA_DIR)
@@ -708,7 +768,18 @@ if __name__ == "__main__":
         conn.commit()
         cur.close()
         conn.close()
+    elif RUN_TYPE == "ASCII_UPLOAD":
+        print("Starting ASCII upload")
+        # Change to data directory
+        if DATA_DIR != "./":
+            os.chdir(DATA_DIR)
+        dataDict = createDataDict()
+        cur = upload_ascii_tarball(conn,sbids=SBIDS,versions=VERSIONS,dataDictMain=dataDict)
+        conn.commit()
+        cur.close()
+        conn.close()
     elif RUN_TYPE == "DETECTION":
+        print("Starting DETECTION upload")
         # Change to data directory
         if DATA_DIR != "./":
             os.chdir(DATA_DIR)

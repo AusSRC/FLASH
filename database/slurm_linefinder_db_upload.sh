@@ -24,8 +24,8 @@ source /software/projects/ja3/ger063/setonix/python/bin/activate
 export SLURM_EXPORT_ENV=ALL
 
 echo "Uploading $1 linefinder results to database"
-echo "Starting with $FLASHDB/db_upload.py -m DETECTION -s '$1' -cl '$5'/'$1'/'$2' -o '$3' -r '$5'/'$1'/'$4' -p '$6' -C '$7'"
-python $FLASHDB/db_upload.py -m DETECTION -s '$1' -cl '$5'/'$1'/'$2' -o '$3' -r '$5'/'$1'/'$4' -p '$6' -C "$7" 
+echo "Starting with $FLASHDB/db_upload.py -m DETECTION -s '$1' -cl '$5'/'$1'/'$2' -o '$3' -r '$5'/'$1'/'$4' -p '$6' -C '$7' -pw '$8'"
+python3.9 $FLASHDB/db_upload.py -m DETECTION -s '$1' -cl '$5'/'$1'/'$2' -o '$3' -r '$5'/'$1'/'$4' -p '$6' -C "$7" -pw '$8' 
 
 exit 0
 EOT

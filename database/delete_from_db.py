@@ -198,11 +198,12 @@ def delete_sbids(conn,sbids,versions=None):
         try:
             for i in lon:
                 cur.execute(oid_delete,(i,))
-            print("\tDeleted ascii LOB")
+            print("\tDeleted ascii LOB",flush=True)
         except TypeError:
-            pass
+            print(f"ascii LOB for {sbid}:{version} not found")
             
         # This sbid will possibly be referenced in the detect_run table. Remove the reference.
+        print(f"Check for {sbid}:{version} detection run",flush=True)
         cur.execute(f"SELECT detect_runid from sbid where id = {sbid_id};")
         runid = cur.fetchall()[0][0]
 
@@ -211,9 +212,9 @@ def delete_sbids(conn,sbids,versions=None):
         try:
             runid = cur.fetchall()[0][0]
             cur = remove_sbids_from_detection(conn,[sbid],[version],runid)
-            print("\tRemoved reference in detect table")
+            print("\tRemoved reference in detect table",flush=True)
         except IndexError:
-            print(f"\tNo detection run found for sbid {sbid}:{version}")
+            print(f"\tNo detection run found for sbid {sbid}:{version}",flush=True)
 
         # It will DEFINITELY be referenced in the spect_run table - remove
         sbid_query = "SELECT id from spect_run where %s = ANY (SBIDS);"
@@ -221,16 +222,20 @@ def delete_sbids(conn,sbids,versions=None):
         try:
             runid = cur.fetchall()[0][0]
             remove_sbid_from_spectral(cur,sbid,runid)
-            print("\tRemoved reference in spectral_run table")
+            print("\tRemoved reference in spectral_run table",flush=True)
         except IndexError:
             # This should NEVER happen
-            print(f"\tNo spectral run found for sbid {sbid}:{version}")
+            print(f"\tNo spectral run found for sbid {sbid}:{version}",flush=True)
 
-        # Now remove the sbid from the SBID table (will also remove associated components) and any large objects
-        print("\tDeleting components ...")
+        # Now remove the sbid from the SBID table (remove associated components first)
+        print("\tDeleting components ...This may take 30min or so")
+        # This delete can take 20mins or more:
+        #comp_delete = "delete from component where sbid_id = %s;"
+        comp_delete = "select delete_comps(%s);"
+        cur.execute(comp_delete,(sbid_id,))
         sbid_delete = "DELETE from SBID where id = %s;"
         cur.execute(sbid_delete,(sbid_id,))
-        print(f"\t{sbid}:{version} deleted!")
+        print(f"\t{sbid}:{version} deleted!",flush=True)
 
     return cur
      
@@ -242,6 +247,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
 
     for sbid,version in zip(selected_sbids,versions):
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
+        print(f"{sbid}:{version} - deleting outputs lob ")
         # Delete associated large object of detection outputs
         oid_query = "select detect_tar from sbid where id = %s;"
         cur.execute(oid_query,(sbid_id,))
@@ -262,6 +268,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
             runid = cur.fetchone()[0]
         
         # Remove reference in detect_run
+        print(f"{sbid}:{version} - removing reference in detect_run ")
         sbid_query = "SELECT SBIDS from detect_run where id = %s;"
         cur.execute(sbid_query,(runid,))
         sbids = None
@@ -269,6 +276,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
             sbids = cur.fetchone()[0]
             sbids.remove(int(sbid))
         except TypeError or IndexError:
+            print(f"{sbid}:{version} - nothing to remove ")
             pass 
         # Check if sbids list now empty, in which case delete whole detection
         if not sbids:
