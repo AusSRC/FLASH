@@ -17,6 +17,7 @@ ORDERBY = "SBID"
 #ORDERBY = "ID" # id is a proxy for date
 MODE = "QUERY"
 SBID = ""
+SOURCE = "1a"
 VERSION = None
 DIR = ""
 BRIGHT = "-1"
@@ -31,10 +32,14 @@ def set_parser():
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default=None,
-            help='Specify run mode: PLOTS, ASCII, LINEFINDER, QUERY, SQL (default: %(default)s)')
+            help='Specify run mode: PLOTS, ASCII, LINEFINDER, QUERY, SQL, SOURCE (default: %(default)s)')
     parser.add_argument('-s', '--sbid',
             default=None,
             help='Specify the sbid eg 11346 or 41050:1 for a specific version (use "-1" to get all sbids) (default: %(default)s)') 
+
+    parser.add_argument('-c', '--component',
+            default='1a',
+            help='Specify the component eg "4c" to get a specific source of a given sbid (Use with mode = "SOURCE" (default: %(default)s)') 
     parser.add_argument('-S', '--sql_stat',
             default=None,
             help='SQL statement to pass to db (only with --mode SQL)') 
@@ -64,7 +69,7 @@ def set_parser():
 
 def set_mode_and_values(args):
 
-    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN, SQL, UNTAR, PASSWD
+    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN, SQL, UNTAR, PASSWD, SOURCE
 
     MODE = args.mode.strip().upper()
     DIR = args.dir.strip()
@@ -73,6 +78,9 @@ def set_mode_and_values(args):
     if MODE == "SQL":
         SQL = args.sql_stat.strip()
         return
+    
+    if MODE == "SOURCE":
+        SOURCE = args.component.strip()
 
     if MODE in ["QUERY","PLOTS"]:
         BRIGHT = args.brightest.strip()
@@ -297,8 +305,34 @@ def get_files_for_sbid(conn,cur,sbid,version):
         print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
 
     return
+##################################################################################################
+
+def get_plots_for_component(cur,sbid,comp):
+
+    # This will return the opd and flux plots for a given source.
+    # The source name is constructed from the sbid and comp values, eg:
+    #   sbid = 51449, com = '4c', source_name = 'spec_SB51449_component_4c.fits'
+
+    source_name = f"spec_SB{sbid}_component_{comp}.fits"
+    # The directory for downloads:
+    dir_download = DIR
+    # get the corresponding sbid id for the sbid_num:version
+    sid,version = get_max_sbid_version(cur,sbid)
 
 
+    for data_type in ["opd","flux"]:
+        query = f"select {data_type}_image from component where comp_id = %s"
+        cur.execute(query,(source_name,))
+        data = cur.fetchone()
+        if not data[0]:
+            query = f"select fluxfilter from component where comp_id = %s and sbid_id = %s;"
+            cur.execute(query,(source_name,sid))
+            flux_filter = cur.fetchone()[0]
+            print(f"plotfile for {source_name} missing from db. Flux cutoff was {flux_filter}")
+            continue
+        name = source_name.replace(".fits",f"_{data_type}.png")
+        open(f"{dir_download}/{name}", 'wb').write(data[0])
+    return    
 
 ##################################################################################################
 
@@ -504,6 +538,10 @@ if __name__ == "__main__":
     # Get plots for sbid
     elif MODE == "PLOTS":
         get_plots_for_sbid(cur,SBID,VERSION,args.flux)
+
+    # Get the plots for a single source
+    elif MODE == "SOURCE":
+        get_plots_for_component(cur,SBID,SOURCE)
 
     # Get tar of either ascii files or linefinder results
     elif MODE in ["ASCII","LINEFINDER"]:
