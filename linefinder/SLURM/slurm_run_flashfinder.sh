@@ -50,7 +50,7 @@ python $FINDER/pre_process.py '$3' '$1/$2'
 echo "Starting with $1/$2"
 ## Ensure the correct linefinder.ini is specified here:
 srun -K1 python $FINDER/flash_finder.py --data_path '$1/$2' --model_path '$1/config/model.txt' --out_path '$1/outputs' \
---inifile '$1/config/slurm_linefinder.ini'
+--sbid "$4" --inifile '$1/config/slurm_linefinder.ini'
 
 exit 0
 EOT
