@@ -64,6 +64,8 @@ parser.add_argument('--plot_restframe', choices = ['none','source','peak'], defa
                     help='restframe used for plotting')
 parser.add_argument('--rest_frequency', default=1.420405752, type=float,
                     help='rest frequency of transition')
+parser.add_argument('--sbid', default='', type=str,
+                    help='the sbid that we are working on')
 parser.add_argument('--small_plots', action='store_true', default=False,
                     help='plot a small range of the x-axis')
 parser.add_argument('--std_madfm', action='store_true', default=False,
