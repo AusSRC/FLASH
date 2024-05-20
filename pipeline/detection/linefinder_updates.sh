@@ -1,13 +1,18 @@
 #!/bin/bash
 IFS=","
 FLASHPASS=$1
-source ~/setonix_set_local_env.sh
+
+# Local directories
+DBDIR="~/src/database"
+DETECTDIR="~/src/flashfinder_local_mpi"
 
 # The parent directory to hold the SBIDS
 PARENT_DIR="/scratch/ja3/ger063/data/casda"
 
 # Directory to move bad data files to:
 BAD_FILES_DIR="/scratch/ja3/ger063/data/casda/bad_ascii_files"
+
+source ~/setonix_set_local_env.sh
 
 # Query CASDA for new sbids
 python3.9 $FLASHDB/db_utils.py -m SBIDSTODETECT -pw aussrc > find_detection.log
@@ -30,10 +35,10 @@ echo "downloaded: $SBIDS"
 # Get the data for the sbids from the FLASHDB and process
 
 # Initialise status file
-echo "for $SBIDS:" > ~/src/flashfinder_local_mpi/slurm/jobs_to_sbids.txt
+echo "for $SBIDS:" > $DETECTDIR/jobs_to_sbids.txt
 
 for SBID1 in "${SBIDARRAY[@]}"; do
-    cd ~/src/database
+    cd $DBDIR
     # Make required config directories and load with ini files
     PARENT1=$PARENT_DIR/$SBID1
     DIR1=$PARENT1/spectra_ascii
@@ -43,7 +48,7 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     # Report
     j1=$(echo $jid1 | awk '{print $4}')
     echo "Sumbitted download job $j1"
-    cd ~/src/flashfinder_local_mpi/slurm/
+    cd $DETECTDIR
     mkdir -p $PARENT1/config
     cp slurm_linefinder.ini model.txt $PARENT1/config
     jid2=$(sbatch --dependency=afterok:$j1 $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1)
@@ -56,7 +61,7 @@ done
 exit
 
 # Process the sbids
-cd ~/src/flashfinder_local_mpi/slurm/
+cd $DETECTDIR/slurm/
 echo "submitting LINEFINDER jobs"
 echo
 
