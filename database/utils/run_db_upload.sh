@@ -1,8 +1,9 @@
+
 #!/bin/bash
 ######################################################################################
 ######################################################################################
 #
-#       Run uploads of linefinder outputs to FLASH database
+#       Run uploads of spectral/linefinder outputs to FLASH database
 #
 #   NOTE:   The script calling order is:
 #               1) "run_db_upload.sh", (this file) which calls:
@@ -22,9 +23,8 @@ UPLOAD="SPECTRAL_PLOTS"
 TAG="FLASH Survey 1"
 
 # The SBIDS to process - leave as () for auto checking of the parent directory:
-#SBIDARRAY=(45754 45756 50000 50002 50003)
-SBIDARRAY=()
-
+SBIDARRAY=(60047 60093)
+SBIDARRAY=(60094)
 # The parent directory holding the SBIDS
 PARENTDIR="/scratch/ja3/ger063/data/casda"
 
@@ -35,7 +35,7 @@ TMPDIR="/scratch/ja3/ger063/tmp"
 PLATFORM="setonix@pawsey"
 
 # Comment to add (no spaces!)
-COMMENT="Processing_REJECTED_sbids_from_CASDA"
+COMMENT="CASDA_update"
 
 # config directories used (relative to SBID directory)
 CONFIGARRAY=("config")
@@ -111,4 +111,3 @@ for i in "${!SBIDARRAY[@]}"; do
     j1=$(echo $jid1 | awk '{print $4}')
     echo "Sumbitted job $j1"
 done
-    

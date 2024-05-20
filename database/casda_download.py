@@ -71,7 +71,7 @@ def authenticate(args):
     else:
     # New authentication for astroquery 0.4.7:
         casda = Casda()
-        casda.login(username=username)
+        casda.login(username=username,password = password)
     casdatap = TapPlus(url="https://casda.csiro.au/casda_vo_tools/tap")
     print("Logged in!")
     return casda,casdatap
@@ -172,7 +172,7 @@ def get_sbids_in_casda(args,casda,casdatap,get_rejected=False):
         sbids[i] = sbid
         quality_dict[sbid] = quality[i]
     sbids.sort(reverse=True)
-    print(f"Valid at CASDA: {sbids}")
+    print(f"{len(sbids)} sbids valid at CASDA: {sbids}")
     return sbids,quality_dict
 
 ################################################################################################################

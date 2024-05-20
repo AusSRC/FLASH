@@ -3,7 +3,7 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.10 24/04/2024
+#       version 1.12 17/05/2024
 #######################################################################################
 import os
 import sys
@@ -218,7 +218,7 @@ def query_db_for_sbid(cur,sbid):
             query = "select sbid_num, version, spect_runid, quality, detectionF, comment, pointing from sbid order by id;"
         cur.execute(query)
     res = cur.fetchall()
-    title_str = "\n{0:<12}{1:<6}{2:<8}{3:<15}{4:<15}{5:<15}{6:<10}{7:<35}".format("DATE","SBID","VER","QUALITY","TAG","LINEFINDER","FIELD","COMMENT")
+    title_str = "\n{0:<12},{1:<6},{2:<8},{3:<15},{4:<15},{5:<15},{6:<10},{7:<35}".format("DATE","SBID","VER","QUALITY","TAG","LINEFINDER","FIELD","COMMENT")
     for i,result in enumerate(res):
         if i % 60 == 0:
             print(title_str)
@@ -230,14 +230,14 @@ def query_db_for_sbid(cur,sbid):
             datestr = date.strftime('%Y-%m-%d')
         except IndexError:
             spect_tag = 'None'
-            date = 'No date recorded'
+            datestr = 'No date'
         detect = 'Run'
         if result[4] == 0:
             detect = '----'
         pointing = str(result[6])
         if not result[6]:
             pointing = 'UNKNOWN'
-        ppline = "{0:<12}{1:<6}{2:<8}{3:<15}{4:<18}{5:<10}{6:<12}{7:<35}".format(datestr,result[0],result[1],result[3],spect_tag,detect,pointing,result[5])
+        ppline = "{0:<12},{1:<6},{2:<8},{3:<15},{4:<18},{5:<10},{6:<12},{7:<35}".format(datestr,result[0],result[1],result[3],spect_tag,detect,pointing,result[5])
         print(ppline)
     print()
     print(f"Number of records: {len(res)}")
@@ -304,7 +304,7 @@ def get_files_for_sbid(conn,cur,sbid,version):
         loaded_lob.close()
         print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
 
-    return
+        return name
 ##################################################################################################
 
 def get_plots_for_component(cur,sbid,comp):
@@ -457,12 +457,17 @@ def get_results_for_sbid(cur,sbid,version,verbose=False):
     cur.execute(query,(detect_runid,))
     result_data = cur.fetchone()[0].split('\n')
 
+    # Get the pointing field for the sbid:
+    query = "select pointing from sbid where id = %s;"
+    cur.execute(query,(sid,))
+    pointing = cur.fetchone()[0]
+
     # Get the list of relevant components and their values for this sbid from the component table
     if ln_mean == -1: # This means get all components, even if there is no value for ln_mean
-        query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean;")
+        query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean desc;")
         cur.execute(query,(sid,))
     else:
-        query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s order by ln_mean;")
+        query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by ln_mean desc;")
         cur.execute(query,(sid,ln_mean))
     results = cur.fetchall()
     row_count = len(results)
@@ -485,9 +490,9 @@ def get_results_for_sbid(cur,sbid,version,verbose=False):
         f = open(f"{DIR}/{sbid}_{version}_linefinder_outputs.csv","w")
         # we want From component table - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
         # From linefinder, all outputs except name: ModeNum x0_1_maxl dx_1_maxl y0_1_maxl abs_peakz_median abs_peakz_siglo abs_peakz_sighi abs_peakopd_median abs_peakopd_siglo abs_peakopd_sighi abs_intopd_median(km/s) abs_intopd_siglo(km/s) abs_intopd_sighi(km/s) abs_width_median(km/s) abs_width_siglo(km/s) abs_width_sighi(km/s) ln(B)_mean ln(B)_sigma chisq_mean chisq_sigma
-        f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,x0_1_maxl,dx_1_maxl,y0_1_maxl,abs_peakz_median,abs_peakz_siglo,abs_peakz_sighi,abs_peakopd_median,abs_peakopd_siglo,abs_peakopd_sighi,abs_intopd_median(km/s),abs_intopd_siglo(km/s),abs_intopd_sighi(km/s),abs_width_median(km/s),abs_width_siglo(km/s),abs_width_sighi(km/s),ln(B)_mean,ln(B)_sigma,chisq_mean,chisq_sigma\n")
+        f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,x0_1_maxl,dx_1_maxl,y0_1_maxl,abs_peakz_median,abs_peakz_siglo,abs_peakz_sighi,abs_peakopd_median,abs_peakopd_siglo,abs_peakopd_sighi,abs_intopd_median(km/s),abs_intopd_siglo(km/s),abs_intopd_sighi(km/s),abs_width_median(km/s),abs_width_siglo(km/s),abs_width_sighi(km/s),ln(B)_mean,ln(B)_sigma,chisq_mean,chisq_sigma,field\n")
     print()
-    print("component_name     comp_id   ra_hms_cont dec_dms_cont ra_deg_cont dec_deg mode ln_mean")
+    print("component_name     comp_id   ra_hms_cont dec_dms_cont ra_deg_cont dec_deg mode ln_mean  FIELD")
     print()
     for result in results:
         comp_id = "component" + result[1].split("_component")[1].split(".")[0]
@@ -500,9 +505,9 @@ def get_results_for_sbid(cur,sbid,version,verbose=False):
                         for line in linefinder_data:
                             vals = line.split()
                             if float(vals[17]) > ln_mean:
-                                f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{vals[2]},{vals[3]},{vals[4]},{vals[5]},{vals[6]},{vals[7]},{vals[8]},{vals[9]},{vals[10]},{vals[11]},{vals[12]},{vals[13]},{vals[14]},{vals[15]},{vals[16]},{vals[17]},{vals[18]},{vals[19]},{vals[20]}\n")
+                                f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{vals[2]},{vals[3]},{vals[4]},{vals[5]},{vals[6]},{vals[7]},{vals[8]},{vals[9]},{vals[10]},{vals[11]},{vals[12]},{vals[13]},{vals[14]},{vals[15]},{vals[16]},{vals[17]},{vals[18]},{vals[19]},{vals[20]},{pointing}\n")
                     # Summary to screen:
-                    print(result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10])
+                    print(result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10],pointing)
                     break
         else:
             if verbose:
@@ -511,9 +516,9 @@ def get_results_for_sbid(cur,sbid,version,verbose=False):
                 for line in linefinder_data:
                     vals = line.split()
                     if float(vals[17]) > ln_mean:
-                        f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{vals[2]},{vals[3]},{vals[4]},{vals[5]},{vals[6]},{vals[7]},{vals[8]},{vals[9]},{vals[10]},{vals[11]},{vals[12]},{vals[13]},{vals[14]},{vals[15]},{vals[16]},{vals[17]},{vals[18]},{vals[19]},{vals[20]}\n")
+                        f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{vals[2]},{vals[3]},{vals[4]},{vals[5]},{vals[6]},{vals[7]},{vals[8]},{vals[9]},{vals[10]},{vals[11]},{vals[12]},{vals[13]},{vals[14]},{vals[15]},{vals[16]},{vals[17]},{vals[18]},{vals[19]},{vals[20]},{pointing}\n")
             # Summary to screen:
-            print(result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10])
+            print(result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10],pointing)
     print(f"{row_count} rows")
     if verbose:
         f.close()

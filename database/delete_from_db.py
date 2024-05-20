@@ -244,7 +244,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
     cur = get_cursor(conn)
     if not versions:
         versions = [None]*len(selected_sbids)
-
+    runflagid = runid
     for sbid,version in zip(selected_sbids,versions):
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
         print(f"{sbid}:{version} - deleting outputs lob ")
@@ -256,38 +256,39 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
         for i in lon:
             cur.execute(oid_delete,(i,))
         
-        # Remove detection flag and oid from the sbid
-        sbid_update = "UPDATE sbid SET detectionF = %s, detect_tar = NULL, detect_runid = NULL where id = %s;"
-        cur.execute(sbid_update,(False,sbid_id))
-
         # Get detection that lists this sbid
         if not runid:
             # Need to get detection id 
             sbid_query = "SELECT detect_runid from sbid where id = %s;"
             cur.execute(sbid_query,(sbid_id,))
-            runid = cur.fetchone()[0]
+            runflagid = cur.fetchone()[0]
+        # Remove detection flag and oid from the sbid
+        sbid_update = "UPDATE sbid SET detectionF = %s, detect_tar = NULL, detect_runid = NULL where id = %s;"
+        cur.execute(sbid_update,(False,sbid_id))
+
         
         # Remove reference in detect_run
         print(f"{sbid}:{version} - removing reference in detect_run ")
         sbid_query = "SELECT SBIDS from detect_run where id = %s;"
-        cur.execute(sbid_query,(runid,))
+        cur.execute(sbid_query,(runflagid,))
+        print(runflagid,sbid)
         sbids = None
-        try:
-            sbids = cur.fetchone()[0]
-            sbids.remove(int(sbid))
-        except TypeError or IndexError:
-            print(f"{sbid}:{version} - nothing to remove ")
-            pass 
+        #try:
+        sbids = cur.fetchone()[0]
+        sbids.remove(int(sbid))
+        #except TypeError or IndexError:
+        #    print(f"{sbid}:{version} - nothing to remove ")
+        #    pass 
         # Check if sbids list now empty, in which case delete whole detection
         if not sbids:
             detect_stat = "DELETE from detect_run where id = %s;"
-            cur.execute(detect_stat,(runid,))
-            print(f"    -- Deleted detection {runid}")
+            cur.execute(detect_stat,(runflagid,))
+            print(f"    -- Deleted detection {runflagid}")
         else:
         # Update detection by removing sbid from row
             detect_stat = "UPDATE detect_run SET SBIDS = %s where id = %s;"
-            cur.execute(detect_stat,(sbids,runid))
-            print(f"    -- Updated detection {runid}")
+            cur.execute(detect_stat,(sbids,runflagid))
+            print(f"    -- Updated detection {runflagid}")
     return cur
 
 def remove_sbid_from_spectral(cur,sbid,runid):

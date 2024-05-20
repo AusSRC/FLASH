@@ -16,7 +16,7 @@ from casda_download import *
 #       This script deletes data held in the FLASH db at 146.118.64.208
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.03 12/02/2024
+#       version 1.04 06/05/2024
 #
 #       Edit USER SECTION below to define the type of operation
 
@@ -50,7 +50,7 @@ def set_parser():
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default="CATALOGUE",
-            help='Specify run mode: CATALOGUE, CHECK_SBIDS, BAD_COMPS, CHECK_LOCAL_SBIDS (default: %(default)s)')
+            help='Specify run mode: CATALOGUE, CHECK_SBIDS, BAD_COMPS, DETECT_TARBALL, CHECK_LOCAL_SBIDS, GETNEWSBIDS, SBIDSTODETECT (default: %(default)s)')
     parser.add_argument('-s', '--sbid_list',
             default=None,
             help='Specify the sbid list eg 11346,11348 (default: %(default)s)')    
@@ -168,6 +168,22 @@ def check_sbids_in_db(conn):
 
 ###############################################
 
+def check_db_detection_run(conn):
+    # check the flashdb for any sbids that need to have the LINEFINDER run against them.
+    # This only checks Survey sbids (not pilot) and will check if any sbid with quality not 'REJECTED' or 'NOT_VALIDATED'
+    # has not been processed by the linfinder
+
+    sbids = []
+    cur = get_cursor(conn)
+    query = "select sbid_num from sbid where quality not in ('NOT_VALIDATED','REJECTED') and detectionF = false and sbid_num > 43426 order by sbid_num;"
+    cur.execute(query,)
+    result = cur.fetchall()
+    for res in result:
+        sbids.append(res[0])
+    return sbids
+   
+###############################################
+
 def check_local_processed_sbids(directory):
 
     # Check if local sbid directories contain any spectral ascii files, which is indicative 
@@ -188,6 +204,22 @@ def check_local_processed_sbids(directory):
         ascii_files = glob(f"{directory}/{sbid}/spectra_ascii/*.dat")
         if len(ascii_files) > 0:
             print(f"{sbid},",end="")
+
+###############################################
+def create_large_object(conn,data):
+
+    print(f"Trying to create lob from {data}")
+    #lob = conn.lobject(0,'wb',0,data)
+    #print(f"Created lob {lob.oid} in db")
+    with open(data, "rb") as fd:
+        try:
+            lob = conn.lobject(0,'wb',0)
+            lob.write(fd.read())
+            print(f"Created lob {lob.oid} in db")
+        except (psycopg2.Warning, psycopg2.Error) as e:
+            print("Exception: {}".format(e))
+    return lob
+    
 
 ################################################
 def update_pointings_from_casda(conn,args):
@@ -250,6 +282,7 @@ def update_quality_from_casda(conn,casda,casdatap,get_rejected):
     # This function is defined in module 'casda_download'
     casda_sbids,quality_dict = get_sbids_in_casda(args,casda,casdatap,get_rejected)
     cur = get_cursor(conn)
+    quality_changed = []
     print("Checking QUALITY tags in FLASHDB")
     # For each sbid, find it in the FLASHDB and update the quality
     for sbid in casda_sbids:
@@ -268,10 +301,12 @@ def update_quality_from_casda(conn,casda,casdatap,get_rejected):
                 print(f" : updating quality from {db_quality} to {quality_dict[sbid]}")
                 sql = "update sbid set quality = %s where id = %s"
                 cur.execute(sql,(quality_dict[sbid],sbid_id))
+                quality_changed.append(f"{sbid}:{quality_dict[sbid]}")
         else:
             print(" not found in FLASHDB")
+    print(f"Quality changes: {quality_changed}")
     return cur,casda_sbids
-        
+
 
 def get_new_sbids(conn,args,get_rejected=False):
 
@@ -386,7 +421,7 @@ def add_sbid_catalogue(conn,sbid,casda_folder,version=None):
     components_data = __get_sbid_catalog_data(name)
     # Get components listed in db for this sbid (will be much less than in catalogue)
     components_db = __get_sbid_components_in_db(cur,sbid,version)
-    print(f"Components in catalogue: {len(components_data.keys())}, in db: {len(components_db)}")
+    print(f"Items in catalogue: {len(components_data.keys())}, in db: {len(components_db)}")
     for comp_id in components_db:
         name = comp_id.replace(".fits","").replace("spec_","")
         comp_data = components_data[name]
@@ -394,6 +429,41 @@ def add_sbid_catalogue(conn,sbid,casda_folder,version=None):
     print()
     print(f"Added catalogue data for {sbid}")
     return cur
+
+###############################################
+
+def update_detection_tarball(conn,sbids,versions=None):
+
+    os.chdir(DATADIR)
+    for sbid,version in zip (sbids,versions):
+        cur = get_cursor(conn)
+        detect_data = None
+        sbid_id,version = get_max_sbid_version(cur,sbid,version)
+        # delete current lob in db:
+        oid_query = "select detect_tar from sbid where id = %s;"
+        cur.execute(oid_query,(sbid_id,))
+        lon = cur.fetchone()[0]
+        oid_delete = "SELECT lo_unlink(%s);"
+        cur.execute(oid_delete,(lon,))
+
+        # read in new tarball
+        output_tarball = f"{sbid}/{sbid}_linefinder_outputs.tar.gz"
+        with open(output_tarball,'rb') as f:
+            detect_data = f.read()
+        print(f"detect_data = {len(detect_data)}",flush=True)
+        # Create a large object in the database:
+        print("    -- loading to database")
+        lob = create_large_object(conn,output_tarball)
+        #lob = conn.lobject(oid=0,mode="wb", new_file=ascii_tarball)
+        new_oid = lob.oid
+        lob.close()
+        update_query = "UPDATE SBID SET detect_results = %s, detect_tar = %s where id = %s;"
+        cur.execute(update_query,(psycopg2.Binary(detect_data),new_oid,sbid_id))
+        print(f"sbid table updated with detection tarball for sbid = {sbid}, version {version}")
+        conn.commit()
+        cur.close()
+
+
 
 ############################################################################################################################################
 ############################################################################################################################################
@@ -437,6 +507,14 @@ if __name__ == "__main__":
             print(f"Downloaded catalogues deleted: {SBIDS}")
         conn.commit()
         conn.close()
+    elif RUN_TYPE == "SBIDSTODETECT":
+        sbids = check_db_detection_run(conn)
+        print("SBIDS that need detection analysis:")
+        print(sbids)
+        sys.exit()
+
+        conn.commit()
+        conn.close()
     elif RUN_TYPE == "CHECK_SBIDS":
         cur = check_sbids_in_db(conn)
         conn.commit()
@@ -464,7 +542,10 @@ if __name__ == "__main__":
         conn.commit()
         cur.close()
         conn.close()
+    elif RUN_TYPE == "DETECT_TARBALL":
+        update_detection_tarball(conn,SBIDS,VERSIONS)
+        conn.close()
             
-    print(f"Job took {time.time()-starttime} sec for {len(SBIDS)} sbids {SBIDS}")
+    print(f"Job took {time.time()-starttime} sec for {len(SBIDS)} sbids:\n{SBIDS}")
 
 #python $FLASHDB/db_utils.py -m CATALOGUE -s 52688,52640,52627,52620,52618,52594,52548,52547,52542,52541,52540,52537,52536,52528,52527,52526,51955,51954,51947,51946,51452,51451,51450,51449,51446,51444,51443,51442,51441,51440,51015,50022,50021,50019,45835,45833,45828,45825,45823,45815,45762 -e Gordon.German@csiro.au

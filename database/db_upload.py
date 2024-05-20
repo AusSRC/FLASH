@@ -57,7 +57,7 @@ LINEFINDER_CONFIG_DIR = ""
 ERROR_LOG = ""
 STDOUT_LOG = ""
 LINEFINDER_OUTPUT_DIR = ""
-LINEFINDER_SUMMARY_FILE = ""
+LINEFINDER_SUMMARY_FILE = "results.dat"
 PLATFORM = "setonix.pawsey.org.au"
 RUN_TAG = "FLASH survey 1"
 SBID_COMMENT = ""
@@ -72,7 +72,7 @@ def set_parser():
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default=None,
-            help='Specify run mode: SPECTRAL, DETECTION, QUALITY, COMMENT , POINTING, ASCII_UPLOAD (default: %(default)s)')
+            help='Specify run mode: SPECTRAL, DETECTION, COMP_RESULTS, QUALITY, COMMENT , POINTING, ASCII_UPLOAD (default: %(default)s)')
     parser.add_argument('-q', '--quality',
             default="UNCERTAIN",
             help='Set value - GOOD, BAD, "NOT VALIDATED" or UNCERTAIN (default: %(default)s)')
@@ -101,7 +101,7 @@ def set_parser():
             default=LINEFINDER_CONFIG_DIR,
             help='Specify linefinder config directory used for processing (default: %(default)s)')
     parser.add_argument('-o', '--detect_output',
-            default="chains",
+            default="outputs",
             help='Specify sub-dir to hold linefinder output - relative to the sbid directory (default: %(default)s)')
     parser.add_argument('-C', '--comment',
             default=SBID_COMMENT,
@@ -113,7 +113,7 @@ def set_parser():
             default=ERROR_LOG,
             help='Path to SLURM stderr logfile (default: %(default)s)')
     parser.add_argument('-r', '--results',
-            default="",
+            default=LINEFINDER_SUMMARY_FILE,
             help='Path to linefinder final results file  (default: %(default)s)')
     args = parser.parse_args()
     return args,parser
@@ -310,16 +310,20 @@ def tar_dir(name,source_dir,pattern=None):
     """ Only tars up files, not subdirectories"""
     files = (file for file in os.listdir(source_dir) if os.path.isfile(os.path.join(source_dir, file)))
     tar = tarfile.open(name, "w:gz")
+    count =0
     for file in files:
         if not pattern:
             tar.add(f"{source_dir}/{file}", arcname = file)
+            count += 1
         else:
             if isinstance(pattern,str):
                 pattern = [pattern] 
             for pat in pattern:
                 if pat in file:
                     tar.add(f"{source_dir}/{file}", arcname = file)
-
+                    count += 1
+    tar.close() 
+    return count
 
 ###############################################
 
@@ -342,11 +346,13 @@ def tar_dir2(name,source_dir,pattern=None):
 def create_large_object(conn,data):
 
     print(f"Trying to create lob from {data}")
+    #lob = conn.lobject(0,'wb',0,data)
+    #print(f"Created lob {lob.oid} in db")
     with open(data, "rb") as fd:
         try:
-            lob = conn.lobject(0,'r',0)
+            lob = conn.lobject(0,'wb',0)
             lob.write(fd.read())
-            print("Created lob in db")
+            print(f"Created lob {lob.oid} in db")
         except (psycopg2.Warning, psycopg2.Error) as e:
             print("Exception: {}".format(e))
     return lob
@@ -449,8 +455,8 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
             results = results + line.strip() + "\n"
 
     # insert into detect_run table
-    insert_query = "INSERT into detect_run(SBIDS,errlog,stdlog,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id;"
-    cur.execute(insert_query,(sbids,errdata,stddata,platform,detect_date,RUN_TAG))
+    insert_query = "INSERT into detect_run(SBIDS,errlog,stdlog,result_filepath,results,platform,date,run_tag) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
+    cur.execute(insert_query,(sbids,errdata,stddata,result_file,results,platform,detect_date,RUN_TAG))
     runid = cur.fetchone()[0]
     print(f"Data inserted into table 'detect_run': runid = {runid}",flush=True)
     # Add the processed SBIDS
@@ -468,13 +474,6 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
         except FileNotFoundError:
             print(f"Config dir {config_dir} not found!!")
 
-        # Add the results file
-        results = ""
-        with open(result_file,'r') as f:
-            for line in f:
-                line = line.replace("\"","'")
-                results = results + line.strip() + "\n"
-
         # Check if sbid exists:
         if sbid_id:
             update_sbid_detection(cur,sbid=sbid,sbid_id=sbid_id,runid=runid,detectionF=True,dataDict=dataDict[sbid],datapath=output_dir,ver=version,config=config_data,results=results)
@@ -482,20 +481,28 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
             print(f"ERROR: sbid:version {sbid}:{version} does not exist in database!! Skipping")
 
         # Process the results file against each component
-        results = results.splitlines()
-        last_ln_mean = 0
-        for line in results[1:]:
+        sbid_results = results.splitlines()
+        max_ln_mean = 0
+        #last_name = sbid_results[1].split()[0].rsplit("_",1)[0]
+        last_name = ""
+        for line in sbid_results[1:]:
             vals = line.split()
             name = vals[0].rsplit("_",1)[0]
             line_sbid = int(name.split("_")[0][2:])
             ln_mean = float(vals[17])
             mode_num = int(vals[1])
-            if line_sbid == int(sbid) and ln_mean > last_ln_mean: # we only store the modenum version with the largest ln_mean in component table
+            if line_sbid != int(sbid):
+                continue
+
+            if name != last_name:
+                max_ln_mean = 0
+            if ln_mean > max_ln_mean: # we only store the modenum version with the largest ln_mean in component table
                 update = "update component set mode_num = %s, ln_mean = %s where comp_id like %s and sbid_id = %s;"
                 like= '%{}%'.format(name)
                 cur.execute(update,(mode_num,ln_mean,like,sbid_id))
-                print(f"        component {name} updated with linefinder results",flush=True)
-                last_ln_mean = ln_mean
+                max_ln_mean = ln_mean  
+ 
+            last_name = name
     return cur
 
 ###############################################
@@ -508,8 +515,11 @@ def upload_ascii_tarball(conn,sbids,versions,dataDictMain):
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
         # Create the tarball of ascii output files
         ascii_tarball = f"{TMP_TAR_DIR}/{sbid}_ascii_tarball.tar.gz"
-        print(f"Creating tarball {ascii_tarball}")
-        tar_dir(ascii_tarball,f"{dataDict['ascii_path']}")
+        if os.path.isfile(ascii_tarball):
+            print(f"Using existing {ascii_tarball}",flush=True)
+        else:
+            print(f"Creating tarball {ascii_tarball}")
+            tar_dir(ascii_tarball,f"{dataDict['ascii_path']}")
         # Delete old large object of ascii files
         oid_query = "select ascii_tar from sbid where id = %s;"
         cur.execute(oid_query,(sbid_id,))
@@ -557,7 +567,7 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
     tar_dir(ascii_tarball,f"{dataDict['ascii_path']}")
 
     # Create a large object in the database:
-    print("    -- loading to database")
+    print("    -- loading to database",flush=True)
     lob = create_large_object(conn,ascii_tarball)
     #lob = conn.lobject(oid=0,mode="wb", new_file=ascii_tarball)
     new_oid = lob.oid
@@ -567,7 +577,7 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
     # Get the generated id of the sbid just added:
     cur.execute(f"SELECT id from SBID where sbid_num = {sbid} and version = {ver};")
     sbid_id = int(cur.fetchall()[0][0])
-    print(f"SBID {sbid_id}:{sbid} added to table 'SBID'")
+    print(f"SBID {sbid_id}:{sbid} added to table 'SBID'",flush=True)
 
     # Add the components and associated outputs plots of the sbid
     for comp in dataDict["components"]:
@@ -575,7 +585,7 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
         component_index = comp.split("component_")[1].split(".fits")[0]
         plotfiles = [f for f in dataDict["plots"] if ("component_%s" % component_index) in f]
         plot_path = f"{dataDict['plots_path']}"
-        add_component(cur,comp,sbid_id,plotfiles,plot_path,processState="spectral",fluxcutoff=flux)
+        cur = add_component(cur,comp,sbid_id,plotfiles,plot_path,processState="spectral",fluxcutoff=flux)
 
 ###############################################
 def add_sbid_comment(conn,sbid,comment,ver=None):
@@ -588,6 +598,7 @@ def add_sbid_comment(conn,sbid,comment,ver=None):
     date_str = f"{date.day}/{date.month}/{date.year}"
 
     # Get any existing comment
+    old_comment = ""
     get_comment = "select comment from sbid where id = %s"
     cur.execute(get_comment,(sbid_id,))
     try:
@@ -618,6 +629,48 @@ def add_sbid_pointing(conn,sbid,dataDict,cur=None,ver=None):
     print(f"Pointing field {pointing} added to SB{sbid}")
     return cur
 ###############################################
+def add_component_results(conn,sbids,result_file,output_dir,versions=None):
+
+    cur = get_cursor(conn)
+    print("Adding LINEFINDER results to components")
+    # Get the results file
+    results = ""
+    with open(result_file,'r') as f:
+        for line in f:
+            line = line.replace("\"","'")
+            results = results + line.strip() + "\n"
+
+    for i,sbid in enumerate(sbids):
+        version = versions[i]
+        sbid_id = None
+        sbid_id,version = get_max_sbid_version(cur,sbid,version)
+        # Process the results file against each component
+        sbid_results = results.splitlines()
+        max_ln_mean = 0
+        last_name = ""
+        for line in sbid_results[1:]:
+            vals = line.split()
+            name = vals[0].rsplit("_",1)[0]
+            line_sbid = int(name.split("_")[0][2:])
+            ln_mean = float(vals[17])
+            mode_num = int(vals[1])
+            if line_sbid != int(sbid):
+                continue
+
+            if name != last_name:
+                max_ln_mean = 0
+            if ln_mean > max_ln_mean: # we only store the modenum version with the largest ln_mean in component table
+                update = "update component set mode_num = %s, ln_mean = %s where comp_id like %s and sbid_id = %s;"
+                like= '%{}%'.format(name)
+                cur.execute(update,(mode_num,ln_mean,like,sbid_id))
+                max_ln_mean = ln_mean  
+ 
+            last_name = name
+    return cur
+
+    
+
+###############################################
 def add_detect_comment(conn,sbid,comment,ver=None):
 
     cur = get_cursor(conn)
@@ -628,6 +681,7 @@ def add_detect_comment(conn,sbid,comment,ver=None):
     date_str = f"{date.day}/{date.month}/{date.year}"
 
     # Get any existing comment
+    old_comment = ""
     get_comment = "select comment from sbid where id = %s"
     cur.execute(get_comment,(sbid_id,))
     try:
@@ -650,16 +704,25 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ve
     # Create tarball of linefinder output files:
     output_tarball = f"{TMP_TAR_DIR}/{sbid}_linefinder_output.tar.gz"
     print(f"Creating tarball {output_tarball}")
-    tar_dir(output_tarball,f"{sbid}/{LINEFINDER_OUTPUT_DIR}",pattern=["stats.dat","result"])
-
+    count = tar_dir(output_tarball,f"{sbid}/{LINEFINDER_OUTPUT_DIR}",pattern=["stats.dat","result",".pdf"])
+    print(f"   -- {count} files in tarball")
+    with open(output_tarball,'rb') as f:
+        detect_data = f.read()
+    print(f"detect_data = {len(detect_data)}",flush=True)
     # Create a large object in the database:
     print("    -- loading to database")
-    lob = conn.lobject(oid=0,mode="wb", new_file=output_tarball)
+    lob = create_large_object(conn,output_tarball)
+    #lob = conn.lobject(oid=0,mode="wb", new_file=ascii_tarball)
     new_oid = lob.oid
     lob.close()
 
-    update_query = "UPDATE SBID SET detect_runid = %s, detectionF = %s, detect_tar = %s , detect_config_tar = %s, results = %s where id = %s;"
-    cur.execute(update_query,(runid,detectionF,new_oid,psycopg2.Binary(config),results,sbid_id))
+    #update_query = "UPDATE SBID SET detect_runid = %s, detectionF = %s, detect_results = %s , detect_config_tar = %s, results = %s where id = %s;"
+    #cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),psycopg2.Binary(config),results,sbid_id))
+    #print(f"sbid table updated with detection for sbid = {sbid}, version {ver}")
+  
+    # We add both 'detect_data' byte array and the lob, for redundancy
+    update_query = "UPDATE SBID SET detect_runid = %s, detectionF = %s, detect_results = %s, detect_tar = %s , detect_config_tar = %s, results = %s where id = %s;"
+    cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),new_oid,psycopg2.Binary(config),results,sbid_id))
     print(f"sbid table updated with detection for sbid = {sbid}, version {ver}")
 
     # Update the component table with the detection
@@ -688,9 +751,17 @@ def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral",f
         with open(flux,'rb') as f:
             fluxdata = f.read() 
     except IndexError:
-        print(f"WARNING: plot data missing for {comp} - skipping")
-        return
-        
+        print(f"WARNING: plot data missing for {comp} - skipping",flush=True)
+        return cur
+       
+    # check if component exists in db:
+    query = "select count(*) from component where comp_id = %s and opd_image is not null"
+    cur.execute(query,(comp,))
+    res = int(cur.fetchone()[0])
+    if res != 0:
+        print(f"component {comp} exists in db - skipping!",flush=True)
+        return cur
+ 
     # add component
     insert_q = "INSERT into component(comp_id,processState,opd_plotname,flux_plotname,opd_image,flux_image,spectral_date,detection_date,sbid_id,fluxfilter) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"
     cur.execute(insert_q,(comp,processState,os.path.basename(opd),os.path.basename(flux),opddata,fluxdata,spect_date,detect_date,sbid_id,fluxcutoff))
@@ -698,8 +769,8 @@ def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral",f
     cur.execute(f"select id from component where comp_id = '{comp}' and sbid_id = {sbid_id};")
     id = int(cur.fetchall()[0][0])
 
-    print(f"    Data inserted into table 'component': id = {id}, comp_id = {comp}")
-    return
+    print(f"    Data inserted into table 'component': id = {id}, comp_id = {comp}",flush=True)
+    return cur
 
 ###############################################
 def update_component_detection(cur,comp,sbid_id,processState):
@@ -768,6 +839,30 @@ if __name__ == "__main__":
         conn.commit()
         cur.close()
         conn.close()
+    elif RUN_TYPE == "COMPONENTS":
+        # Change to data directory
+        if DATA_DIR != "./":
+            os.chdir(DATA_DIR)
+        dataDict = createDataDict()
+        cur = get_cursor(conn)
+        for sbid in SBIDS:
+            cat_dir = f"{DATA_DIR}/catalogues"
+            sbid_id,version = get_max_sbid_version(cur,sbid)
+            datadict = dataDict[sbid]
+            len_comp = len(datadict['components'])
+            for i,comp in enumerate(datadict['components']):
+                component_index = comp.split("component_")[1].split(".fits")[0]
+                plotfiles = [f for f in datadict["plots"] if ("component_%s" % component_index) in f]
+                plot_path = f"{datadict['plots_path']}"
+                cur = add_component(cur,comp,sbid_id,plotfiles,plot_path,processState="spectral",fluxcutoff=0.03)
+                cur = dbu.add_sbid_catalogue(conn,sbid,cat_dir,version)
+                print(f"{i+1} from total to process: {len_comp}",flush=True)
+                if i % 20 == 0:
+                    conn.commit()
+        conn.commit()
+        cur.close()
+        conn.close()
+        
     elif RUN_TYPE == "ASCII_UPLOAD":
         print("Starting ASCII upload")
         # Change to data directory
@@ -792,6 +887,20 @@ if __name__ == "__main__":
                         stdlog=STDOUT_LOG,
                         dataDict=dataDict,
                         platform=PLATFORM,
+                        result_file=LINEFINDER_SUMMARY_FILE,
+                        output_dir=LINEFINDER_OUTPUT_DIR,
+                        versions=VERSIONS)
+        conn.commit()
+        cur.close()
+        conn.close()
+    elif RUN_TYPE == "COMP_RESULTS":
+        # Change to data directory
+        if DATA_DIR != "./":
+            os.chdir(DATA_DIR)
+        print(f'main: DATA_DIR = {DATA_DIR}')
+        dataDict = createDataDict(data_path=DATA_DIR)
+        cur = add_component_results(conn,
+                        sbids=SBIDS,
                         result_file=LINEFINDER_SUMMARY_FILE,
                         output_dir=LINEFINDER_OUTPUT_DIR,
                         versions=VERSIONS)
@@ -830,7 +939,7 @@ if __name__ == "__main__":
         comment = args.comment.strip()
         for i,sbid in enumerate(SBIDS):
             ver = VERSIONS[i]
-            if RUN_TYPE in ["SPECTRAL","COMMENT"]:
+            if RUN_TYPE in ["SPECTRAL","COMMENT","ASCII_UPLOAD"]:
                 cur = add_sbid_comment(conn,sbid,comment,ver)
             else:        
                 cur = add_detect_comment(conn,sbid,comment,ver)

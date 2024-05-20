@@ -20,29 +20,28 @@ PARENT_DIR="/scratch/ja3/ger063/data/casda"
 # CASDA authentication
 USERNAME="Gordon.German@csiro.au"
 PASS="Haggis15"
+
 #####################################################################################
 ############### DO NOT EDIT FURTHER #################################################
 
 source /software/projects/ja3/ger063/setonix/FLASH/set_local_env.sh
-source /software/projects/ja3/ger063/setonix/python/bin/activate
-mkdir -p logs
 
 sbatch <<EOT
 #!/bin/bash
 #SBATCH --time=2:00:00
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --job-name=casda_chk
+#SBATCH --job-name=casda_get
 #SBATCH --no-requeue
-#SBATCH --output=logs/casda_download_out.log
-#SBATCH --error=logs/casda_download_err.log
+#SBATCH --output=logs/"$1"get_casda_out.log
+#SBATCH --error=logs/"$1"get_casda_err.log
 
 source /software/projects/ja3/ger063/setonix/python/bin/activate
 
 export SLURM_EXPORT_ENV=ALL
 
 echo "Checking CASDA for valid SBIDS"
-python3.9 $FLASHDB/db_utils.py -m GETNEWSBIDS -e $USERNAME -p $PASS -d $PARENT_DIR
+python3.9 $FLASHDB/db_utils.py -m CATALOGUE -s $1 -e $USERNAME -p $PASS -d $PARENT_DIR -pw $2 -r
 
 exit 0
 EOT
