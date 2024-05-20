@@ -1,9 +1,10 @@
+
 #!/bin/bash
 #
 ##########################################################################################
 #
 #       Script to check progress of multiple linefinder jobs running on SLURM
-#       GWHG @ CSIRO, Feb 2024
+#       GWHG @ CSIRO, May 2024
 #       
 #       eg: ./check_progress /scratch/ja3/ger/my_parent_dir 100 55247 55328 55394 55398
 #
@@ -18,6 +19,7 @@ PARENTDIR=$1
 range=$2
 minr=0
 maxr=$((range-1))
+not_started=()
 cwd=$PWD
 cd $PARENTDIR
 
@@ -36,7 +38,12 @@ for SBID1 in "${SBIDARRAY[@]}"; do
         else
             str1="CPU $i: Working on Source"
             var2="$(grep -A 1 "$str1" $LOGDIR | tail -1)"
-            echo "    CPU $i not finished: $var2"
+            if [ -z "${var2}" ]
+            then
+                not_started+=" $i"
+            else
+                echo "    CPU $i not finished: $var2"
+            fi
             running=$((running+1))
         fi
 
@@ -46,6 +53,12 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     then
         echo "    $running of $range processes still running"
     fi
+
+    if [[ "${not_started[@]}" == 0 ]]
+    then
+        echo " CPU's not started: $not_started"
+    fi
+
     var3="$(grep -F 'Linefinder took' $LOGDIR)"
     var4="$(grep -F 'MPICH Slingshot Network Summary: 0' $LOGDIR)"
     if [ ! -z "$var4" ] 
