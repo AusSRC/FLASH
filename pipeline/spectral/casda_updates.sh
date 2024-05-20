@@ -7,7 +7,7 @@ cd ~/src/database/
 
 # Query CASDA for new sbids
 python3.9 $FLASHDB/db_utils.py -m GETNEWSBIDS -e Gordon.German@csiro.au -p Haggis15 -pw aussrc -r > ~/src/cronjobs/new_sbids.log
-output=$( tail -n 1 utils.log)
+output=$( tail -n 1 ~/src/cronjobs/new_sbids.log)
 sbids=${output:1: -1}
 if test "$output" == "[]"
 then
