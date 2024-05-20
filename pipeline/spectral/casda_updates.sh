@@ -2,12 +2,39 @@
 #!/bin/bash
 IFS=","
 FLASHPASS=$1
+
+# Local directories:
+CRONDIR="~/src/cronjobs"
+DBDIR="~/src/database"
+PLOTDIR="~/src/spectral_plot"
+
+# Tmp directory for tarring etc - needs to be large capacity
+TMPDIR="/scratch/ja3/ger063/tmp"
+
+# The tag to give the data: eg "FLASH Survey 1", or "FLASH Pilot2" etc
+TAG="FLASH Survey 1"
+
+# Compute resource used
+PLATFORM="setonix@pawsey"
+
+# Comment to add (no spaces!)
+COMMENT="CASDA_update"
+
+# The parent directory holding the SBIDS
+PARENTDIR="/scratch/ja3/ger063/data/casda"
+
+# Config file to use for all the sbids
+CONFIGFILE="./config.py"
+
+# The parent directory holding the SBIDS
+PARENT_DIR="/scratch/ja3/ger063/data/casda"
+
 source ~/setonix_set_local_env.sh
-cd ~/src/database/
+cd $DBDIR
 
 # Query CASDA for new sbids
-python3.9 $FLASHDB/db_utils.py -m GETNEWSBIDS -e Gordon.German@csiro.au -p Haggis15 -pw aussrc -r > ~/src/cronjobs/new_sbids.log
-output=$( tail -n 1 ~/src/cronjobs/new_sbids.log)
+python3.9 $FLASHDB/db_utils.py -m GETNEWSBIDS -e Gordon.German@csiro.au -p Haggis15 -pw aussrc -r > $CRONDIR/new_sbids.log
+output=$( tail -n 1 $CRONDIR/new_sbids.log)
 sbids=${output:1: -1}
 if test "$output" == "[]"
 then
@@ -24,33 +51,10 @@ read -a SBIDARRAY <<< "$SBIDS"
 echo "downloaded: $SBIDS"
 
 # Process the sbids
-cd ~/src/spectral_plot
+cd $PLOTDIR
 echo "Submitting spectral plot jobs:"
 echo
 
-# Tmp directory for tarring etc - needs to be large capacity
-TMPDIR="/scratch/ja3/ger063/tmp"
-
-# The tag to give the data: eg "FLASH Survey 1", or "FLASH Pilot2" etc
-TAG="FLASH Survey 1"
-
-# Compute resource used
-PLATFORM="setonix@pawsey"
-
-# Comment to add (no spaces!)
-COMMENT="CASDA_update"
-
-# Config file to use for all the sbids
-CONFIGFILE="./config.py"
-
-# The parent directory holding the SBIDS
-PARENTDIR="/scratch/ja3/ger063/data/casda"
-
-# Config file to use for all the sbids
-CONFIGFILE="./config.py"
-
-# The parent directory holding the SBIDS
-PARENT_DIR="/scratch/ja3/ger063/data/casda"
 
 # config directories used (relative to each SBID directory)
 CONFIGARRAY=("config")
@@ -64,7 +68,7 @@ for i in "${!SBIDARRAY[@]}"; do
     SBID="${SBIDARRAY[$i]}"
     CONFIG="${CONFIGARRAY[$i]}"
 
-    cd ~/src/spectral_plot
+    cd $PLOTDIR
     # pass to container script:
     #   1) parent input data directory (holds the sbid, noise, catalogues subdirectories)
     #   2) string of sbids to process
@@ -75,6 +79,6 @@ for i in "${!SBIDARRAY[@]}"; do
     j1=$(echo $jid1 | awk '{print $4}')
     echo "Sumbitted job $j1"
     echo "$j1 = sbid $SBID" >> jobs_to_sbids.txt
-    cd ~/src/database/
+    cd $DBDIR
     jid2=$(sbatch --dependency=afterok:$j1 $FLASHDB/slurm_plot_db_upload.sh $SBID "$TAG" $TMPDIR $CONFIG $PARENTDIR $PLATFORM $COMMENT $FLASHPASS)
 done
