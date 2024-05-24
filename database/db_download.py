@@ -324,7 +324,7 @@ def get_plots_for_component(cur,sbid,comp):
         query = f"select {data_type}_image from component where comp_id = %s"
         cur.execute(query,(source_name,))
         data = cur.fetchone()
-        if not data[0]:
+        if not data or not data[0]:
             query = f"select fluxfilter from component where comp_id = %s and sbid_id = %s;"
             cur.execute(query,(source_name,sid))
             flux_filter = cur.fetchone()[0]
