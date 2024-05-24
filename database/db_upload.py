@@ -703,9 +703,10 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ve
 
     # Create tarball of linefinder output files:
     output_tarball = f"{TMP_TAR_DIR}/{sbid}_linefinder_output.tar.gz"
-    print(f"Creating tarball {output_tarball}")
-    count = tar_dir(output_tarball,f"{sbid}/{LINEFINDER_OUTPUT_DIR}",pattern=["stats.dat","result",".pdf"])
-    print(f"   -- {count} files in tarball")
+    if not os.path.isfile(output_tarball):
+        print(f"Creating tarball {output_tarball}")
+        count = tar_dir(output_tarball,f"{sbid}/{LINEFINDER_OUTPUT_DIR}",pattern=["stats.dat","result",".pdf"])
+        print(f"   -- {count} files in tarball")
     with open(output_tarball,'rb') as f:
         detect_data = f.read()
     print(f"detect_data = {len(detect_data)}",flush=True)
@@ -761,10 +762,12 @@ def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral",f
     if res != 0:
         print(f"component {comp} exists in db - skipping!",flush=True)
         return cur
- 
+
+    # Generate short-form name:
+    shortname = comp.split("component_")[1].split(".fits")[0] 
     # add component
-    insert_q = "INSERT into component(comp_id,processState,opd_plotname,flux_plotname,opd_image,flux_image,spectral_date,detection_date,sbid_id,fluxfilter) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"
-    cur.execute(insert_q,(comp,processState,os.path.basename(opd),os.path.basename(flux),opddata,fluxdata,spect_date,detect_date,sbid_id,fluxcutoff))
+    insert_q = "INSERT into component(comp_id,shortname,processState,opd_plotname,flux_plotname,opd_image,flux_image,spectral_date,detection_date,sbid_id,fluxfilter) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"
+    cur.execute(insert_q,(comp,shortname,processState,os.path.basename(opd),os.path.basename(flux),opddata,fluxdata,spect_date,detect_date,sbid_id,fluxcutoff))
     # Get id of just-added component:
     cur.execute(f"select id from component where comp_id = '{comp}' and sbid_id = {sbid_id};")
     id = int(cur.fetchall()[0][0])
