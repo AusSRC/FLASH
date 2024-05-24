@@ -299,5 +299,5 @@ if mpi_rank == 0:
     timed = time() - starttime
     print(f"Linefinder took {timed:.2f} sec", flush=True)
     # Update status file:
-    with open("jobs_to_sbids.txt","w") as f:
+    with open("jobs_to_sbids.txt","a") as f:
         f.write(f"{options.sbid} finished\n")
