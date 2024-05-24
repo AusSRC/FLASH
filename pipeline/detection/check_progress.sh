@@ -20,6 +20,7 @@ range=$2
 minr=0
 maxr=$((range-1))
 not_started=()
+processes_running=()
 cwd=$PWD
 cd $PARENTDIR
 
@@ -52,6 +53,7 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     if [ ! $running == 0 ]
     then
         echo "    $running of $range processes still running"
+        processes_running+="\n$SBID1: $running of $range processes still running"
     fi
 
     if [[ "${not_started[@]}" == 0 ]]
@@ -75,6 +77,10 @@ for SBID1 in "${SBIDARRAY[@]}"; do
         echo "    Linefinder finished but SLURM has not exited correctly"
         echo "    You may need to manually scancel this SLURM job - see 'jobs_to_sbids.txt' to find SLURM job number"
     fi
+done
+
+for comment in "${processes_running[@]}"; do
+    echo -e "$comment\n"
 done
 cd $cwd
 echo

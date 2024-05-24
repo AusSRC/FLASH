@@ -3,8 +3,8 @@ IFS=","
 FLASHPASS=$1
 
 # Local directories
-DBDIR="~/src/database"
-DETECTDIR="~/src/flashfinder_local_mpi"
+DBDIR="/home/ger063/src/database"
+DETECTDIR="/home/ger063/src/flashfinder_local_mpi"
 
 # The parent directory to hold the SBIDS
 PARENT_DIR="/scratch/ja3/ger063/data/casda"
