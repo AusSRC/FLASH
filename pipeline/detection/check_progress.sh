@@ -22,6 +22,7 @@ minr=0
 maxr=$((range-1))
 not_started=()
 started=()
+finished=()
 cwd=$PWD
 cd $PARENTDIR
 
@@ -74,6 +75,7 @@ for SBID1 in "${SBIDARRAY[@]}"; do
             echo "    Linefinder has exited but not all processes finished!! "
         fi
         not_started=("${not_started[@]/$SBID1}" )
+        finished+=($SBID1)
     fi
     if [ -z "$var4" ] && [ ! -z "$var3" ]
     then
@@ -84,16 +86,21 @@ for SBID1 in "${SBIDARRAY[@]}"; do
 done
 
 i=1
-lstart=${#started[@]}
 echo -e "\nRUNNING:\n"
 for j in ${!started[@]}; do
     echo "$i: ${started[$j]}"
     i=$((i+1))
 done
 echo
+i=1
+echo -e "Finished:\n"
+for j in ${!finished[@]}; do
+    echo "$i: ${finished[$j]}"
+    i=$((i+1))
+done
 
 i=1
-echo -e "NOT STARTED:\n"
+echo -e "\nNOT STARTED:\n"
 for j in ${!not_started[@]}; do
     if [ ! -z ${not_started[$j]} ]
     then
