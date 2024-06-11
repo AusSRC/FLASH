@@ -50,13 +50,16 @@ if __name__ == "__main__":
 
     do_plot_files = False
     count = 0
+    nan = 0
+    malformed = 0
     bad_files = []
     bad_files_dir = sys.argv[1]
     ascii_dirname = sys.argv[2]
     if len(sys.argv) == 4: 
         do_plot_files = True
         plot_dirname = sys.argv[3]
-    os.system(f"mkdir -p {bad_files_dir}")
+    os.system(f"mkdir -p {bad_files_dir}/malformed")
+    os.system(f"mkdir -p {bad_files_dir}/nan")
     files = (file for file in os.listdir(ascii_dirname) if os.path.isfile(os.path.join(ascii_dirname, file)))
     tot_files = (len(fnmatch.filter(os.listdir(ascii_dirname), '*.dat')))
     for name in files:
@@ -67,16 +70,19 @@ if __name__ == "__main__":
             count += 1
             if status == "malformed":
                 print(f"{name} : Missing values on line - moving file")
+                os.system(f"mv {ascii_dirname}/{name} {bad_files_dir}/malformed/")
+                malformed += 1
+                if do_plot_files:
+                    movePlotFile(plot_dirname,f"{bad_files_dir}/malformed/",name)
             else:
                 print(f"{name} : All NaN values - moving file")
-            os.system(f"mv {ascii_dirname}/{name} {bad_files_dir}")
-            if do_plot_files:
-                movePlotFile(plot_dirname,bad_files_dir,name)
+                os.system(f"mv {ascii_dirname}/{name} {bad_files_dir}/nan/")
+                nan += 1
+                if do_plot_files:
+                    movePlotFile(plot_dirname,f"{bad_files_dir}/nan/",name)
             if name.endswith(".dat"):
                 bad_files.append(name.replace(".dat",""))
     print()
     print(bad_files)
-    if do_plot_files:
-        print(f"From total {tot_files} files, {count} sources found with all NaN values, or malformed lines")
-    else:
-        print(f"From total {tot_files} files, {count} sources found with all NaN values, or malformed lines")
+    print(f"From total {tot_files} files, {nan} sources found with all NaN values")
+    print(f"From total {tot_files} files, {malformed} sources found with malformed values")
