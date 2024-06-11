@@ -12,6 +12,7 @@
 #       $2 ~ end = SBIDS to examine (logfile is assumed to be in SBID/logs/out.log - if not, edit DEFAULTLOG)
 #
 DEFAULTLOG="logs/out.log"
+LONGFORM=true # Set to 'true' to get current components being worked on for each process
 
 ##########################################################################################
 SBIDARRAY=(${@:3})
@@ -20,7 +21,7 @@ range=$2
 minr=0
 maxr=$((range-1))
 not_started=()
-processes_running=()
+started=()
 cwd=$PWD
 cd $PARENTDIR
 
@@ -29,6 +30,7 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     echo "$SBID1: "
     LOGDIR=$SBID1/$DEFAULTLOG
     running=0
+    prelim=0
 
     var="$(grep -F 'End of CPU' $LOGDIR | awk '{print $4}')" 
 
@@ -41,24 +43,24 @@ for SBID1 in "${SBIDARRAY[@]}"; do
             var2="$(grep -A 1 "$str1" $LOGDIR | tail -1)"
             if [ -z "${var2}" ]
             then
-                not_started+=" $i"
+                prelim=$((prelim+1))
             else
-                echo "    CPU $i not finished: $var2"
+                if $LONGFORM; then
+                    echo "    CPU $i not finished: $var2"
+                fi
+                running=$((running+1))
             fi
-            running=$((running+1))
         fi
 
     done
 
     if [ ! $running == 0 ]
     then
+        
         echo "    $running of $range processes still running"
-        processes_running+="\n$SBID1: $running of $range processes still running"
-    fi
-
-    if [[ "${not_started[@]}" == 0 ]]
-    then
-        echo " CPU's not started: $not_started"
+        started+=(" $SBID1: $running of $range processes still running\n")
+    else
+        not_started+=($SBID1)
     fi
 
     var3="$(grep -F 'Linefinder took' $LOGDIR)"
@@ -71,16 +73,34 @@ for SBID1 in "${SBIDARRAY[@]}"; do
         else
             echo "    Linefinder has exited but not all processes finished!! "
         fi
+        not_started=("${not_started[@]/$SBID1}" )
     fi
     if [ -z "$var4" ] && [ ! -z "$var3" ]
     then
         echo "    Linefinder finished but SLURM has not exited correctly"
         echo "    You may need to manually scancel this SLURM job - see 'jobs_to_sbids.txt' to find SLURM job number"
+        not_started=("${not_started[@]/$SBID1}" )
     fi
 done
 
-for comment in "${processes_running[@]}"; do
-    echo -e "$comment\n"
+i=1
+lstart=${#started[@]}
+echo -e "\nRUNNING:\n"
+for j in ${!started[@]}; do
+    echo "$i: ${started[$j]}"
+    i=$((i+1))
 done
+echo
+
+i=1
+echo -e "NOT STARTED:\n"
+for j in ${!not_started[@]}; do
+    if [ ! -z ${not_started[$j]} ]
+    then
+        echo "$i: ${not_started[$j]}"
+        i=$((i+1))
+    fi
+done
+
 cd $cwd
 echo
