@@ -16,7 +16,7 @@ from casda_download import *
 #       This script deletes data held in the FLASH db at 146.118.64.208
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.04 06/05/2024
+#       version 1.05 06/06/2024
 #
 #       Edit USER SECTION below to define the type of operation
 
@@ -170,12 +170,12 @@ def check_sbids_in_db(conn):
 
 def check_db_detection_run(conn):
     # check the flashdb for any sbids that need to have the LINEFINDER run against them.
-    # This only checks Survey sbids (not pilot) and will check if any sbid with quality not 'REJECTED' or 'NOT_VALIDATED'
+    # This only checks Survey sbids (not pilot) and will check if any sbid with quality not 'BAD', 'REJECTED' or 'NOT_VALIDATED'
     # has not been processed by the linfinder
 
     sbids = []
     cur = get_cursor(conn)
-    query = "select sbid_num from sbid where quality not in ('NOT_VALIDATED','REJECTED') and detectionF = false and sbid_num > 43426 order by sbid_num;"
+    query = "select sbid_num from sbid where quality not in ('BAD','NOT_VALIDATED','REJECTED') and detectionF = false and sbid_num > 43426 order by sbid_num;"
     cur.execute(query,)
     result = cur.fetchall()
     for res in result:
