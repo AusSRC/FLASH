@@ -490,18 +490,18 @@ def get_results_for_sbid(cur,sbid,version,verbose=False):
     row_count = len(results)
     # Extract component id from results and get corresponding line from result_data
     results_dict = {}
+    notf = 0
     for result in results:
         comp_id = "component" + result[1].split("_component")[1].split(".")[0]
         results_dict[comp_id] = []
         found = False
-        notf = 1
         for line in result_data:
             if comp_id in line:
                 results_dict[comp_id].append(line)
                 found = True
         if not found:
-            print(f"{notf}: NOT FOUND! {comp_id}")
             notf += 1
+            print(f"{notf}: NOT FOUND! {comp_id}")
 
     if verbose: # detailed output is saved to file
         f = open(f"{DIR}/{sbid}_{version}_linefinder_outputs.csv","w")
