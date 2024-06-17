@@ -284,6 +284,7 @@ def get_files_for_sbid(conn,cur,sbid,version):
     elif MODE == "LINEFINDER":
         oid = None
         outputs = None
+        name = f"{sbid}_{version}.tar.gz"
         query = "select detectionF from sbid where id = %s"    
         cur.execute(query,(sid,))
         detect = cur.fetchone()[0]
@@ -291,33 +292,28 @@ def get_files_for_sbid(conn,cur,sbid,version):
             print(f"No linefinder results available for sbid {sbid}:{version} !!")
             return
         # The output files are normally stored as both a byte array AND a large object.
-        # If the byte array data exists, down load that in preference to the LOB, as it's more efficient:
-        query = "select detect_results from sbid where id = %s"
+        # If the LOB exists, down load that in preference to the byte array, as it's more efficient:
+        query = "select detect_tar from sbid where id = %s"
         cur.execute(query,(sid,))
-        outputs = cur.fetchone()[0]
-        if not outputs:
-            print("No outputs in bytea - reverting to LOB")
-            query = "select detect_tar from sbid where id = %s"
-            cur.execute(query,(sid,))
-            oid = cur.fetchone()[0]
-#        query = "select detect_tar from sbid where id = %s"
-#        cur.execute(query,(sid,))
-#        oid = cur.fetchone()[0]
-        if not outputs and not oid:
-            print(f"Linefinder was run, but no results stored in db for sbid {sbid}:{version} !!")
-            return
-        name = f"{sbid}_{version}.tar.gz"
+        oid = cur.fetchone()[0]
         if oid:
             print(f"Retrieving large object {oid} from db")
             loaded_lob = conn.lobject(oid=oid, mode="rb")
-            # This may run out of mem for a very large object:
-            #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
-            # So use streaming function:
-            write_lob(loaded_lob,f"{dir_download}/{name}")
+            # This may run out of mem for a very large object, but is 4x quicker than streaming:
+            open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
+            # Use streaming function if very large obj:
+            #write_lob(loaded_lob,f"{dir_download}/{name}")
             loaded_lob.close()
         else:
-            print(f"Retrieving byte array from db")
-            open(f"{dir_download}/{name}", 'wb').write(outputs)
+            print(f"No LOB found - retrieving byte array from db")
+            query = "select detect_results from sbid where id = %s"
+            cur.execute(query,(sid,))
+            outputs = cur.fetchone()[0]
+            if outputs:
+                open(f"{dir_download}/{name}", 'wb').write(outputs)
+            else:
+                print(f"Linefinder was run, but no results stored in db for sbid {sbid}:{version} !!")
+                return
             
         print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
 
