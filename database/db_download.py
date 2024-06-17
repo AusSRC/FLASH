@@ -3,7 +3,7 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.12 17/05/2024
+#       version 1.13 17/06/2024
 #######################################################################################
 import os
 import sys
@@ -282,26 +282,43 @@ def get_files_for_sbid(conn,cur,sbid,version):
         return name
 
     elif MODE == "LINEFINDER":
+        oid = None
+        outputs = None
         query = "select detectionF from sbid where id = %s"    
         cur.execute(query,(sid,))
         detect = cur.fetchone()[0]
         if not detect:
             print(f"No linefinder results available for sbid {sbid}:{version} !!")
             return
-        query = "select detect_tar from sbid where id = %s"
+        # The output files are normally stored as both a byte array AND a large object.
+        # If the byte array data exists, down load that in preference to the LOB, as it's more efficient:
+        query = "select detect_results from sbid where id = %s"
         cur.execute(query,(sid,))
-        oid = cur.fetchone()[0]
-        if not oid:
+        outputs = cur.fetchone()[0]
+        if not outputs:
+            print("No outputs in bytea - reverting to LOB")
+            query = "select detect_tar from sbid where id = %s"
+            cur.execute(query,(sid,))
+            oid = cur.fetchone()[0]
+#        query = "select detect_tar from sbid where id = %s"
+#        cur.execute(query,(sid,))
+#        oid = cur.fetchone()[0]
+        if not outputs and not oid:
             print(f"Linefinder was run, but no results stored in db for sbid {sbid}:{version} !!")
             return
-        print(f"Retrieving large object {oid} from db")
-        loaded_lob = conn.lobject(oid=oid, mode="rb")
         name = f"{sbid}_{version}.tar.gz"
-        # This may run out of mem for a very large object:
-        #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
-        # So use streaming function:
-        write_lob(loaded_lob,f"{dir_download}/{name}")
-        loaded_lob.close()
+        if oid:
+            print(f"Retrieving large object {oid} from db")
+            loaded_lob = conn.lobject(oid=oid, mode="rb")
+            # This may run out of mem for a very large object:
+            #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
+            # So use streaming function:
+            write_lob(loaded_lob,f"{dir_download}/{name}")
+            loaded_lob.close()
+        else:
+            print(f"Retrieving byte array from db")
+            open(f"{dir_download}/{name}", 'wb').write(outputs)
+            
         print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
 
         return name
@@ -455,7 +472,11 @@ def get_results_for_sbid(cur,sbid,version,verbose=False):
     detect_runid = int(res)
     query = "select results from detect_run where id = %s;"
     cur.execute(query,(detect_runid,))
-    result_data = cur.fetchone()[0].split('\n')
+    try:
+        result_data = cur.fetchone()[0].split('\n')
+    except TypeError:
+        print(f"Output data = 0 for sbid {sbid}:{version}!")
+        return 
 
     # Get the pointing field for the sbid:
     query = "select pointing from sbid where id = %s;"
