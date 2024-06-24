@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FLASHDB</title>
+    <style>
+        div {
+	    	border: 2px solid black;
+	    	padding: 4px;
+	}
+	div.slim {
+		border: 0;
+		padding: 0;
+	}
+	table, th, td {
+		border: 1px solid black;
+		border-collapse: collapse;
+		margin-left: auto;
+		margin-right: auto;
+	}
+	.fixed {
+		position:fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+	}
+
+
+    </style>
+</head>
+<body>
+	<div class="fixed" style="background-color:aquamarine;">
+	<H1 style="text-align: center;">FLASH Database Query Result</H1>
+	{% load static %}
+	<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
+	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
+	<p style="text-align: center;"> Query for SBID = {{ sbid }}</p>
+	<p  style="text-align: center;"> Number of Components (sources): <strong>{{ num_sources }}</strong> </p>
+	<form action="http://146.118.64.208:8000/db_query">
+		<input type="submit" value="Return to Main page"/>
+	</form>
+	</div>
+	<div class="slim" style="position:relative; top: 180px; left:200px; right: 200px;">
+	
+	<table style="background-color:white">
+	    <thead>
+		<tr>
+		    <th>FLUX</th>
+		    <th>OPD</th>
+		</tr>
+	    </thead>
+	    <tbody>
+		{% for source in sources %}
+		<tr>
+		<td>
+			<p style="text-align: center;"><b>ra:</b> {{ source.2.0 }} <b>dec:</b> {{ source.2.1 }} View in <a href="https://chad.aussrc.org?ra={{ source.2.0 }}&dec={{ source.2.1 }}">CHAD</a></p>
+			<img src="{% static source.0 %}" alt="Flux_img"  style="position:relative; left:0; right:0;" width="600" height="1000"></td>
+		<td>
+			<p style="text-align: center;"><b>ra:</b> {{ source.2.0 }} <b>dec:</b> {{ source.2.1 }}</p>
+			<img src="{% static source.1 %}" alt="opd_img"  style="position:relative; left:0; right:0;" width="600" height="1000"></td>
+		</tr>
+		{% endfor %}
+	    </tbody>
+	</table>
+	<p  style="text-align: center;"> <a href="{% static tarball %}" download>Download</a> the sources in a tar archive</p>
+	</div>
+
+</body>
+</html>

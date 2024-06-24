@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FLASHDB</title>
+    <style>
+        div {
+	    	border: 2px solid black;
+	    	padding: 4px;
+	}
+	table, th, td {
+		border: 1px solid black;
+		border-collapse: collapse;
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+
+    </style>
+</head>
+<body>
+	<div style="background-color:aquamarine;">
+	<H1 style="text-align: center;">FLASH Database Query Result</H1>
+	{% load static %}
+	<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
+	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
+	<p style="text-align: center;"> Query for SBID = {{ sbid }}</p>
+	<p  style="text-align: center;"> Total number of records returned: <strong> {{ num_rows }} </strong> </p>
+	</div>
+	<div>
+	<table>
+	    <thead>
+		<tr>
+		    <th>date</th>
+		    <th>sbid</th>
+		    <th>Ver</th>
+		    <th>Quality</th>
+		    <th>Tag</th>
+		    <th>detection</th>
+			<th>Field</th><th/>
+		    <th>Comment</th>
+		</tr>
+	    </thead>
+	    <tbody>
+		{% for row in rows %}
+		<tr>
+		    <td>{{ row.0 }}</td>
+		    <td style="text-align: center;"><b>{{ row.1 }}</b></td>
+		    <td style="text-align: center;">{{ row.2 }}</td>
+		    <td style="text-align: center;"><i>{{ row.3 }}</i></td>
+		    <td style="text-align: center;">{{ row.4 }}</td>
+		    <td style="text-align: center;">{{ row.5 }}</td>
+		    <td>{{ row.6 }}</td><td/>
+		    <td>{{ row.7 }}</td>
+		</tr>
+		{% empty %}
+		<tr>
+		    <td colspan="2">No rows found.</td>
+		</tr>
+		{% endfor %}
+	    </tbody>
+	</table>
+	</div>
+	<form action="http://146.118.64.208:8000/db_query">
+		<input type="submit" value="Return to Main page"/>
+	</form>
+
+</body>
+</html>

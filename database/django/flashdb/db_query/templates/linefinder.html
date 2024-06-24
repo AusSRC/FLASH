@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FLASHDB</title>
+    <style>
+        div {
+	    	border: 2px solid black;
+	    	padding: 4px;
+	}
+	div.slim {
+		border: 0;
+		padding: 0;
+	}
+	table, th, td {
+		border: 1px solid black;
+		border-collapse: collapse;
+		margin-left: auto;
+		margin-right: auto;
+	}
+	.fixed {
+		position:fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+	}
+
+    </style>
+</head>
+<body>
+	<div class="fixed" style="background-color:aquamarine;">
+	<H1 style="text-align: center;">FLASH Database Linefinder Results</H1>
+	{% load static %}
+	<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
+	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
+	<p style="text-align: center;"> Query for SBID = {{ sbid }}, ln_mean cutoff = {{ lmean }}</p>
+	<p  style="text-align: center;"> Total number of records returned: <strong> {{ num_outs }} </strong> </p>
+	<form action="http://146.118.64.208:8000/db_query">
+		<input type="submit" value="Return to Main page"/>
+	</form>
+
+	</div>
+	<div class="slim" style="position:relative; top: 180px; left:200px; right: 200px;">
+	<table style="background-color:white">
+	    <thead>
+		<tr>
+		    <th>component name</th>
+		    <th>component (source) id</th>
+		    <th>ra_hms_cont</th>
+		    <th>dec_dms_cont</th>
+		    <th>ra_deg_cont</th>
+		    <th>dec_deg</th>
+		    <th>modenum</th>
+		    <th>ln_mean value</th>
+		    <th>Pointing FIELD</th>
+		</tr>
+	    </thead>
+	    <tbody>
+		{% for output in outputs %}
+		<tr>
+			<td>{{ output.0  }}</td>
+			<td style="text-align: center;"><i>{{ output.1  }}</i></td>
+			<td>{{ output.2  }}</td>
+			<td>{{ output.3  }}</td>
+			<td>{{ output.4  }}</td>
+			<td>{{ output.5  }}</td>
+			<td style="text-align: center;">{{ output.6  }}</td>
+			<td style="text-align: center;">{{ output.7  }}</td>
+			<td style="text-align: center;">{{ output.8  }}</td>
+		</tr>
+		{% empty %}
+		<tr>
+		    <td colspan="2">No rows found.</td>
+		</tr>
+		{% endfor %}
+	    </tbody>
+	</table>
+	<p  style="text-align: center;"> <a href="{% static tarball %}" download>Download</a> the complete linefinder results in a tar archive</p>
+	</div>
+</body>
+</html>

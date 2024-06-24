@@ -1,0 +1,419 @@
+Performing system checks...
+
+System check identified no issues (0 silenced).
+June 22, 2024 - 04:39:53
+Django version 5.0, using settings 'flashdb.settings'
+Starting development server at http://146.118.64.208:8000/
+Quit the server with CONTROL-C.
+
+Got REVERSE = None, order = lnmean
+Got REVERSE = None, order = lnmean
+Got REVERSE = None, order = lnmean
+1: NOT FOUND! component_328a
+2: NOT FOUND! component_347a
+3: NOT FOUND! component_371a
+4: NOT FOUND! component_7a
+5: NOT FOUND! component_62a
+6: NOT FOUND! component_4a
+7: NOT FOUND! component_270b
+Got REVERSE = None, order = lnmean
+ERROR - 62823 not in detection table
+No linefinder results available for sbid 62823:1 !!
+Got REVERSE = True, order = SBID
+Got REVERSE = True, order = date
+Got REVERSE = True, order = SBID
+Got REVERSE = None, order = lnmean
+ERROR - 62632 not in detection table
+No linefinder results available for sbid 62632:1 !!
+Performing system checks...
+
+System check identified no issues (0 silenced).
+June 22, 2024 - 09:23:58
+Django version 5.0, using settings 'flashdb.settings'
+Starting development server at http://146.118.64.208:8000/
+Quit the server with CONTROL-C.
+
+Got REVERSE = None, order = lnmean
+ERROR - 62632 not in detection table
+No linefinder results available for sbid 62632:1 !!
+Got REVERSE = True, order = SBID
+Got REVERSE = None, order = comp
+Got REVERSE = None, order = lnmean
+ERROR - 62823 not in detection table
+No linefinder results available for sbid 62823:1 !!
+Got REVERSE = None, order = lnmean
+Performing system checks...
+
+System check identified no issues (0 silenced).
+June 23, 2024 - 02:34:13
+Django version 5.0, using settings 'flashdb.settings'
+Starting development server at http://146.118.64.208:8000/
+Quit the server with CONTROL-C.
+
+Performing system checks...
+
+System check identified no issues (0 silenced).
+June 23, 2024 - 02:36:42
+Django version 5.0, using settings 'flashdb.settings'
+Starting development server at http://146.118.64.208:8000/
+Quit the server with CONTROL-C.
+
+Performing system checks...
+
+spec_SB59994_component_1a_flux.png
+spec_SB59994_component_1a_opd.png
+spec_SB59994_component_1b_flux.png
+spec_SB59994_component_1b_opd.png
+spec_SB59994_component_1c_flux.png
+spec_SB59994_component_1c_opd.png
+spec_SB59994_component_2a_flux.png
+spec_SB59994_component_2a_opd.png
+Performing system checks...
+
+System check identified no issues (0 silenced).
+June 23, 2024 - 02:51:10
+Django version 5.0, using settings 'flashdb.settings'
+Starting development server at http://146.118.64.208:8000/
+Quit the server with CONTROL-C.
+
+spec_SB59994_component_1a_flux.png
+spec_SB59994_component_1a_opd.png
+spec_SB59994_component_1b_flux.png
+spec_SB59994_component_1b_opd.png
+spec_SB59994_component_1c_flux.png
+spec_SB59994_component_1c_opd.png
+spec_SB59994_component_2a_flux.png
+spec_SB59994_component_2a_opd.png
+spec_SB59994_component_1a_flux.png
+spec_SB59994_component_1a_opd.png
+spec_SB59994_component_1b_flux.png
+spec_SB59994_component_1b_opd.png
+spec_SB59994_component_1c_flux.png
+spec_SB59994_component_1c_opd.png
+spec_SB59994_component_2a_flux.png
+spec_SB59994_component_2a_opd.png
+spec_SB59994_component_1a_flux.png
+spec_SB59994_component_1a_opd.png
+spec_SB59994_component_1b_flux.png
+spec_SB59994_component_1b_opd.png
+spec_SB59994_component_1c_flux.png
+spec_SB59994_component_1c_opd.png
+spec_SB59994_component_2a_flux.png
+spec_SB59994_component_2a_opd.png
+spec_SB59994_component_1a_flux.png
+spec_SB59994_component_1a_opd.png
+spec_SB59994_component_1b_flux.png
+spec_SB59994_component_1b_opd.png
+spec_SB59994_component_1c_flux.png
+spec_SB59994_component_1c_opd.png
+spec_SB59994_component_2a_flux.png
+spec_SB59994_component_2a_opd.png
+spec_SB59994_component_1a_flux.png
+spec_SB59994_component_1a_opd.png
+spec_SB59994_component_1b_flux.png
+spec_SB59994_component_1b_opd.png
+spec_SB59994_component_1c_flux.png
+spec_SB59994_component_1c_opd.png
+spec_SB59994_component_2a_flux.png
+spec_SB59994_component_2a_opd.png
+spec_SB59994_component_1a_flux.png
+spec_SB59994_component_1a_opd.png
+spec_SB59994_component_1b_flux.png
+spec_SB59994_component_1b_opd.png
+spec_SB59994_component_1c_flux.png
+spec_SB59994_component_1c_opd.png
+spec_SB59994_component_2a_flux.png
+spec_SB59994_component_2a_opd.png
+spec_SB59994_component_1a_flux.png
+spec_SB59994_component_1a_opd.png
+spec_SB59994_component_1b_flux.png
+spec_SB59994_component_1b_opd.png
+spec_SB59994_component_1c_flux.png
+spec_SB59994_component_1c_opd.png
+spec_SB59994_component_2a_flux.png
+spec_SB59994_component_2a_opd.png
+spec_SB59994_component_3a_flux.png
+spec_SB59994_component_3a_opd.png
+spec_SB59994_component_4a_flux.png
+spec_SB59994_component_4a_opd.png
+spec_SB59994_component_5a_flux.png
+spec_SB59994_component_5a_opd.png
+spec_SB59994_component_6a_flux.png
+spec_SB59994_component_6a_opd.png
+spec_SB59994_component_7a_flux.png
+spec_SB59994_component_7a_opd.png
+spec_SB59994_component_8a_flux.png
+spec_SB59994_component_8a_opd.png
+spec_SB59994_component_9a_flux.png
+spec_SB59994_component_9a_opd.png
+spec_SB62811_component_10a_flux.png
+spec_SB62811_component_10a_opd.png
+spec_SB62811_component_10b_flux.png
+spec_SB62811_component_10b_opd.png
+spec_SB62811_component_1a_flux.png
+spec_SB62811_component_1a_opd.png
+spec_SB62811_component_2a_flux.png
+spec_SB62811_component_2a_opd.png
+spec_SB62811_component_2b_flux.png
+spec_SB62811_component_2b_opd.png
+spec_SB62811_component_2c_flux.png
+spec_SB62811_component_2c_opd.png
+spec_SB62811_component_2d_flux.png
+spec_SB62811_component_2d_opd.png
+spec_SB62811_component_2e_flux.png
+spec_SB62811_component_2e_opd.png
+spec_SB62811_component_3a_flux.png
+spec_SB62811_component_3a_opd.png
+spec_SB62811_component_4a_flux.png
+spec_SB62811_component_4a_opd.png
+spec_SB62811_component_5a_flux.png
+spec_SB62811_component_5a_opd.png
+spec_SB62811_component_5b_flux.png
+spec_SB62811_component_5b_opd.png
+spec_SB62811_component_6a_flux.png
+spec_SB62811_component_6a_opd.png
+spec_SB62811_component_7a_flux.png
+spec_SB62811_component_7a_opd.png
+spec_SB62811_component_8a_flux.png
+spec_SB62811_component_8a_opd.png
+spec_SB62811_component_9a_flux.png
+spec_SB62811_component_9a_opd.png
+spec_SB62811_component_9b_flux.png
+spec_SB62811_component_9b_opd.png
+spec_SB62810_component_10a_flux.png
+spec_SB62810_component_10a_opd.png
+spec_SB62810_component_1a_flux.png
+spec_SB62810_component_1a_opd.png
+spec_SB62810_component_2a_flux.png
+spec_SB62810_component_2a_opd.png
+spec_SB62810_component_3a_flux.png
+spec_SB62810_component_3a_opd.png
+spec_SB62810_component_4a_flux.png
+spec_SB62810_component_4a_opd.png
+spec_SB62810_component_4b_flux.png
+spec_SB62810_component_4b_opd.png
+spec_SB62810_component_4c_flux.png
+spec_SB62810_component_4c_opd.png
+spec_SB62810_component_5a_flux.png
+spec_SB62810_component_5a_opd.png
+spec_SB62810_component_6a_flux.png
+spec_SB62810_component_6a_opd.png
+spec_SB62810_component_6b_flux.png
+spec_SB62810_component_6b_opd.png
+spec_SB62810_component_7a_flux.png
+spec_SB62810_component_7a_opd.png
+spec_SB62810_component_8a_flux.png
+spec_SB62810_component_8a_opd.png
+spec_SB62810_component_9a_flux.png
+spec_SB62810_component_9a_opd.png
+spec_SB62810_component_9b_flux.png
+spec_SB62810_component_9b_opd.png
+spec_SB62810_component_9c_flux.png
+spec_SB62810_component_9c_opd.png
+spec_SB62810_component_9d_flux.png
+spec_SB62810_component_9d_opd.png
+spec_SB62809_component_10a_flux.png
+spec_SB62809_component_10a_opd.png
+spec_SB62809_component_1a_flux.png
+spec_SB62809_component_1a_opd.png
+spec_SB62809_component_1b_flux.png
+spec_SB62809_component_1b_opd.png
+spec_SB62809_component_1c_flux.png
+spec_SB62809_component_1c_opd.png
+spec_SB62809_component_1d_flux.png
+spec_SB62809_component_1d_opd.png
+spec_SB62809_component_1e_flux.png
+spec_SB62809_component_1e_opd.png
+spec_SB62809_component_2a_flux.png
+spec_SB62809_component_2a_opd.png
+spec_SB62809_component_3a_flux.png
+spec_SB62809_component_3a_opd.png
+spec_SB62809_component_4a_flux.png
+spec_SB62809_component_4a_opd.png
+spec_SB62809_component_5a_flux.png
+spec_SB62809_component_5a_opd.png
+spec_SB62809_component_5b_flux.png
+spec_SB62809_component_5b_opd.png
+spec_SB62809_component_5c_flux.png
+spec_SB62809_component_5c_opd.png
+spec_SB62809_component_5d_flux.png
+spec_SB62809_component_5d_opd.png
+spec_SB62809_component_5e_flux.png
+spec_SB62809_component_5e_opd.png
+spec_SB62809_component_5f_flux.png
+spec_SB62809_component_5f_opd.png
+spec_SB62809_component_5g_flux.png
+spec_SB62809_component_5g_opd.png
+spec_SB62809_component_6a_flux.png
+spec_SB62809_component_6a_opd.png
+spec_SB62809_component_7a_flux.png
+spec_SB62809_component_7a_opd.png
+spec_SB62809_component_8a_flux.png
+spec_SB62809_component_8a_opd.png
+spec_SB62809_component_8b_flux.png
+spec_SB62809_component_8b_opd.png
+spec_SB62809_component_9a_flux.png
+spec_SB62809_component_9a_opd.png
+spec_SB62809_component_9b_flux.png
+spec_SB62809_component_9b_opd.png
+spec_SB60306_component_10a_flux.png
+spec_SB60306_component_10a_opd.png
+spec_SB60306_component_1a_flux.png
+spec_SB60306_component_1a_opd.png
+spec_SB60306_component_2a_flux.png
+spec_SB60306_component_2a_opd.png
+spec_SB60306_component_3a_flux.png
+spec_SB60306_component_3a_opd.png
+spec_SB60306_component_4a_flux.png
+spec_SB60306_component_4a_opd.png
+spec_SB60306_component_5a_flux.png
+spec_SB60306_component_5a_opd.png
+spec_SB60306_component_6a_flux.png
+spec_SB60306_component_6a_opd.png
+spec_SB60306_component_7a_flux.png
+spec_SB60306_component_7a_opd.png
+spec_SB60306_component_7b_flux.png
+spec_SB60306_component_7b_opd.png
+spec_SB60306_component_8a_flux.png
+spec_SB60306_component_8a_opd.png
+spec_SB60306_component_8b_flux.png
+spec_SB60306_component_8b_opd.png
+spec_SB60306_component_9a_flux.png
+spec_SB60306_component_9a_opd.png
+spec_SB60306_component_10a_flux.png
+spec_SB60306_component_10a_opd.png
+spec_SB60306_component_11a_flux.png
+spec_SB60306_component_11a_opd.png
+spec_SB60306_component_12a_flux.png
+spec_SB60306_component_12a_opd.png
+spec_SB60306_component_12b_flux.png
+spec_SB60306_component_12b_opd.png
+spec_SB60306_component_12c_flux.png
+spec_SB60306_component_12c_opd.png
+spec_SB60306_component_13a_flux.png
+spec_SB60306_component_13a_opd.png
+spec_SB60306_component_14a_flux.png
+spec_SB60306_component_14a_opd.png
+spec_SB60306_component_15a_flux.png
+spec_SB60306_component_15a_opd.png
+spec_SB60306_component_16a_flux.png
+spec_SB60306_component_16a_opd.png
+spec_SB60306_component_16b_flux.png
+spec_SB60306_component_16b_opd.png
+spec_SB60306_component_17a_flux.png
+spec_SB60306_component_17a_opd.png
+spec_SB60306_component_18a_flux.png
+spec_SB60306_component_18a_opd.png
+spec_SB60306_component_19a_flux.png
+spec_SB60306_component_19a_opd.png
+spec_SB60306_component_1a_flux.png
+spec_SB60306_component_1a_opd.png
+spec_SB60306_component_20a_flux.png
+spec_SB60306_component_20a_opd.png
+spec_SB60306_component_21a_flux.png
+spec_SB60306_component_21a_opd.png
+spec_SB60306_component_21b_flux.png
+spec_SB60306_component_21b_opd.png
+spec_SB60306_component_22a_flux.png
+spec_SB60306_component_22a_opd.png
+spec_SB60306_component_22b_flux.png
+spec_SB60306_component_22b_opd.png
+spec_SB60306_component_23a_flux.png
+spec_SB60306_component_23a_opd.png
+spec_SB60306_component_24a_flux.png
+spec_SB60306_component_24a_opd.png
+spec_SB60306_component_25a_flux.png
+spec_SB60306_component_25a_opd.png
+spec_SB60306_component_26a_flux.png
+spec_SB60306_component_26a_opd.png
+spec_SB60306_component_27a_flux.png
+spec_SB60306_component_27a_opd.png
+spec_SB60306_component_28a_flux.png
+spec_SB60306_component_28a_opd.png
+spec_SB60306_component_28b_flux.png
+spec_SB60306_component_28b_opd.png
+spec_SB60306_component_28c_flux.png
+spec_SB60306_component_28c_opd.png
+spec_SB60306_component_29a_flux.png
+spec_SB60306_component_29a_opd.png
+spec_SB60306_component_2a_flux.png
+spec_SB60306_component_2a_opd.png
+spec_SB60306_component_30a_flux.png
+spec_SB60306_component_30a_opd.png
+spec_SB60306_component_3a_flux.png
+spec_SB60306_component_3a_opd.png
+spec_SB60306_component_4a_flux.png
+spec_SB60306_component_4a_opd.png
+spec_SB60306_component_5a_flux.png
+spec_SB60306_component_5a_opd.png
+spec_SB60306_component_6a_flux.png
+spec_SB60306_component_6a_opd.png
+spec_SB60306_component_7a_flux.png
+spec_SB60306_component_7a_opd.png
+spec_SB60306_component_7b_flux.png
+spec_SB60306_component_7b_opd.png
+spec_SB60306_component_8a_flux.png
+spec_SB60306_component_8a_opd.png
+spec_SB60306_component_8b_flux.png
+spec_SB60306_component_8b_opd.png
+spec_SB60306_component_9a_flux.png
+spec_SB60306_component_9a_opd.png
+Performing system checks...
+
+System check identified no issues (0 silenced).
+June 23, 2024 - 02:54:33
+Django version 5.0, using settings 'flashdb.settings'
+Starting development server at http://146.118.64.208:8000/
+Quit the server with CONTROL-C.
+
+Got REVERSE = True, order = SBID
+Got REVERSE = True, order = SBID
+Got REVERSE = None, order = comp
+1: NOT FOUND! component_270b
+2: NOT FOUND! component_328a
+3: NOT FOUND! component_347a
+4: NOT FOUND! component_371a
+5: NOT FOUND! component_4a
+6: NOT FOUND! component_62a
+7: NOT FOUND! component_7a
+Got REVERSE = None, order = comp
+Got REVERSE = None, order = comp
+ERROR - 62811 not in detection table
+No linefinder results available for sbid 62811:1 !!
+Got REVERSE = None, order = comp
+ERROR - 62811 not in detection table
+No linefinder results available for sbid 62811:1 !!
+Got REVERSE = None, order = comp
+Got REVERSE = None, order = lnmean
+Got REVERSE = None, order = lnmean
+Got REVERSE = None, order = lnmean
+Got REVERSE = None, order = lnmean
+ERROR - 62499 not in detection table
+No linefinder results available for sbid 62499:1 !!
+Got REVERSE = None, order = lnmean
+Got REVERSE = None, order = comp
+Got REVERSE = None, order = lnmean
+Got REVERSE = None, order = lnmean
+Got REVERSE = None, order = lnmean
+Got REVERSE = True, order = SBID
+Got REVERSE = True, order = SBID
+Got REVERSE = True, order = SBID
+Got REVERSE = True, order = SBID
+Got REVERSE = True, order = SBID
+Got REVERSE = True, order = SBID
+Got REVERSE = True, order = SBID
+Got REVERSE = True, order = SBID
+Got REVERSE = True, order = SBID
+Got REVERSE = True, order = SBID
+spec_SB51443_component_1a_flux.png
+spec_SB51443_component_1a_opd.png
+spec_SB51443_component_1b_flux.png
+spec_SB51443_component_1b_opd.png
+spec_SB51443_component_2a_flux.png
+spec_SB51443_component_2a_opd.png
+spec_SB51443_component_1a_flux.png
+spec_SB51443_component_1a_opd.png
+spec_SB51443_component_1b_flux.png
+spec_SB51443_component_1b_opd.png
+spec_SB51443_component_2a_flux.png
+spec_SB51443_component_2a_opd.png

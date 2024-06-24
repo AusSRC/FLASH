@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FLASHDB</title>
+    <style>
+        div {
+	    	border: 2px solid black;
+	    	padding: 4px;
+	}
+	table, th, td {
+		border: 1px solid black;
+		border-collapse: collapse;
+	}
+
+    </style>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+	<script>
+		$(document).ready(function() {
+			$("input[name$='query_type']").click(function() {
+				var test = $(this).val();
+
+				$("div.desc").hide();
+				$("#db" + test).show();
+			});
+		});
+		function showpass() {
+			var x = document.getElementById("pass");
+			if (x.type == "password") {
+				x.type = "text";
+			} else {
+				x.type = "password";
+			}
+		}
+		function empty() {
+		    var x;
+		    x = document.getElementById("pass").value;
+		    if (x == "") {
+			alert("Enter a Valid password");
+			return false;
+		    };
+		}
+
+	</script>
+</head>
+<body style="background-color:aquamarine;">
+	<div>
+	<H1 style="text-align: center;">Welcome to the FLASH database at AusSRC</H1>
+	{% load static %}
+	<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
+	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
+	<p style="text-align: center;">Total number of sbids in DB = {{ records }}</p>
+	<p style="text-align: center;">Pilot 1 sbids in DB = {{ pilot1 }} ({{ rpilot1 }} rejected)</p>
+	<p style="text-align: center;">Pilot 2 sbids in DB = {{ pilot2 }} ({{ rpilot2 }} rejected)</p>
+	<p style="text-align: center;">Survey sbids in DB = {{ survey }} ({{ rsurvey }} rejected, {{ unvalid }} unvalidated)</p>
+	</div>
+	<form action=/db_query/query_database/ method="post">
+		{% csrf_token %}
+		<label for="pass">Enter DB password:</label><br>
+		<input type="password" id="pass" name="pass"> 
+		<input type="checkbox" onclick="showpass()">Show password<br>
+		<p>Select query type:</p>
+		<input type="radio" id="query" name="query_type" value="QUERY">
+		<label for="query">Query sbids in DB</label><br>
+		<input type="radio" id="linefinder" name="query_type" value="LINEFINDER">
+		<label for="linefinder">Get linefinder outputs</label><br>
+		<input type="radio" id="source" name="query_type" value="SOURCE">
+		<label for="source">Get plots for source</label><br>
+
+		<div id="dbQUERY" class="desc" style="display: none;">
+			<p>QUERY the database - this will display metadata on an sbid</p>
+			<label for="sbid_query">Enter integer for SBID to query ('-1' for all sbids):</label><br>
+			<input type="text" id="sbid1" name="sbid_query"><br>
+			<input type="radio" id="order1" name="order" checked="checked" value="SBID">
+			<label for="order1">Order by SBID</label><br>
+			<input type="radio" id="order2" name="order" value="date">
+			<label for="order2">Order by date</label><br>
+			<input type="radio" id="order3" name="order" value="pointing">
+			<label for="order3">Order by pointing FIELD</label><br>
+			<input type="checkbox" id="reverse1" name="reverse1">Reverse sort order
+		</div>
+
+		<div id="dbLINEFINDER" class="desc" style="display: none;">
+			<p>Get linefinder outputs</p>
+			<label for="sbid_line">Enter integer for SBID to query:</label><br>
+			<input type="text" id="sbid2" name="sbid_line"><br>
+			<label for="mean">Enter integer for ln_mean cutoff ('-1' for all values):</label><br>
+			<input type="text" id="mean" name="mean"><br>
+			<input type="radio" id="order4" name="lorder" checked="checked" value="lnmean">
+			<label for="order4">Order by ln_mean</label><br>
+			<input type="radio" id="order5" name="lorder" value="comp">
+			<label for="order5">Order by comp_id</label><br>
+			<input type="checkbox" id="reverse2" name="reverse2">Reverse sort order
+		</div>
+		<div id="dbSOURCE" class="desc" style="display: none;">
+			<p>Get plots for individual source, or <i>n</i> brightest sources</p>
+			<label for="sbid_source">Enter integer for SBID to query:</label><br>
+			<input type="text" id="sbid3" name="sbid_source"><br>
+			<label for="comp">Enter source number (eg: 25a):</label> <strong>OR</strong>
+			<label for="comp1">Enter number of bright components to show (eg: 10):</label><br>
+			source_id <input type="text" id="comp" name="comp"> OR brightest 
+			<input type="text" id="bright" name="bright">sources<br>
+		</div>
+
+
+		<input type="submit" value="Submit" onClick="return empty()" />
+	</form>
+</body>
+</html>
