@@ -5,6 +5,24 @@
     <title>{% block title %} CHAD {% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     {% block stylesheets %} {% endblock %}
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+    function getParams() {
+	var idx = document.URL.indexOf('?');
+	var params = new Array();
+	if (idx != -1) {
+		var pairs = document.URL.substring(idx+1, document.URL.length).split('&');
+		for (var i=0; i<pairs.length; i++) {
+			nameVal = pairs[i].split('=');
+			params[nameVal[0]] = nameVal[1];
+   		}
+	}
+	return params;
+    }
+    params = getParams();
+
+
+    </script> 
 </head>
 <body>
     <header>
