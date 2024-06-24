@@ -235,7 +235,11 @@ def createDataDict(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH
         if RUN_TYPE != "DETECTION":
             # Get the name of the SourceSpectra tarball, so we can extract the pointing field value
             sspectraname = [f for f in os.listdir(f'{data_path}/{sbid}') if f.startswith("SourceSpectra-image")][0]
-            pointing_field = "FLASH_" + sspectraname.split("FLASH_")[1].split(".")[0]
+            try:
+                pointing_field = "FLASH_" + sspectraname.split("FLASH_")[1].split(".")[0]
+            except IndexError:
+                # No field data in name
+                pointing_field = "Unknown"
             print(f'{sbid} pointing field = {pointing_field}')
         try:
             output_files = [f for f in os.listdir(output_path)]
