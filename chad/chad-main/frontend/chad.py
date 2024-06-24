@@ -43,7 +43,10 @@ def requires_auth(f):
 def home():
     tables = db.get_tables()
     tables = [table for table in tables if "racs" not in table]
-    return render_template("home.html", search_error = None, other_tables = tables)
+    # Get any url variables
+    ra = request.args.get('ra')
+    dec = request.args.get('dec')
+    return render_template("home.html", search_error = None, other_tables = tables, ra = ra, dec = dec)
 
 # Main landing page, with search error message
 @app.route('/error-<error>')
