@@ -9,4 +9,3 @@ ExecStart=/etc/chad/chad.sh
 
 [Install]
 WantedBy=multi-user.target
-
