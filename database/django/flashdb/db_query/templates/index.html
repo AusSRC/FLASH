@@ -12,6 +12,16 @@
 		border-collapse: collapse;
 	}
 
+	.dark-image {
+		border: 0px;
+		padding: 0px;
+	}
+	.dark-image img {
+		filter: brightness(50%);
+		width: 100%;
+		opacity: 1;
+	}
+
     </style>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 	<script>
@@ -53,6 +63,7 @@
 	<p style="text-align: center;">Pilot 2 sbids in DB = {{ pilot2 }} ({{ rpilot2 }} rejected)</p>
 	<p style="text-align: center;">Survey sbids in DB = {{ survey }} ({{ rsurvey }} rejected, {{ unvalid }} unvalidated)</p>
 	</div>
+	<div>
 	<form action=/db_query/query_database/ method="post">
 		{% csrf_token %}
 		<label for="pass">Enter DB password:</label><br>
@@ -104,5 +115,9 @@
 
 		<input type="submit" value="Submit" onClick="return empty()" />
 	</form>
+	</div>
+	<div class="dark-image">
+		<img src="{% static 'db_query/ASKAP_telescope.png' %}"/>
+	</div>
 </body>
 </html>

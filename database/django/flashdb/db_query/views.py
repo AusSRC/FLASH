@@ -71,7 +71,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,verbose=False):
     # args[3] = The sbid version you want to use - if a version is not declared ("45833" rather than "45833:2"),
     #           then use the latest version
     # args[4] = ln_mean cutoff - only sources with an ln_mean() value larger than this will be shown
-    #           Alternatively, supply a filename of a list of sources. Only those will be downloaded.
+    #           If no value is given, it will be set to 0.0
 
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
@@ -79,16 +79,8 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,verbose=False):
     # min val for ln_mean:
     try:
         ln_mean = float(LN_MEAN)
-        source_list = None
-    except ValueError: # a filename of sources was provided instead of ln_mean()
+    except ValueError: # No value given. Set to 0
         ln_mean = 0.0
-        source_list_path = LN_MEAN
-        source_list = []
-        with open(source_list_path,'r') as f:
-            for line in f.readlines():
-                name = line.strip().split("component_")[1].split("_")[0]
-                source_list.append("component_" + name)
-
     
     # Get the relevant results file from the detect_run table:
     query = "select detect_runid from sbid where id = %s;"
@@ -158,42 +150,22 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,verbose=False):
             print(f"{notf}: NOT FOUND! {comp_id}")
 
     if verbose: # detailed output is saved to file
-        #f = open(f"{DIR}/{sbid}_{version}_linefinder_outputs.csv","w")
         f = open(f"{sbid}_linefinder_outputs.csv","w")
         # we want From component table - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
         # From linefinder, all outputs except name: ModeNum x0_1_maxl dx_1_maxl y0_1_maxl abs_peakz_median abs_peakz_siglo abs_peakz_sighi abs_peakopd_median abs_peakopd_siglo abs_peakopd_sighi abs_intopd_median(km/s) abs_intopd_siglo(km/s) abs_intopd_sighi(km/s) abs_width_median(km/s) abs_width_siglo(km/s) abs_width_sighi(km/s) ln(B)_mean ln(B)_sigma chisq_mean chisq_sigma
         f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,x0_1_maxl,dx_1_maxl,y0_1_maxl,abs_peakz_median,abs_peakz_siglo,abs_peakz_sighi,abs_peakopd_median,abs_peakopd_siglo,abs_peakopd_sighi,abs_intopd_median(km/s),abs_intopd_siglo(km/s),abs_intopd_sighi(km/s),abs_width_median(km/s),abs_width_siglo(km/s),abs_width_sighi(km/s),ln(B)_mean,ln(B)_sigma,chisq_mean,chisq_sigma,field\n")
     #print()
     outputs = []
-    #print("component_name     comp_id   ra_hms_cont dec_dms_cont ra_deg_cont dec_deg mode ln_mean  FIELD")
     for result in results:
         comp_id = "component" + result[1].split("_component")[1].split(".")[0]
-        if source_list:
-            row_count = len(source_list)
-            for comp in source_list:
-                if comp in result[1]:
-                    if verbose:
-                        linefinder_data = results_dict[comp]
-                        for line in linefinder_data:
-                            vals = line.split()
-                            if float(vals[17]) > ln_mean:
-                                f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{vals[2]},{vals[3]},{vals[4]},{vals[5]},{vals[6]},{vals[7]},{vals[8]},{vals[9]},{vals[10]},{vals[11]},{vals[12]},{vals[13]},{vals[14]},{vals[15]},{vals[16]},{vals[17]},{vals[18]},{vals[19]},{vals[20]},{pointing}\n")
-                    # Summary to screen:
-                    #print(result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10],pointing)
-                    outputs.append([result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10],pointing])
-                    break
-        else:
-            if verbose:
-                comp= "component" + result[1].split("_component")[1].split(".")[0]
-                linefinder_data = results_dict[comp]
-                for line in linefinder_data:
-                    vals = line.split()
-                    if float(vals[17]) > ln_mean:
-                        f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{vals[2]},{vals[3]},{vals[4]},{vals[5]},{vals[6]},{vals[7]},{vals[8]},{vals[9]},{vals[10]},{vals[11]},{vals[12]},{vals[13]},{vals[14]},{vals[15]},{vals[16]},{vals[17]},{vals[18]},{vals[19]},{vals[20]},{pointing}\n")
-            # Summary to screen:
-            #print(result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10],pointing)
-            outputs.append([result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10],pointing])
-    #print(f"{row_count} rows")
+        if verbose:
+            comp= "component" + result[1].split("_component")[1].split(".")[0]
+            linefinder_data = results_dict[comp]
+            for line in linefinder_data:
+                vals = line.split()
+                if float(vals[17]) > ln_mean:
+                    f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{vals[2]},{vals[3]},{vals[4]},{vals[5]},{vals[6]},{vals[7]},{vals[8]},{vals[9]},{vals[10]},{vals[11]},{vals[12]},{vals[13]},{vals[14]},{vals[15]},{vals[16]},{vals[17]},{vals[18]},{vals[19]},{vals[20]},{pointing}\n")
+        outputs.append([result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10],pointing])
     if verbose:
         f.close()
     return outputs
