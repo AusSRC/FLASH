@@ -14,7 +14,7 @@ import db_utils as dbu
 #       Script to upload data to the FLASH database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.08 12/02/2024
+#       version 1.09 25/06/2024
 ##################################### USER SET VARIABLES ###################################################
 
 # For the below variables, set to "" if they don't apply.
@@ -187,7 +187,8 @@ def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
         database = db,
         user = user,
         password = password,
-        host = host
+        host = host,
+        port = 2095
     )
     #print(conn.get_dsn_parameters(),"\n")
     return conn

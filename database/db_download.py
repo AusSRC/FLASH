@@ -3,7 +3,7 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.13 17/06/2024
+#       version 1.14 25/06/2024
 #######################################################################################
 import os
 import sys
@@ -113,7 +113,8 @@ def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
         database = db,
         user = user,
         password = password,
-        host = host
+        host = host,
+        port = 2095
     )
     #print(conn.get_dsn_parameters(),"\n")
     return conn

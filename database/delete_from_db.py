@@ -16,7 +16,7 @@ from casda_download import *
 #       This script deletes data held in the FLASH db at 146.118.64.208
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.02 02/10/2023
+#       version 1.03 25/06/2024
 #
 #       Edit USER SECTION below to define the type of operation
 
@@ -93,7 +93,8 @@ def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
         database = db,
         user = user,
         password = password,
-        host = host
+        host = host,
+        port = 2095
     )
     #print(conn.get_dsn_parameters(),"\n")
     return conn
