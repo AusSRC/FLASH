@@ -35,6 +35,7 @@
 	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
 	<p style="text-align: center;"> Query for SBID = {{ sbid }}, ln_mean cutoff = {{ lmean }}</p>
 	<p  style="text-align: center;"> Total number of records returned: <strong> {{ num_outs }} </strong> </p>
+	<p  style="text-align: left;"> <a href="{% static tarball %}" download>Download</a> the complete linefinder results in a tar archive</p>
 	<form action="http://146.118.64.208:8000/db_query">
 		<input type="submit" value="Return to Main page"/>
 	</form>
@@ -75,7 +76,6 @@
 		{% endfor %}
 	    </tbody>
 	</table>
-	<p  style="text-align: center;"> <a href="{% static tarball %}" download>Download</a> the complete linefinder results in a tar archive</p>
 	</div>
 </body>
 </html>
