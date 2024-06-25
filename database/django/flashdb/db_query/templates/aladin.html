@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Aladin FLASHDB</title>
+    <style>
+        div {
+	    	border: 2px solid black;
+	    	padding: 4px;
+	}
+	div.slim {
+		border: 0;
+		padding: 0;
+	}
+	.fixed {
+		position:fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+	}
+    </style>
+
+</head>
+<body style="background-color:aquamarine;">
+	<div class="fixed" style="background-color:aquamarine;">
+	<H1 style="text-align: center;">FLASH Database Query Result</H1>
+	{% load static %}
+	<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
+	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
+	<p style="text-align: center;"> <strong><i>Query for SBID = {{ sbid }}</i></strong></p>
+	<p  style="text-align: center;"> Component (source): <strong>{{ comp }}</strong> </p>
+	<form action="http://146.118.64.208:8000/db_query">
+		<input type="submit" value="Return to Main page"/>
+	</form>
+	</div>
+	<div id="aladin-lite-div" style="position:relative;  top: 180px; left:20px; right: 200px; height: 900px"></div>
+	<script type="text/javascript" src="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js" charset="utf-8"></script>
+	<script type="text/javascript">
+	let aladin;
+	A.init.then(() => {
+				aladin = A.aladin('#aladin-lite-div', {survey: "P/allWISE/color", fov:10, target: "{{ ra }} {{ dec }}"});
+	});
+	</script>
+    </div>
+</body>
+</html>
+

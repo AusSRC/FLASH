@@ -40,7 +40,7 @@
 	</form>
 	</div>
 	<div class="slim" style="position:relative; top: 180px; left:200px; right: 200px;">
-	
+	{% load static %}
 	<table style="background-color:white">
 	    <thead>
 		<tr>
@@ -52,16 +52,27 @@
 		{% for source in sources %}
 		<tr>
 		<td>
-			<p style="text-align: center;"><b>ra:</b> {{ source.2.0 }} <b>dec:</b> {{ source.2.1 }} View in <a href="https://chad.aussrc.org?ra={{ source.2.0 }}&dec={{ source.2.1 }}" target="_blank">CHAD</a></p>
+			<p style="text-align: center;"><b>ra:</b> {{ source.2.0 }} <b>dec:</b> {{ source.2.1 }}</p> 
+			<p style="text-align: left;">View in <a href="https://chad.aussrc.org?ra={{ source.2.0 }}&dec={{ source.2.1 }}" target="_blank">CHAD</a>
+			<form action=/db_query/show_aladin/ method="post" target="_blank">
+			{% csrf_token %}
+				<input type="hidden" id="ra" name="ra" value={{ source.2.0 }}>
+				<input type="hidden" id="dec" name="dec" value={{ source.2.1 }}>
+				<input type="hidden" id="sbid" name="sbid" value={{ sbid }}>
+				<input type="hidden" id="comp" name="comp" value={{ source.0 }}>
+				OR view in <input type="submit" value="Aladin"/>
+			</form></p>
 			<img src="{% static source.0 %}" alt="Flux_img"  style="position:relative; left:0; right:0;" width="600" height="1000"></td>
 		<td>
-			<p style="text-align: center;"><b>ra:</b> {{ source.2.0 }} <b>dec:</b> {{ source.2.1 }}</p>
+			<p style="text-align: center;"><b>ra:</b> {{ source.2.0 }} <b>dec:</b> {{ source.2.1 }}</p><br><br><br>
 			<img src="{% static source.1 %}" alt="opd_img"  style="position:relative; left:0; right:0;" width="600" height="1000"></td>
 		</tr>
 		{% endfor %}
 	    </tbody>
 	</table>
-	<p  style="text-align: center;"> <a href="{% static tarball %}" download>Download</a> the sources in a tar archive</p>
+	{% if num_sources > 0 %}
+	    <p  style="text-align: center;"> <a href="{% static tarball %}" download>Download</a> the sources in a tar archive</p>
+	{% endif %}
 	</div>
 
 </body>

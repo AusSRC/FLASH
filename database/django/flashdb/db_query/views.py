@@ -18,7 +18,8 @@ def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
         database = db,
         user = user,
         password = password,
-        host = host
+        host = host,
+        port = 2095
     )
     #print(conn.get_dsn_parameters(),"\n")
     return conn
@@ -287,10 +288,12 @@ def get_plots_for_comp(cur,sbid,comp,static_dir):
 # Create your views here.
 
 def index(request):
-    #return HttpResponse("Welcome to the FLASH Database at AusSRC")
     static_dir = os.path.abspath("db_query/static/db_query/")
-    os.system(f"rm {static_dir}/plots/*")
-    os.system(f"rm {static_dir}/linefinder/*")
+
+    # Cleanup is done via cron, so no need for these:
+    #os.system(f"rm {static_dir}/plots/*")
+    #os.system(f"rm {static_dir}/linefinder/*")
+    
     with connection.cursor() as cursor:
         cursor.execute("SELECT count(*) from sbid;")
         num_records = cursor.fetchone()[0]
@@ -316,6 +319,14 @@ def index(request):
                                           'survey': survey_records,
                                           'rsurvey': survey_reject,
                                           'unvalid': survey_unvalidated})
+
+def show_aladin(request):
+    ra = request.POST.get('ra')
+    dec = request.POST.get('dec')
+    sbid = request.POST.get('sbid')
+    comp_file = request.POST.get('comp')
+    comp_id = comp_file.split('component_')[1].split('_flux')[0]
+    return render(request, 'aladin.html', {'ra': ra, 'dec': dec, 'sbid': sbid, 'comp': comp_id})
 
 def query_database(request):
     # Build the SQL query using Django's SQL syntax

@@ -82,7 +82,7 @@ DATABASES = {
         'USER' : 'flash',
         'PASSWORD' : 'aussrc',
         'HOST' : '146.118.64.208',
-        #'PORT' : ''
+        'PORT' : '2095'
     }
 }
 
