@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSV FLASHDB</title>
+    <style>
+        div {
+	    	border: 2px solid black;
+	    	padding: 4px;
+	}
+	div.slim {
+		border: 0;
+		padding: 0;
+	}
+	.fixed {
+		position:fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+	}
+        .demo { border-collapse: collapse; }
+        .demo tr:nth-child(odd) { background: #f2f2f2; }
+        .demo td { border: 1px solid #ddd; padding: 10px; }
+        .demo thead td { font-weight: 700; color: #fff; background: #000; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script>
+    {% load static %}
+	function demoA () {
+	  // (PART A) FETCH CSV FROM SERVER
+			    Papa.parse("{% static csv_file %}", {
+	    download: true,
+	    skipEmptyLines: true,
+
+	    // (PART B) DRAW CSV FILE
+	    complete : csv => {
+	      // (B1) GET + RESET HTML TABLE
+	      var table = document.getElementById("demoA");
+	      table.innerHTML = "";
+
+	      // (B2) DRAW TABLE ROWS
+	      for (let row of csv.data) {
+		let tr = table.insertRow();
+		for (let cell of row) {
+		  let td = tr.insertCell();
+		  td.innerHTML = cell;
+		}
+	      }
+	    }
+	  });
+	}
+    </script>
+</head>
+
+<body style="background-color:aquamarine;">
+	<div class="fixed" style="background-color:aquamarine;">
+		<H1 style="text-align: center;">FLASH Database Linefinder Results</H1>
+		{% load static %}
+		<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
+		<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
+		<p style="text-align: center;"> For SBID = {{ sbid }} and ln_mean(B) minimum = {{ lnmean }}:</p>
+	</div>
+    <div class="slim" style="position:relative; top: 280px; left:200px; right: 200px;">
+        <table id="demoA" class="demo"></table>
+        <input type="button" value="Load Linefinder results.dat" onclick="demoA()">
+    </div>
+</body>
+</html>
