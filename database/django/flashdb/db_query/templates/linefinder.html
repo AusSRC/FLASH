@@ -35,13 +35,21 @@
 	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
 	<p style="text-align: center;"> Query for SBID = {{ sbid }}, ln_mean cutoff = {{ lmean }}</p>
 	<p  style="text-align: center;"> Total number of records returned: <strong> {{ num_outs }} </strong> </p>
-	<p  style="text-align: left;"> <a href="{% static tarball %}" download>Download</a> the complete linefinder results in a tar archive</p>
-	<form action="http://146.118.64.208:8000/db_query">
+	<p  style="text-align: left;"> <a href="{% static tarball %}" download>Download</a> the complete linefinder results + small plots in a tar archive</p>
+	<p  style="text-align: left;"> <a href="{% static csv_file %}" download>Download</a> the linefinder results.dat file in a csv file</p>
+	<form action=/db_query/show_csv/ method="post" target="_blank">
+			{% csrf_token %}
+			<input type="hidden" id="csv" name="csv" value={{ csv_file }}>
+			<input type="hidden" id="sbid" name="sbid" value={{ sbid }}>
+			<input type="hidden" id="lnmean" name="lnmean" value={{ lmean }}>
+				OR view in new page <input type="submit" value="Full linefinder results.dat table"/>
+			</form></p>
+	<form action="https://flash.aussrc.org">
 		<input type="submit" value="Return to Main page"/>
 	</form>
 
 	</div>
-	<div class="slim" style="position:relative; top: 180px; left:200px; right: 200px;">
+	<div class="slim" style="position:relative; top: 280px; left:200px; right: 200px;">
 	<table style="background-color:white; opacity=1">
 	    <thead>
 		<tr>
@@ -49,8 +57,8 @@
 		    <th>component (source) id</th>
 		    <th>ra_hms_cont</th>
 		    <th>dec_dms_cont</th>
-		    <th>ra_deg_cont</th>
-		    <th>dec_deg</th>
+		    <th>ra_dec_cont</th>
+		    <th>dec_dec_cont</th>
 		    <th>modenum</th>
 		    <th>ln_mean value</th>
 		    <th>Pointing FIELD</th>
@@ -69,7 +77,7 @@
 			<td style="text-align: center;">{{ output.7  }}</td>
 			<td style="text-align: center;">{{ output.8  }}</td>
 		</tr>
-		{% empty %}
+	{% empty %}
 		<tr>
 		    <td colspan="2">No rows found.</td>
 		</tr>

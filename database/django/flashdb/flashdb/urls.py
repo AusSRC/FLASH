@@ -19,8 +19,7 @@ from django.urls import include,path
 from db_query import views
 
 urlpatterns = [
-    #path('query_database/', views.query_database, name='query_database'),
+    path("", include('db_query.urls')),
     path('db_query/', include("db_query.urls")),
-    #path('my-url/', views.my_view, name='my-view'),
     path('admin/', admin.site.urls),
 ]

@@ -63,7 +63,7 @@ def get_comp_ra_dec(cur,comp_id):
     return radec
 
 ##################################################################################################
-def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,verbose=False):
+def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,verbose=True):
 
     # This will print out a table of linefinder output data for a given sbid
     # args[1] = db cursor
@@ -107,7 +107,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,verbose=False):
     # Get the list of relevant components and their values for this sbid from the component table
     if ln_mean == -1: # This means get all components, even if there is no value for ln_mean
         if order == "lnmean":
-            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean")
+            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean,mode_num")
             if reverse:
                 query += " desc;"
             else:
@@ -121,7 +121,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,verbose=False):
         cur.execute(query,(sid,))
     else:
         if order == "lnmean":
-            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by ln_mean")
+            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by ln_mean,mode_num")
             if reverse:
                 query += " desc;"
             else:
@@ -151,12 +151,13 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,verbose=False):
             print(f"{notf}: NOT FOUND! {comp_id}")
 
     if verbose: # detailed output is saved to file
-        f = open(f"{sbid}_linefinder_outputs.csv","w")
+        f = open(f"{dir_download}/{sbid}_linefinder_outputs.csv","w")
         # we want From component table - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
         # From linefinder, all outputs except name: ModeNum x0_1_maxl dx_1_maxl y0_1_maxl abs_peakz_median abs_peakz_siglo abs_peakz_sighi abs_peakopd_median abs_peakopd_siglo abs_peakopd_sighi abs_intopd_median(km/s) abs_intopd_siglo(km/s) abs_intopd_sighi(km/s) abs_width_median(km/s) abs_width_siglo(km/s) abs_width_sighi(km/s) ln(B)_mean ln(B)_sigma chisq_mean chisq_sigma
         f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,x0_1_maxl,dx_1_maxl,y0_1_maxl,abs_peakz_median,abs_peakz_siglo,abs_peakz_sighi,abs_peakopd_median,abs_peakopd_siglo,abs_peakopd_sighi,abs_intopd_median(km/s),abs_intopd_siglo(km/s),abs_intopd_sighi(km/s),abs_width_median(km/s),abs_width_siglo(km/s),abs_width_sighi(km/s),ln(B)_mean,ln(B)_sigma,chisq_mean,chisq_sigma,field\n")
     #print()
     outputs = []
+    alt_outputs = []
     for result in results:
         comp_id = "component" + result[1].split("_component")[1].split(".")[0]
         if verbose:
@@ -166,10 +167,11 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,verbose=False):
                 vals = line.split()
                 if float(vals[17]) > ln_mean:
                     f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{vals[2]},{vals[3]},{vals[4]},{vals[5]},{vals[6]},{vals[7]},{vals[8]},{vals[9]},{vals[10]},{vals[11]},{vals[12]},{vals[13]},{vals[14]},{vals[15]},{vals[16]},{vals[17]},{vals[18]},{vals[19]},{vals[20]},{pointing}\n")
+                alt_outputs.append([result[0],comp_id,result[4],result[5],vals[5],vals[8],vals[11],vals[14],result[9],result[10],pointing])
         outputs.append([result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10],pointing])
     if verbose:
         f.close()
-    return outputs
+    return outputs,alt_outputs
 
 ##################################################################################################
 def get_linefinder_tarball(conn,sbid,dir_download,version):
@@ -282,8 +284,7 @@ def get_plots_for_comp(cur,sbid,comp,static_dir):
     return flux_name,opd_name
 
 ##################################################################################################
-
-
+##################################################################################################
 
 # Create your views here.
 
@@ -328,6 +329,12 @@ def show_aladin(request):
     comp_id = comp_file.split('component_')[1].split('_flux')[0]
     return render(request, 'aladin.html', {'ra': ra, 'dec': dec, 'sbid': sbid, 'comp': comp_id})
 
+def show_csv(request):
+    csv_file = request.POST.get('csv')
+    sbid_val = request.POST.get('sbid')
+    lnmean = request.POST.get('lnmean')
+    return render(request, 'csv_parse.html', {'csv_file': csv_file, 'sbid': sbid_val, 'lnmean': lnmean})
+
 def query_database(request):
     # Build the SQL query using Django's SQL syntax
     #qs = MyModel.objects.all().values('name', 'age')
@@ -348,7 +355,6 @@ def query_database(request):
         reverse = request.POST.get('reverse1')
         if reverse == "on":
             reverse = True
-        print(f"Got REVERSE = {reverse}, order = {order}")
         if order == "date":
             order = "sp.date"
         elif order == "SBID":
@@ -383,20 +389,21 @@ def query_database(request):
         reverse = request.POST.get('reverse2')
         if reverse == "on":
             reverse = True
-        print(f"Got REVERSE = {reverse}, order = {order}")
         with connection.cursor() as cursor:
             # The path to Django's static dir for plots
             static_dir = os.path.abspath("db_query/static/db_query/linefinder/")
             version = None
-            # Screen outputs:
-            outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse)
+        # Screen outputs:
+            outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir)
             # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
             conn = connect(password=password)
             name = get_linefinder_tarball(conn,sbid_val,static_dir,version)
             conn.close()
+
+            csv_file = f"db_query/linefinder/{sbid_val}_linefinder_outputs.csv"
             tarball = f"db_query/linefinder/{name}"
         if outputs:
-            return render(request, 'linefinder.html', {'sbid': sbid_val, 'lmean': lmean,'outputs': outputs, 'num_outs': len(outputs), 'tarball': tarball})
+            return render(request, 'linefinder.html', {'sbid': sbid_val, 'lmean': lmean,'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), 'tarball': tarball})
         else:
             return HttpResponse(f"No Linefinder results for sbid {sbid_val}")
 

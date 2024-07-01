@@ -23,9 +23,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-+h20xr#f&w%yh9r#b758^x91z2n=f$puvc*nl&y75_&6hrn^bj'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['146.118.64.208']
+ALLOWED_HOSTS = ['146.118.64.208','flash.aussrc.org']
 
 
 # Application definition
@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_extensions',
+    'sslserver',
     'db_query',
 ]
 
