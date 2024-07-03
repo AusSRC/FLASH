@@ -1,0 +1,6 @@
+# Development server:
+cd django/flashdb
+python3 manage.py runserver 146.118.64.208:8000
+
+# run disconnected:
+setsid python3 manage.py runserver 146.118.64.208:8000 --insecure 1> out_server.log 2> err_server.log
