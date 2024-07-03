@@ -52,8 +52,8 @@
 
 	</script>
 </head>
-<body style="background-color:aquamarine;">
-	<div>
+<body style="background-color:#ABB2B9;">
+	<div style="background-color:aquamarine;">
 	<H1 style="text-align: center;">Welcome to the FLASH database at AusSRC</H1>
 	{% load static %}
 	<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
@@ -113,7 +113,7 @@
 		</div>
 
 
-		<input type="submit" value="Submit" onClick="return empty()" />
+		<input type="submit" id="submit" value="Submit" onClick="return empty()" /> <i>(This may take some time to process)</i>
 	</form>
 	</div>
 	<div class="dark-image">

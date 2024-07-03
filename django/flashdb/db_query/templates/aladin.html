@@ -20,7 +20,7 @@
     </style>
 
 </head>
-<body style="background-color:aquamarine;">
+<body style="background-color:#ABB2B9;">
 	<div class="fixed" style="background-color:aquamarine;">
 	<H1 style="text-align: center;">FLASH Database Query Result</H1>
 	{% load static %}
@@ -28,8 +28,8 @@
 	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
 	<p style="text-align: center;"> <strong><i>Query for SBID = {{ sbid }}</i></strong></p>
 	<p  style="text-align: center;"> Component (source): <strong>{{ comp }}</strong> </p>
-	<form action="https://flash.aussrc.org">
-		<input type="submit" value="Return to Main page"/>
+	<form action="https://astro.swarthmore.edu/transits/aladin_finder.html" target="_blank">
+		<input type="submit" value="Find objects in Aladin"/> <i>(astro.swarthmore.edu in new tab)</i>
 	</form>
 	</div>
 	<div id="aladin-lite-div" style="position:relative;  top: 180px; left:20px; right: 200px; height: 900px"></div>
