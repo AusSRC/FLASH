@@ -23,9 +23,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-+h20xr#f&w%yh9r#b758^x91z2n=f$puvc*nl&y75_&6hrn^bj'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['146.118.64.208','flash.aussrc.org']
+ALLOWED_HOSTS = ['127.0.0.1']
 
 
 # Application definition
@@ -37,8 +37,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_extensions',
-    'sslserver',
     'db_query',
 ]
 
@@ -75,16 +73,17 @@ WSGI_APPLICATION = 'flashdb.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+# Below is a dummy example
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         #'NAME': BASE_DIR / 'db.sqlite3',
-        'NAME' : 'flashdb',
-        'USER' : 'flash',
-        'PASSWORD' : 'aussrc',
-        'HOST' : '146.118.64.208',
-        'PORT' : '2095'
+        'NAME' : 'blah',
+        'USER' : 'blahblah',
+        'PASSWORD' : 'blahblahblah',
+        'HOST' : '16.11.4.5',
+        'PORT' : '5432'
     }
 }
 
