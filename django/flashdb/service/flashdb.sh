@@ -2,7 +2,9 @@
 
 # Using Django development server:
 cd /home/ubuntu/django/flashdb
-sudo python3 manage.py runsslserver 146.118.64.208:443 --certificate /etc/letsencrypt/live/flash.aussrc.org/fullchain.pem --key /etc/letsencrypt/live/flash.aussrc.org/privkey.pem 1>out_server.log 2>err_server.log
+
+# Use route and sed to determine ip address of external-facing interface:
+sudo uwsgi --https `ip -o route get to 150.229.69.37 | sed -n 's/.*src \([0-9.]\+\).*/\1/p' `:443,/etc/letsencrypt/live/flash.aussrc.org/fullchain.pem,/etc/letsencrypt/live/flash.aussrc.org/privkey.pem service/flashdb.ini
 
 # Using Django development server disconnected from terminal (headless):
 #cd /home/ubuntu/django/flashdb
