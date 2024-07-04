@@ -63,6 +63,15 @@ def get_comp_ra_dec(cur,comp_id):
     return radec
 
 ##################################################################################################
+def getSBIDmetadata(sbid):
+
+    with connection.cursor() as cur:
+        sbid_id,version = get_max_sbid_version(cur,sbid)
+        query = "select s.quality,s.pointing,sr.date,sr.run_tag from sbid s inner join spect_run sr on s.spect_runid = sr.id where s.id = %s;"
+        cur.execute(query,(sbid_id,))
+        data = cur.fetchone()
+    return data
+##################################################################################################
 def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,verbose=True):
 
     # This will print out a table of linefinder output data for a given sbid
@@ -411,6 +420,7 @@ def query_database(request):
         sbid_val = request.POST.get('sbid_source')
         comp = request.POST.get('comp')
         bright = request.POST.get('bright')
+        metadata = getSBIDmetadata(sbid_val)
         with connection.cursor() as cur:
             sources = []
             if bright:
@@ -430,7 +440,7 @@ def query_database(request):
             os.system(f"cd {static_dir}; tar -zcvf {tarball_name} spec_SB{sbid_val}*")
             tarball = f"db_query/plots/{tarball_name}"
 
-        return render(request, 'source.html', {'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball})
+        return render(request, 'source.html', {'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball,'metadata': metadata})
 
 
 
