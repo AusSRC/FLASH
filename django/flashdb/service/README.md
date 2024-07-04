@@ -1,7 +1,7 @@
-# Running Chad as a service
+# Running FLASH as a service
 
 ## flashdb.sh
-This script starts the FLASK web server using ip and sed to determine the current external-facing ip address. It should live at `/etc/flashdb/`. 
+This script starts the uwsgi web server using ip and sed to determine the current external-facing ip address. It should live at `/etc/flashdb/`. 
 
  - Set permissions:
 ```bash
@@ -21,4 +21,5 @@ and can then be started or stopped as normal:
 ```bash
 sudo systemctl start flashdb.service
 ```
-
+## flash_rotate
+This script rotates the logs and restarts the service daily. Copy this to /etc/logrotate.d/
