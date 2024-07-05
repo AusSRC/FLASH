@@ -1,0 +1,10 @@
+# To only checkout the django part of the FLASH git repo, do the following:
+
+mkdir django_home
+git clone -n --depth=1 --filter=tree:0 https://github.com/AusSRC/FLASH django_home
+cd django_home
+git sparse-checkout set --no-cone database/django
+git checkout
+
+cd
+ln -s django_home/django django
