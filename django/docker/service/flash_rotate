@@ -1,0 +1,10 @@
+/home/ubuntu/django/flashdb/service/*.log {
+	daily
+	rotate 5
+	missingok
+	compress
+	notifempty
+	postrotate
+		systemctl reload flashdb.service
+	endscript
+}
