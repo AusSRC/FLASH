@@ -2,7 +2,8 @@
 # 2. Copy your real certs to FLASH/django/docker/certs/
 # 3. Copy your real DJANGO flashdb.sh and flashdb.ini to FLASH/django/docker/service/
 # 4. Copy your real DJANGO settings.py to FLASH/django/docker/
-# 5. Build with 'sudo docker build -t flashgui .
+# 5. Edit the cron files in FLASH/django/docker/cron/
+# 6. Build with 'sudo docker build -t flashgui .
 FROM ubuntu:latest
 
 RUN apt update && \
@@ -10,6 +11,7 @@ RUN apt update && \
     apt install -y adduser \
     apt-utils \
     build-essential \
+    cron \
     git \
     iproute2 \
     libssl-dev \
@@ -18,10 +20,19 @@ RUN apt update && \
     python3-pip \
     python3-psycopg2 \
     sudo \
-    vim \
-    && useradd -ms /bin/bash flash \
-    #&& adduser flash sudo
-    && usermod -aG sudo flash
+    vim
+
+# Add a flash user and give sudo permissions without password
+    # This might already exist:
+#RUN addgroup flash && \
+RUN adduser --disabled-password --gecos "" flash \
+    && echo 'flash ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+    #&& usermod -aG sudo flash
+
+# Set up cron jobs and cron logging:
+ADD docker/cron/crontab /etc/cron.d/django-cron
+RUN chmod 0644 /etc/cron.d/django-cron \
+    && touch /var/log/cron.log
 
 EXPOSE 443
 WORKDIR /home/flash
@@ -33,20 +44,24 @@ RUN git clone https://github.com/unbit/uwsgi.git && \
     cp uwsgi /usr/local/bin
 
 # checkout the django part of the FLASH git repo and configure:
-RUN cd ~/ && \
+RUN cd /home/flash && \
     mkdir raw_django && \
     git clone -n --depth=1 --filter=tree:0 https://github.com/AusSRC/FLASH raw_django && \
     cd raw_django && \
     git sparse-checkout set --no-cone django && \
     git checkout && \
-    cd ~/ && \
+    cd /home/flash && \
     ln -s raw_django/django django
 
-COPY docker/settings.py /home/FLASH/django/flashdb/flashdb/
+COPY docker/settings.py /home/flash/django/flashdb/flashdb/
 COPY docker/service/*  /home/flash/django/flashdb/service/
-COPY docker/certs/*  /home/flash/django/flashdb/certs
+COPY docker/certs/*  /home/flash/django/flashdb/certs/
+COPY docker/cron/delete_django_files.sh /home/flash/cronjobs/
 
-RUN chown -R flash:flash /home/flash
+RUN chown -R flash:flash /home/flash \
+    && chmod 0755 /home/flash/cronjobs/delete_django_files.sh \
+    && rm -R /home/flash/django/docker
+
 
 USER flash
-ENTRYPOINT [ "sudo uwsgi --https `ip -o route get to 150.229.69.37 | sed -n 's/.*src \([0-9.]\+\).*/\1/p' `:443,/home/flash/django/flashdb/certs/fullchain.pem,/home/flash/django/flashdb/certs/privkey.pem /home/flash/django/flashdb/service/flashdb.ini" ]
+ENTRYPOINT [ "/home/flash/django/flashdb/service/flashdb.sh" ]
