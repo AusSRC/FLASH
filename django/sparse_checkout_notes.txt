@@ -3,7 +3,7 @@
 mkdir django_home
 git clone -n --depth=1 --filter=tree:0 https://github.com/AusSRC/FLASH django_home
 cd django_home
-git sparse-checkout set --no-cone database/django
+git sparse-checkout set --no-cone django
 git checkout
 
 cd
