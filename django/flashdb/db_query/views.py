@@ -2,6 +2,8 @@ import os
 import sys
 import re
 import psycopg2
+import random
+import string
 
 from django.shortcuts import render
 from django.http import HttpResponse
@@ -29,6 +31,13 @@ def get_cursor(conn):
     cursor = conn.cursor()
     return cursor
 
+
+##################################################################################################
+def generate_id(length=20):
+    # Generate a random id string of 20 letters
+    letters = string.ascii_letters
+    id = ''.join(random.choice(letters) for i in range(length))
+    return id
 
 ##################################################################################################
 def get_max_sbid_version(cur,sbid_num,version=None):
@@ -299,11 +308,15 @@ def get_plots_for_comp(cur,sbid,comp,static_dir):
 
 def index(request):
     static_dir = os.path.abspath("db_query/static/db_query/")
-
-    # Cleanup is done via cron, so no need for these:
-    #os.system(f"rm {static_dir}/plots/*")
-    #os.system(f"rm {static_dir}/linefinder/*")
-    
+    try:
+        session_id = request.session.get("session_id")
+        # Cleanup session files
+        os.system(f"rm -R {static_dir}/plots/{session_id}")
+        os.system(f"rm -R {static_dir}/linefinder/{session_id}")
+    except:
+        session_id = generate_id(4)
+        request.session["session_id"] = session_id
+        
     with connection.cursor() as cursor:
         cursor.execute("SELECT count(*) from sbid;")
         num_records = cursor.fetchone()[0]
@@ -328,7 +341,8 @@ def index(request):
                                           'rpilot2': pilot2_reject, 
                                           'survey': survey_records,
                                           'rsurvey': survey_reject,
-                                          'unvalid': survey_unvalidated})
+                                          'unvalid': survey_unvalidated,
+                                          'id': session_id})
 
 def show_aladin(request):
     ra = request.POST.get('ra')
@@ -348,6 +362,7 @@ def query_database(request):
     # Build the SQL query using Django's SQL syntax
     #qs = MyModel.objects.all().values('name', 'age')
     password = request.POST.get('pass')
+    session_id = request.session["session_id"]
     # Try a psycopg2 connection with the supplied password. If it fails, return error msg
     try:
         conn = connect(password=password)
@@ -388,7 +403,7 @@ def query_database(request):
             rows = cursor.fetchall()
 
         # Render the template with the query results
-        return render(request, 'query_results.html', {'sbid': sbid_val, 'rows': rows, 'num_rows': len(rows)})
+        return render(request, 'query_results.html', {'id': session_id, 'sbid': sbid_val, 'rows': rows, 'num_rows': len(rows)})
 
     elif query_type == "LINEFINDER":
         password = request.POST.get('pass')
@@ -399,8 +414,9 @@ def query_database(request):
         if reverse == "on":
             reverse = True
         with connection.cursor() as cursor:
-            # The path to Django's static dir for plots
-            static_dir = os.path.abspath("db_query/static/db_query/linefinder/")
+            # The path to Django's static dir for linefinder outputs
+            static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
+            os.system(f"mkdir -p {static_dir}")
             version = None
         # Screen outputs:
             outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir)
@@ -409,10 +425,10 @@ def query_database(request):
             name = get_linefinder_tarball(conn,sbid_val,static_dir,version)
             conn.close()
 
-            csv_file = f"db_query/linefinder/{sbid_val}_linefinder_outputs.csv"
-            tarball = f"db_query/linefinder/{name}"
+            csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
+            tarball = f"db_query/linefinder/{session_id}/{name}"
         if outputs:
-            return render(request, 'linefinder.html', {'sbid': sbid_val, 'lmean': lmean,'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), 'tarball': tarball})
+            return render(request, 'linefinder.html', {'id': session_id, 'sbid': sbid_val, 'lmean': lmean,'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), 'tarball': tarball})
         else:
             return HttpResponse(f"No Linefinder results for sbid {sbid_val}")
 
@@ -430,17 +446,18 @@ def query_database(request):
                 comp = f"spec_SB{sbid_val}_component_{comp}.fits"
                 comps = [comp]
             # The path to Django's static dir for plots
-            static_dir = os.path.abspath("db_query/static/db_query/plots/")
+            static_dir = os.path.abspath("db_query/static/db_query/plots/{session_id}/")
+            os.system(f"mkdir -p {static_dir}")
             version = None
             for comp in comps:
                 flux,opd = get_plots_for_comp(cur,sbid_val,comp,static_dir)
                 radec = get_comp_ra_dec(cur,comp)
-                sources.append([f"db_query/plots/{flux}",f"db_query/plots/{opd}",radec])
+                sources.append([f"db_query/plots/{session_id}/{flux}",f"db_query/plots/{session_id}/{opd}",radec])
             tarball_name = f"{sbid_val}_plots.tar"
             os.system(f"cd {static_dir}; tar -zcvf {tarball_name} spec_SB{sbid_val}*")
-            tarball = f"db_query/plots/{tarball_name}"
+            tarball = f"db_query/plots/{session_id}/{tarball_name}"
 
-        return render(request, 'source.html', {'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball,'metadata': metadata})
+        return render(request, 'source.html', {'id': session_id, 'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball,'metadata': metadata})
 
 
 
