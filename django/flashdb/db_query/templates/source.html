@@ -44,6 +44,7 @@
 		<input type="submit" value="Return to Main page"/>
 	</form>
 	</div>
+        {% if render == "VIEW" %}
 	<div class="slim" style="position:relative; top: 240px; left:200px; right: 200px;">
 	{% load static %}
 	<table style="background-color:white">
@@ -76,6 +77,7 @@
 	    </tbody>
 	</table>
 	</div>
+        {% endif %}
 
 </body>
 </html>

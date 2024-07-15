@@ -75,7 +75,7 @@
 		<input type="radio" id="linefinder" name="query_type" value="LINEFINDER">
 		<label for="linefinder">Get linefinder outputs</label><br>
 		<input type="radio" id="source" name="query_type" value="SOURCE">
-		<label for="source">Get plots for source</label><br>
+		<label for="source">View and/or download plots for source</label><br>
 
 		<div id="dbQUERY" class="desc" style="display: none;">
 			<p>QUERY the database - this will display metadata on an sbid</p>
@@ -88,6 +88,11 @@
 			<input type="radio" id="order3" name="order" value="pointing">
 			<label for="order3">Order by pointing FIELD</label><br>
 			<input type="checkbox" id="reverse1" name="reverse1">Reverse sort order
+                        <p>
+                        <input type="checkbox" id="pilot1" name="pilot1">Restrict sbids to FLASH Pilot 1
+                        <input type="checkbox" id="pilot2" name="pilot2">Restrict sbids to FLASH Pilot 2
+                        <input type="checkbox" id="survey1" name="survey1">Restrict sbids to FLASH Survey 1
+                        </p>
 		</div>
 
 		<div id="dbLINEFINDER" class="desc" style="display: none;">
@@ -104,6 +109,8 @@
 		</div>
 		<div id="dbSOURCE" class="desc" style="display: none;">
 			<p>Get plots for individual source, or <i>n</i> brightest sources</p>
+                        <input type="radio" id="view" name="view_or_tar" checked="checked" value="VIEW">View plots in page and download tarball<br>
+                        <input type="radio" id="tarball" name="view_or_tar" value="TARBALL">Get tarball of sources, but don't view in page<br><br>
 			<label for="sbid_source">Enter integer for SBID to query:</label><br>
 			<input type="text" id="sbid3" name="sbid_source"><br>
 			<label for="comp">Enter source number (eg: 25a):</label> <strong>OR</strong>

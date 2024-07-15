@@ -288,10 +288,10 @@ def get_plots_for_comp(cur,sbid,comp,static_dir):
         cur.execute(query,(source_name,))
         data = cur.fetchone()
         if not data or not data[0]:
-            query = f"select fluxfilter from component where comp_id = %s and sbid_id = %s;"
-            cur.execute(query,(source_name,sid))
-            flux_filter = cur.fetchone()[0]
-            print(f"plotfile for {source_name} missing from db. Flux cutoff was {flux_filter}")
+            #query = f"select fluxfilter from component where comp_id = %s and sbid_id = %s;"
+            #cur.execute(query,(source_name,sid))
+            #flux_filter = cur.fetchone()[0]
+            print(f"plotfile for {source_name} missing from db")
             continue
         name = source_name.replace(".fits",f"_{data_type}.png")
         if data_type == "opd":
@@ -388,6 +388,10 @@ def query_database(request):
         sbid_val = request.POST.get('sbid_query')
         order = request.POST.get('order')
         reverse = request.POST.get('reverse1')
+        pilot1 = request.POST.get('pilot1')
+        pilot2 = request.POST.get('pilot2')
+        survey1 = request.POST.get('survey1')
+
         if reverse == "on":
             reverse = True
         if order == "date":
@@ -396,9 +400,30 @@ def query_database(request):
             order = "s.sbid_num"
         else:
             order = f"s.{order}"
+
+        where_clause = None
+        if pilot1:
+            where_clause = " where sp.run_tag in ('flash pilot 1'"
+        if pilot2:
+            if not where_clause:
+                where_clause = " where sp.run_tag in ('flash pilot 2'"
+            else:
+                where_clause = where_clause + ",'flash pilot 2'"
+        if survey1:
+            if not where_clause:
+                where_clause = " where sp.run_tag in ('FLASH Survey 1'"
+            else:
+                where_clause = where_clause + ",'FLASH Survey 1'"
+        if where_clause:
+                where_clause = where_clause +") "
+
+
         with connection.cursor() as cursor:
             if sbid_val == "-1":
-                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid order by {order}"
+                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid" 
+                if where_clause:
+                    query = query + where_clause
+                query = query + f" order by {order}"
                 if reverse:
                     query += " desc;"
                 else:
@@ -447,6 +472,7 @@ def query_database(request):
         sbid_val = request.POST.get('sbid_source')
         comp = request.POST.get('comp')
         bright = request.POST.get('bright')
+        view_or_tar = request.POST.get("view_or_tar")
         metadata = getSBIDmetadata(sbid_val)
         with connection.cursor() as cur:
             sources = []
@@ -454,21 +480,26 @@ def query_database(request):
                 # we are getting plots for multiple sources
                 comps = get_bright_comps(cur,sbid_val,bright)
             else:
-                comp = f"spec_SB{sbid_val}_component_{comp}.fits"
-                comps = [comp]
+                # comp may be a singular, or else a comma separated string of comps
+                comps = []
+                comp_vals = comp.split(',')
+                for val in comp_vals:
+                    comp = f"spec_SB{sbid_val}_component_{val}.fits"
+                    comps.append(comp)
             # The path to Django's static dir for plots
             static_dir = os.path.abspath(f"db_query/static/db_query/plots/{session_id}/")
             os.system(f"mkdir -p {static_dir}")
             version = None
             for comp in comps:
                 flux,opd = get_plots_for_comp(cur,sbid_val,comp,static_dir)
-                radec = get_comp_ra_dec(cur,comp)
-                sources.append([f"db_query/plots/{session_id}/{flux}",f"db_query/plots/{session_id}/{opd}",radec])
+                if flux and opd:
+                    radec = get_comp_ra_dec(cur,comp)
+                    sources.append([f"db_query/plots/{session_id}/{flux}",f"db_query/plots/{session_id}/{opd}",radec])
             tarball_name = f"{sbid_val}_plots.tar"
             os.system(f"cd {static_dir}; tar -zcvf {tarball_name} spec_SB{sbid_val}*")
             tarball = f"db_query/plots/{session_id}/{tarball_name}"
 
-        return render(request, 'source.html', {'session_id': session_id, 'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball,'metadata': metadata})
+        return render(request, 'source.html', {'session_id': session_id, 'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball,'render': view_or_tar, 'metadata': metadata})
 
 
 
