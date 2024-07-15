@@ -51,10 +51,8 @@ RUN cd /home/flash \
 COPY docker/settings.py /home/flash/django/flashdb/flashdb/
 COPY docker/service/*  /home/flash/django/flashdb/service/
 COPY docker/certs/*  /home/flash/django/flashdb/certs/
-COPY docker/cron/delete_django_files.sh /home/flash/cronjobs/
 
 RUN chown -R flash:flash /home/flash \
-    && chmod 0755 /home/flash/cronjobs/delete_django_files.sh \
     && rm -R /home/flash/django/docker
 
 
