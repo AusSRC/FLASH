@@ -27,7 +27,6 @@ RUN apt update && \
 #RUN addgroup flash && \
 RUN adduser --disabled-password --gecos "" flash \
     && echo 'flash ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
-    #&& usermod -aG sudo flash
 
 EXPOSE 443
 WORKDIR /home/flash
@@ -55,6 +54,8 @@ COPY docker/certs/*  /home/flash/django/flashdb/certs/
 RUN chown -R flash:flash /home/flash \
     && rm -R /home/flash/django/docker
 
+COPY docker/service/flashdb.sh /usr/local/bin
+RUN chmod a+x /usr/local/bin/flashdb.sh
 
 USER flash
-ENTRYPOINT [ "/bin/bash","/home/flash/django/flashdb/service/flashdb.sh" ]
+CMD [ "/usr/local/bin/flashdb.sh" ]
