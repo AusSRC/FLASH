@@ -1,0 +1,161 @@
+# NOTE Tos start or restart docker services use 'sudo snap restart docker'
+
+# Load latest ubuntu image and run
+sudo docker run -i -t ubuntu:latest /bin/bash
+
+# do basic update:
+apt update && apt upgrade
+apt install curl vim
+
+# Create flash user
+apt install sudo adduser
+adduser flash
+# passwd = aussrc
+usermod -aG sudo flash
+
+exit
+
+# Find images:
+sudo docker ps -l
+
+# commit image:
+sudo docker commit bda620a8e5da ubuntu:flashgui
+
+# Rerun as flash user with host filesystem attached:
+sudo docker run -v /home/ger063/src/FLASH:/mnt/shared --user flash -it ubuntu:flashgui
+sudo apt install apt-utils
+sudo apt install git
+sudo apt install python3-dev
+sudo apt install build-essential
+sudo apt install iproute2
+sudo apt install python3-django
+sudo apt install python3-pip
+sudo apt install python3-psycopg2
+sudo apt install psmisc
+
+# Build uwsgi
+sudo apt install libssl-dev
+cd ~/
+git clone https://github.com/unbit/uwsgi.git
+cd uwsgi
+sudo python3 uwsgiconfig.py --build
+sudo cp uwsgi /usr/local/bin
+
+# To only checkout the django part of the FLASH git repo, do the following:
+
+mkdir raw_django
+git clone -n --depth=1 --filter=tree:0 https://github.com/AusSRC/FLASH raw_django
+cd raw_django
+git sparse-checkout set --no-cone django
+git checkout
+
+cd
+ln -s raw_django/django django
+
+# Configure django:
+cd ~/django/flashdb/flashdb
+cp settings.py.example settings.py
+# Edit settings.py to set debug=False, ALLOWED_HOSTS = ['flash.aussrc.org'] and DATABASES (postgres is at 146.118.64.208:2095)
+
+# Exit and save
+exit 
+sudo docker ps -l
+sudo docker commit <container ID> aussrc/flashgui
+
+# Re-enter container and test ports
+sudo docker run --user flash --expose 80 -p 80:80 -it aussrc/flashgui
+
+# Test uwsgi - create a test.py script
+mkdir testing
+cd testing
+vi test.py 
+
+def application(env, start_response):
+    start_response('200 OK', [('Content-Type','text/html')])
+    return [b"Hello World"] # python3
+    #return ["Hello World"] # python2
+
+# run as:
+uwsgi --http :80 --wsgi-file test.py
+
+# Check that browser on host at localhost:80 can see the 'Hello World' message
+
+# check that the external ip address is correct:
+ip -o route get to 150.229.69.37 | sed -n 's/.*src \([0-9.]\+\).*/\1/p'
+
+# Configure uwsgi - edit ~/django/flashdb/service/flashdb.ini
+# Test locally:
+cd ~/django/flashdb/service
+uwsgi --http :80 flashdb.ini
+
+# You should be able to reach the flashdb from 127.0.0.1 in a browser on the host machine
+# Exit and save:
+exit 
+sudo docker ps -l
+sudo docker commit <container ID> aussrc/flashgui
+
+# Configure https secure server:
+
+sudo docker run --user flash --expose 443 -p 443:443 -v /home/ger063/src/FLASH:/mnt/shared -it aussrc/flashgui
+
+## Get CA certificates from host
+cd ~/django/flashdb/certs
+sudo cp /mnt/shared/django/flashdb/certs/* .
+
+# Now start ssl server with:
+cd ~/django/flashdb/service
+sudo uwsgi --https :443,/home/flash/django/flashdb/certs/fullchain.pem,/home/flash/django/flashdb/certs/privkey.pem flashdb.ini
+
+# You should be able to reach the flashdb from https://127.0.0.1:443 in a browser on the host machine (still complains about being unsecure
+# as not yet hosted on flash.aussrc.org)
+
+# Test with ip route:
+sudo uwsgi --https `ip -o route get to 150.229.69.37 | sed -n 's/.*src \([0-9.]\+\).*/\1/p' `:443,/home/flash/django/flashdb/certs/fullchain.pem,/home/flash/django/flashdb/certs/privkey.pem flashdb.ini
+
+###############################################################################################################################
+
+# This was replaced by Dockerfile July 2024. Build with:
+
+# 1. Ensure you run from the checked out FLASH/django directory when building. 
+# 2. Copy your real certs to FLASH/django/docker/certs/
+# 3. Copy your real DJANGO flashdb.sh and flashdb.ini to FLASH/django/docker/service/
+# 4. Copy your real DJANGO settings.py to FLASH/django/docker/
+# 5. Edit the cron files in FLASH/django/docker/cron/
+# 6. Build with 'sudo docker build -t flashgui .'
+
+# Run and check image - you need to run it, to find the image for commit later:
+sudo docker run -u flash --entrypoint /bin/bash -p 443:443 -it flashgui
+
+# Commit image:
+sudo docker ps -l
+sudo docker commit <container ID> aussrc/flashgui
+
+# Push to DockerHub repo:
+sudo docker login --username=gordonwh # passwd = dh#....2020
+sudo docker push aussrc/flashgui
+
+
+# Production run:
+
+# Get latest image:
+sudo docker pull aussrc/flashgui
+# Ensure container is not already running:
+sudo docker container ls
+# If so, kill it (eg container name = "great_engelbart"):
+sudo docker rm -f great_engelbart
+
+# Run container:
+sudo docker run -d -u flash -p 443:443 -t aussrc/flashgui
+# NOTE if the entrypoint doesn't run, try adding an exec:
+    sudo docker exec -u flash -t <name> /usr/local/bin/flashdb.sh
+# If this works, then kill the exec command and the entrypoint should now take over (don't know why)
+
+# OR just pass the script to the run command:
+sudo docker run -d -u flash -p 443:443 -t aussrc/flashgui /usr/local/bin/flashdb.sh
+
+# Can log into running container:
+sudo docker ps -l # get name
+sudo docker exec -u flash -it <name> /bin/bash
+
+# Ensure it restarts with docker daemon restart:
+sudo docker update --restart=unless-stopped <container ID>
