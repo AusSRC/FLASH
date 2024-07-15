@@ -40,6 +40,7 @@
 	    <p  style="text-align: left;"> <a href="{% static tarball %}" download>Download</a> the sources in a tar archive</p>
 	{% endif %}
 	<form action="/db_query/">
+                <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>
 		<input type="submit" value="Return to Main page"/>
 	</form>
 	</div>
