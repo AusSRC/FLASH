@@ -11,10 +11,10 @@ RUN apt update && \
     apt install -y adduser \
     apt-utils \
     build-essential \
-    cron \
     git \
     iproute2 \
     libssl-dev \
+    psmisc \
     python3-dev \
     python3-django \
     python3-pip \
@@ -29,29 +29,24 @@ RUN adduser --disabled-password --gecos "" flash \
     && echo 'flash ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
     #&& usermod -aG sudo flash
 
-# Set up cron jobs and cron logging:
-ADD docker/cron/crontab /etc/cron.d/django-cron
-RUN chmod 0644 /etc/cron.d/django-cron \
-    && touch /var/log/cron.log
-
 EXPOSE 443
 WORKDIR /home/flash
 
 # Build uwsgi
-RUN git clone https://github.com/unbit/uwsgi.git && \
-    cd uwsgi && \
-    python3 uwsgiconfig.py --build && \
-    cp uwsgi /usr/local/bin
+RUN git clone https://github.com/unbit/uwsgi.git \
+    && cd uwsgi \
+    && python3 uwsgiconfig.py --build \
+    && cp uwsgi /usr/local/bin
 
 # checkout the django part of the FLASH git repo and configure:
-RUN cd /home/flash && \
-    mkdir raw_django && \
-    git clone -n --depth=1 --filter=tree:0 https://github.com/AusSRC/FLASH raw_django && \
-    cd raw_django && \
-    git sparse-checkout set --no-cone django && \
-    git checkout && \
-    cd /home/flash && \
-    ln -s raw_django/django django
+RUN cd /home/flash \
+    && mkdir raw_django \
+    && git clone -n --depth=1 --filter=tree:0 https://github.com/AusSRC/FLASH raw_django \
+    && cd raw_django \
+    && git sparse-checkout set --no-cone django \
+    && git checkout \
+    && cd /home/flash \
+    && ln -s raw_django/django django
 
 COPY docker/settings.py /home/flash/django/flashdb/flashdb/
 COPY docker/service/*  /home/flash/django/flashdb/service/
@@ -64,4 +59,4 @@ RUN chown -R flash:flash /home/flash \
 
 
 USER flash
-ENTRYPOINT [ "/home/flash/django/flashdb/service/flashdb.sh" ]
+ENTRYPOINT [ "/bin/bash","/home/flash/django/flashdb/service/flashdb.sh" ]
