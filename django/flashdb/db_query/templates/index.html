@@ -62,6 +62,7 @@
 	<p style="text-align: center;">Pilot 1 sbids in DB = {{ pilot1 }} ({{ rpilot1 }} rejected)</p>
 	<p style="text-align: center;">Pilot 2 sbids in DB = {{ pilot2 }} ({{ rpilot2 }} rejected)</p>
 	<p style="text-align: center;">Survey sbids in DB = {{ survey }} ({{ rsurvey }} rejected, {{ unvalid }} unvalidated)</p>
+        <p>Session id = {{ id }}
 	</div>
 	<div>
 	<form action=/db_query/query_database/ method="post">
@@ -112,7 +113,7 @@
 			<input type="text" id="bright" name="bright">sources<br>
 		</div>
 
-
+                <input type="hidden" id="session_id" name="session_id" value={{ id }}>
 		<input type="submit" id="submit" value="Submit" onClick="return empty()" /> <i>(This may take some time to process)</i>
 	</form>
 	</div>
