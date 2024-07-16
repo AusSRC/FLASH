@@ -108,7 +108,8 @@
 			<input type="checkbox" id="reverse2" name="reverse2">Reverse sort order
 		</div>
 		<div id="dbSOURCE" class="desc" style="display: none;">
-			<p>Get plots for individual source, or <i>n</i> brightest sources</p>
+			<p>Get plots for individual source, or <i>n</i> brightest sources - 
+                            NOTE: Only sources with a min flux value > 30mJy are stored in the DB </p>
                         <input type="radio" id="view" name="view_or_tar" checked="checked" value="VIEW">View plots in page and download tarball<br>
                         <input type="radio" id="tarball" name="view_or_tar" value="TARBALL">Get tarball of sources, but don't view in page<br><br>
 			<label for="sbid_source">Enter integer for SBID to query:</label><br>
