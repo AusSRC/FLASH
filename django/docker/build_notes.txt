@@ -137,12 +137,12 @@ sudo docker push aussrc/flashgui
 
 # Production run:
 
-# Get latest image:
-sudo docker pull aussrc/flashgui
 # Ensure container is not already running:
 sudo docker container ls
 # If so, kill it (eg container name = "great_engelbart"):
 sudo docker rm -f great_engelbart
+# Get latest image:
+sudo docker pull aussrc/flashgui
 
 # Run container:
 sudo docker run -d -u flash -p 443:443 -t aussrc/flashgui
