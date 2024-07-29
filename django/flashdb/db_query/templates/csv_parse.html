@@ -27,7 +27,7 @@
     {% load static %}
 	function demoA () {
 	  // (PART A) FETCH CSV FROM SERVER
-			    Papa.parse("{% static csv_file %}", {
+	  Papa.parse("{% static csv_file %}", {
 	    download: true,
 	    skipEmptyLines: true,
 
@@ -37,13 +37,23 @@
 	      var table = document.getElementById("demoA");
 	      table.innerHTML = "";
 
-	      // (B2) DRAW TABLE ROWS
-	      for (let row of csv.data) {
-		let tr = table.insertRow();
-		for (let cell of row) {
-		  let td = tr.insertCell();
-		  td.innerHTML = cell;
-		}
+              // (B2) DRAW TABLE HEADER
+              var thead = table.createTHead(),
+                  tr = thead.insertRow();
+              for (let cell of csv.data[0]) {
+                let td = tr.insertCell();
+                td.innerHTML = cell;
+              }
+
+              // (B3) DRAW TABLE BODY
+              var tbody = table.createTBody();
+              for (let i=1; i<csv.data.length; i++) {
+                let row = csv.data[i],
+                    tr = tbody.insertRow();
+                for (let cell of row) {
+                  let td = tr.insertCell();
+                  td.innerHTML = cell;
+                }	      
 	      }
 	    }
 	  });

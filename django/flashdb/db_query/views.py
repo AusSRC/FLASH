@@ -125,7 +125,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,ver
     # Get the list of relevant components and their values for this sbid from the component table
     if ln_mean == -1: # This means get all components, even if there is no value for ln_mean
         if order == "lnmean":
-            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean,mode_num")
+            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean")
             if reverse:
                 query += " desc;"
             else:
@@ -139,7 +139,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,ver
         cur.execute(query,(sid,))
     else:
         if order == "lnmean":
-            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by ln_mean,mode_num")
+            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by ln_mean")
             if reverse:
                 query += " desc;"
             else:
@@ -449,6 +449,8 @@ def query_database(request):
         reverse = request.POST.get('reverse2')
         if reverse == "on":
             reverse = True
+        else:
+            reverse = False
         with connection.cursor() as cursor:
             # The path to Django's static dir for linefinder outputs
             static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
