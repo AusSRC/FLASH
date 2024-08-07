@@ -391,6 +391,7 @@ def query_database(request):
         pilot1 = request.POST.get('pilot1')
         pilot2 = request.POST.get('pilot2')
         survey1 = request.POST.get('survey1')
+        no_bad_sbids = request.POST.get('bad')
 
         if reverse == "on":
             reverse = True
@@ -416,7 +417,11 @@ def query_database(request):
                 where_clause = where_clause + ",'FLASH Survey 1'"
         if where_clause:
                 where_clause = where_clause +") "
-
+        if no_bad_sbids:
+                if where_clause:
+                    where_clause = where_clause + "and s.quality not in ('BAD','REJECTED') "
+                else:
+                    where_clause = " where s.quality not in ('BAD','REJECTED') "
 
         with connection.cursor() as cursor:
             if sbid_val == "-1":
