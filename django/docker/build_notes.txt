@@ -122,7 +122,8 @@ sudo uwsgi --https `ip -o route get to 150.229.69.37 | sed -n 's/.*src \([0-9.]\
 # 2. Copy your real certs to FLASH/django/docker/certs/
 # 3. Copy your real DJANGO flashdb.sh and flashdb.ini to FLASH/django/docker/service/
 # 4. Copy your real DJANGO settings.py to FLASH/django/docker/
-# 5. Build with 'sudo docker build -t flashgui .' (add "--no-cache" for complete rebuild).
+# 5. Edit Dockerfile as required (eg check the ENV values)
+# 6. Build with 'sudo docker build -t flashgui .' (add "--no-cache" for complete rebuild).
 
 # Run and check image - you need to run it, to find the image for commit later:
 sudo docker run -u flash --entrypoint /bin/bash -p 443:443 -it flashgui
@@ -147,11 +148,8 @@ sudo docker pull aussrc/flashgui
 
 # Run container:
 sudo docker run -d -u flash -p 443:443 -t aussrc/flashgui
-# NOTE if the entrypoint doesn't run, try adding an exec:
-    sudo docker exec -u flash -t <name> /usr/local/bin/flashdb.sh
-# If this works, then kill the exec command and the entrypoint should now take over (don't know why)
-
-# OR just pass the script to the run command:
+# NOTE if the entrypoint doesn't run, just pass the script to the run command 
+# (this is the path to the script within the container):
 sudo docker run -d -u flash -p 443:443 -t aussrc/flashgui /usr/local/bin/flashdb.sh
 
 # Can log into running container:

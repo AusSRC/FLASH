@@ -47,6 +47,9 @@ RUN cd /home/flash \
     && cd /home/flash \
     && ln -s raw_django/django django
 
+# IP address used to check route to external-facing interface
+ENV IPCHECK=150.229.69.37
+
 COPY docker/settings.py /home/flash/django/flashdb/flashdb/
 COPY docker/service/*  /home/flash/django/flashdb/service/
 COPY docker/certs/*  /home/flash/django/flashdb/certs/
