@@ -343,6 +343,7 @@ def index(request):
         survey_records = cursor.fetchone()[0]
         cursor.execute("select count(*) from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%Survey%' and sbid.quality = 'REJECTED';")
         survey_reject = cursor.fetchone()[0]
+        survey_accept = int(survey_records) - int(survey_reject)
         cursor.execute("select count(*) from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%Survey%' and sbid.quality = 'NOT_VALIDATED';")
         survey_unvalidated = cursor.fetchone()[0]
     return render(request, 'index.html', {'records': num_records, 
@@ -351,7 +352,7 @@ def index(request):
                                           'pilot2': pilot2_records, 
                                           'rpilot2': pilot2_reject, 
                                           'survey': survey_records,
-                                          'rsurvey': survey_reject,
+                                          'asurvey': survey_accept,
                                           'unvalid': survey_unvalidated,
                                           'session_id': session_id})
 
