@@ -59,9 +59,9 @@
 	<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
 	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
 	<p style="text-align: center;">Total number of sbids in DB = {{ records }}</p>
-	<p style="text-align: center;">Pilot 1 sbids in DB = {{ pilot1 }} ({{ rpilot1 }} rejected)</p>
-	<p style="text-align: center;">Pilot 2 sbids in DB = {{ pilot2 }} ({{ rpilot2 }} rejected)</p>
-	<p style="text-align: center;">Survey sbids in DB = {{ survey }} ({{ rsurvey }} rejected, {{ unvalid }} unvalidated)</p>
+	<p style="text-align: center;">Pilot 1 sbids in DB = {{ pilot1 }} </p>
+	<p style="text-align: center;">Pilot 2 sbids in DB = {{ pilot2 }} </p>
+	<p style="text-align: center;">Survey sbids in DB = {{ survey }} ({{ survey - rsurvey }} validated, {{ unvalid }} unvalidated)</p>
 	</div>
 	<div>
 	<form action=/db_query/query_database/ method="post">
