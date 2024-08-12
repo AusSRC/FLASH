@@ -331,14 +331,19 @@ def index(request):
     with connection.cursor() as cursor:
         cursor.execute("SELECT count(*) from sbid;")
         num_records = cursor.fetchone()[0]
+
         cursor.execute("select count(*) from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%pilot 1%';")
         pilot1_records = cursor.fetchone()[0]
         cursor.execute("select count(*) from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%pilot 1%' and sbid.quality = 'REJECTED';")
         pilot1_reject = cursor.fetchone()[0]
+        pilot1_accept = int(pilot1_records) - int(pilot1_reject)
+
         cursor.execute("select count(*) from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%pilot 2%';")
         pilot2_records = cursor.fetchone()[0]
         cursor.execute("select count(*) from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%pilot 2%' and sbid.quality = 'REJECTED';")
         pilot2_reject = cursor.fetchone()[0]
+        pilot2_accept = int(pilot2_records) - int(pilot2_reject)
+
         cursor.execute("select count(*) from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%Survey%';")
         survey_records = cursor.fetchone()[0]
         cursor.execute("select count(*) from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%Survey%' and sbid.quality = 'REJECTED';")
@@ -349,8 +354,10 @@ def index(request):
     return render(request, 'index.html', {'records': num_records, 
                                           'pilot1': pilot1_records, 
                                           'rpilot1': pilot1_reject, 
+                                          'apilot1': pilot1_accept, 
                                           'pilot2': pilot2_records, 
                                           'rpilot2': pilot2_reject, 
+                                          'apilot2': pilot2_accept, 
                                           'survey': survey_records,
                                           'asurvey': survey_accept,
                                           'unvalid': survey_unvalidated,
