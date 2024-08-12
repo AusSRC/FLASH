@@ -116,7 +116,7 @@ sudo uwsgi --https `ip -o route get to 150.229.69.37 | sed -n 's/.*src \([0-9.]\
 
 ###############################################################################################################################
 
-# This was replaced by Dockerfile July 2024. Build with:
+# The above was replaced by Dockerfile July 2024. Build with:
 
 # 1. Ensure you run from the checked out FLASH/django directory when building. 
 # 2. Copy your real certs to FLASH/django/docker/certs/
