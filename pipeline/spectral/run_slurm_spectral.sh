@@ -47,6 +47,7 @@ do
     CONFIGARRAY+=("config")
 done
 
+echo "Starting jobs ${SBIDARRAY[@]}" > jobs_to_sbids.txt
 
 for i in "${!SBIDARRAY[@]}"; do
     SBID="${SBIDARRAY[$i]}"
@@ -61,7 +62,7 @@ for i in "${!SBIDARRAY[@]}"; do
     jid1=$(/bin/bash ./run_container_spectral.sh $PARENT_DIR "$SBID" $PARENT_DIR/$SBID/$CONFIG)
     j1=$(echo $jid1 | awk '{print $4}')
     echo "Sumbitted job $j1"
-    echo "$j1 = sbid $SBID" > jobs_to_sbids.txt
+    echo "$j1 = sbid $SBID" >> jobs_to_sbids.txt
 
 done
 

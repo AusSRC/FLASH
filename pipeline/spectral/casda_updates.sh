@@ -4,9 +4,9 @@ IFS=","
 FLASHPASS=$1
 
 # Local directories:
-CRONDIR="~/src/cronjobs"
-DBDIR="~/src/database"
-PLOTDIR="~/src/spectral_plot"
+CRONDIR="/home/ger063/src/cronjobs"
+DBDIR="/home/ger063/src/database"
+PLOTDIR="/home/ger063/src/spectral_plot"
 
 # Tmp directory for tarring etc - needs to be large capacity
 TMPDIR="/scratch/ja3/ger063/tmp"

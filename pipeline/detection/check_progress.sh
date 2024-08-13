@@ -82,6 +82,7 @@ for SBID1 in "${SBIDARRAY[@]}"; do
         echo "    Linefinder finished but SLURM has not exited correctly"
         echo "    You may need to manually scancel this SLURM job - see 'jobs_to_sbids.txt' to find SLURM job number"
         not_started=("${not_started[@]/$SBID1}" )
+        finished+=($SBID1)
     fi
 done
 

@@ -2,16 +2,14 @@
 
 nextflow.enable.dsl=2
 
-params.ser = "FLASH_PILOT_2A"
+params.ser = "casda"
 
 params.HOME = "${params.SCRATCH_ROOT}"
 params.DATA = "${params.SCRATCH_ROOT}/data/${params.ser}/"
 params.CATALOGUE = "${params.SCRATCH_ROOT}/data/${params.ser}/catalogue/"
 params.NOISE = "${params.SCRATCH_ROOT}/data/${params.ser}/noise/"
 params.SOURCEFITS = "${params.SCRATCH_ROOT}/data/${params.ser}/sourceSpectra/"
-params.OUTPUTS = "${params.SCRATCH_ROOT}/outputs/${param.ser}/"
 params.OUTPUT_PLOTS = "${params.SCRATCH_ROOT}/outputs/${param.ser}/spectral_plots/"
-params.OUTPUT_LINEFINDER = "${params.SCRATCH_ROOT}/outputs/${param.ser}/ascii_files/"
 params.OUTPUT_LOGS = "${params.SCRATCH_ROOT}/outputs/${param.ser}/logs/"
 
 
