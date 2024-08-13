@@ -1,5 +1,10 @@
 # flashdb is hosted on 146.118.64.208
 #
+# Check that the port is remotely accessible by running (on the remote machine) one of these:
+nc -vz 146.118.64.208 5432
+telnet 146.118.64.208 5432
+#
+# Tried to reset 'postgres' passwd to 'teapottery' but failed?
 # Survey sbids start after SB 43426
 #
 
@@ -97,6 +102,7 @@ create table component (
 );
 
 alter table component drop constraint fk_sbid_id; # No longer need this - it slows down deletes
+alter table component add shortname char(5);
 
 # This should be done for all BYTEA columns that store compressed data (to stop Postgresql from trying to re-compress):
 #alter table component alter column opd_image set storage EXTERNAL;
@@ -123,6 +129,9 @@ alter TABLE detect_run ADD COLUMN run_tag varchar(100);
 update detect_run set run_tag = 'flash survey 1';
 # Search in ARRAY
 update spect_run set run_tag = 'ASKAP pilot' where 15211 = any(sbids);
+
+# Insert into table with array and date values
+insert into spect_run(sbids,date,run_tag) values(array[11051,11052],current_timestamp,'flash pilot 1');
 
 # Join table:
 select sbid.id,sbid.spect_runid,spect_run.run_tag from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%pilot%';
