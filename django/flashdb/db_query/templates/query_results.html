@@ -48,6 +48,7 @@
 		    <th>Quality</th>
 		    <th>Tag</th>
 		    <th>Linefinder Run</th>
+		    <th>INVERTED Run</th>
 		    <th>Field</th>
 		    <th>Comment</th>
 		</tr>
@@ -61,6 +62,7 @@
 		    <td style="text-align: center; padding:0 15px 0 15px;"><i>{{ row.3 }}</i></td>
 		    <td style="text-align: center; padding:0 15px 0 15px;">{{ row.4 }}</td>
 		    <td style="text-align: center;">{% if row.5 == True %} Run {% else %} No {% endif %}</td>
+		    <td style="text-align: center;">{% if row.6 == True %} Run {% else %} No {% endif %}</td>
 		    <td style="text-align: center; padding:0 15px 0 15px;">{{ row.6 }}</td>
 		    <td>{{ row.7 }}</td>
 		</tr>
