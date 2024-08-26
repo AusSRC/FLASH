@@ -3,7 +3,7 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.14 25/06/2024
+#       version 1.15 26/08/2024
 #######################################################################################
 import os
 import sys
@@ -459,16 +459,17 @@ def get_results_for_sbid(cur,sbid,version,verbose=False):
                 source_list.append("component_" + name)
 
     
-    # Get the relevant results file from the detect_run table:
-    query = "select detect_runid from sbid where id = %s;"
+    #query = "select detect_runid from sbid where id = %s;"
+    #cur.execute(query,(sid,))
+    #res = cur.fetchone()[0]
+    #if not res:
+    #    print(f"ERROR - {sbid} not in detection table")
+    #    return 
+    #detect_runid = int(res)
+
+    # Get the relevant results from the sbid table:
+    query = "select results from sbid where id = %s;"
     cur.execute(query,(sid,))
-    res = cur.fetchone()[0]
-    if not res:
-        print(f"ERROR - {sbid} not in detection table")
-        return 
-    detect_runid = int(res)
-    query = "select results from detect_run where id = %s;"
-    cur.execute(query,(detect_runid,))
     try:
         result_data = cur.fetchone()[0].split('\n')
     except TypeError:

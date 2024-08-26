@@ -274,12 +274,11 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
         cur.execute(sbid_query,(runflagid,))
         print(runflagid,sbid)
         sbids = None
-        #try:
-        sbids = cur.fetchone()[0]
-        sbids.remove(int(sbid))
-        #except TypeError or IndexError:
-        #    print(f"{sbid}:{version} - nothing to remove ")
-        #    pass 
+        try:
+            sbids = cur.fetchone()[0]
+            sbids.remove(int(sbid))
+        except TypeError or IndexError:
+            print(f"{sbid}:{version} - nothing to remove ")
         # Check if sbids list now empty, in which case delete whole detection
         if not sbids:
             detect_stat = "DELETE from detect_run where id = %s;"
