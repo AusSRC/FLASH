@@ -196,7 +196,48 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,ver
     return outputs,alt_outputs
 
 ##################################################################################################
-def get_linefinder_tarball(password,sbid,dir_download,sid,version):
+def get_linefinder_tarball(conn,sbid,dir_download,version):
+    cur = get_cursor(conn)
+    # get the corresponding sbid id for the sbid_num:version
+    sid,version = get_max_sbid_version(cur,sbid,version)
+
+    oid = None
+    outputs = None
+    name = f"{sbid}_{version}.tar"
+    query = "select detectionF from sbid where id = %s"    
+    cur.execute(query,(sid,))
+    detect = cur.fetchone()[0]
+    if not detect:
+        print(f"No linefinder results available for sbid {sbid}:{version} !!")
+        return
+    # The output files are normally stored as both a byte array AND a large object.
+    # If the LOB exists, down load that in preference to the byte array, as it's more efficient:
+    query = "select detect_tar from sbid where id = %s"
+    cur.execute(query,(sid,))
+    oid = cur.fetchone()[0]
+    if oid:
+        #print(f"Retrieving large object {oid} from db")
+        loaded_lob = conn.lobject(oid=oid, mode="rb")
+        # This may run out of mem for a very large object, but is 4x quicker than streaming:
+        open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
+    else:
+        print(f"No LOB found - retrieving byte array from db")
+        query = "select detect_results from sbid where id = %s"
+        cur.execute(query,(sid,))
+        outputs = cur.fetchone()[0]
+        if outputs:
+            open(f"{dir_download}/{name}", 'wb').write(outputs)
+        else:
+            print(f"Linefinder was run, but no results stored in db for sbid {sbid}:{version} !!")
+            return
+        
+    #print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
+
+    return name
+
+
+##################################################################################################
+def mp_get_linefinder_tarball(password,sbid,dir_download,sid,version):
 
     conn = connect(password=password)
     cur = get_cursor(conn)
@@ -479,20 +520,12 @@ def query_database(request):
             static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
             os.system(f"mkdir -p {static_dir}")
             version = None
-            # get the sbid_num:version numbers via psycopg2
-            conn = connect(password=password)
-            cur = get_cursor(conn)
-            sid,version = get_max_sbid_version(cur,sbid_val,version)
-            cur.close()
-            conn.close()
-            # Screen outputs:
+        # Screen outputs:
             outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir)
-            # Run the tarball creator in a separate process and do NOT wait for it to finish
-            p = mp.Process(target=get_linefinder_tarball, args=(password,sbid_val,static_dir,sid,version), name='get_linefinder_tarball')
-            p.start()
-            #name = get_linefinder_tarball(cur,sbid_val,static_dir,sid,version)
-
-            name = f"{sbid_val}_{version}.tar"
+            # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
+            conn = connect(password=password)
+            name = get_linefinder_tarball(conn,sbid_val,static_dir,version)
+            conn.close()
 
             csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
             tarball = f"db_query/linefinder/{session_id}/{name}"
@@ -500,6 +533,7 @@ def query_database(request):
             return render(request, 'linefinder.html', {'session_id': session_id, 'sbid': sbid_val, 'lmean': lmean,'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), 'tarball': tarball})
         else:
             return HttpResponse(f"No Linefinder results for sbid {sbid_val}")
+
 
     elif query_type == "SOURCE":
         sbid_val = request.POST.get('sbid_source')
