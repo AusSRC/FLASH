@@ -196,7 +196,10 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,ver
     return outputs,alt_outputs
 
 ##################################################################################################
-def get_linefinder_tarball(conn,cur,sbid,dir_download,sid,version):
+def get_linefinder_tarball(password,sbid,dir_download,sid,version):
+
+    conn = connect(password=password)
+    cur = get_cursor(conn)
 
     oid = None
     outputs = None
@@ -480,10 +483,12 @@ def query_database(request):
             conn = connect(password=password)
             cur = get_cursor(conn)
             sid,version = get_max_sbid_version(cur,sbid_val,version)
+            cur.close()
+            conn.close()
             # Screen outputs:
             outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir)
             # Run the tarball creator in a separate process and do NOT wait for it to finish
-            p = mp.Process(target=get_linefinder_tarball, args=(conn,cur,sbid_val,static_dir,sid,version), name='get_linefinder_tarball')
+            p = mp.Process(target=get_linefinder_tarball, args=(password,sbid_val,static_dir,sid,version), name='get_linefinder_tarball')
             p.start()
             #name = get_linefinder_tarball(cur,sbid_val,static_dir,sid,version)
 
