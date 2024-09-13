@@ -4,6 +4,7 @@ import re
 import psycopg2
 import random
 import string
+import multiprocessing as mp
 
 from django.shortcuts import render
 from django.http import HttpResponse
@@ -92,6 +93,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,ver
     # args[4] = ln_mean cutoff - only sources with an ln_mean() value larger than this will be shown
     #           If no value is given, it will be set to 0.0
 
+    invertedF = False
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
     #print(f"For {sbid}:{version} ...")
@@ -101,16 +103,9 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,ver
     except ValueError: # No value given. Set to 0
         ln_mean = 0.0
     
-    # Get the relevant results file from the detect_run table:
-    query = "select detect_runid from sbid where id = %s;"
+    # Get the relevant results from the sbid table:
+    query = "select results from sbid where id = %s;"
     cur.execute(query,(sid,))
-    res = cur.fetchone()[0]
-    if not res:
-        print(f"ERROR - {sbid} not in detection table")
-        return 
-    detect_runid = int(res)
-    query = "select results from detect_run where id = %s;"
-    cur.execute(query,(detect_runid,))
     try:
         result_data = cur.fetchone()[0].split('\n')
     except TypeError:
@@ -121,6 +116,15 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,ver
     query = "select pointing from sbid where id = %s;"
     cur.execute(query,(sid,))
     pointing = cur.fetchone()[0]
+
+    # Find out if an inverted run was done as well:
+    query = "select invert_detectionF from sbid where id = %s;"
+    cur.execute(query,(sid,))
+    invertedF = cur.fetchone()[0]
+    if invertedF:
+        query = "select invert_results from sbid where id = %s;"
+        cur.execute(query,(sid,))
+        invert_result_data = cur.fetchone()[0].split('\n')
 
     # Get the list of relevant components and their values for this sbid from the component table
     if ln_mean == -1: # This means get all components, even if there is no value for ln_mean
@@ -192,10 +196,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,ver
     return outputs,alt_outputs
 
 ##################################################################################################
-def get_linefinder_tarball(conn,sbid,dir_download,version):
-    cur = get_cursor(conn)
-    # get the corresponding sbid id for the sbid_num:version
-    sid,version = get_max_sbid_version(cur,sbid,version)
+def get_linefinder_tarball(cur,sbid,dir_download,sid,version):
 
     oid = None
     outputs = None
@@ -206,6 +207,10 @@ def get_linefinder_tarball(conn,sbid,dir_download,version):
     if not detect:
         print(f"No linefinder results available for sbid {sbid}:{version} !!")
         return
+    # Check to see if the tarball already exists?
+    if os.path.exists(f"{dir_download}/{name}"):
+        return
+
     # The output files are normally stored as both a byte array AND a large object.
     # If the LOB exists, down load that in preference to the byte array, as it's more efficient:
     query = "select detect_tar from sbid where id = %s"
@@ -229,7 +234,7 @@ def get_linefinder_tarball(conn,sbid,dir_download,version):
         
     #print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
 
-    return name
+    return
 
 
 ##################################################################################################
@@ -469,11 +474,18 @@ def query_database(request):
             static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
             os.system(f"mkdir -p {static_dir}")
             version = None
-        # Screen outputs:
+            # Screen outputs:
             outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir)
             # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
             conn = connect(password=password)
-            name = get_linefinder_tarball(conn,sbid_val,static_dir,version)
+            cur = get_cursor(conn)
+            # get the corresponding sbid id for the sbid_num:version
+            sid,version = get_max_sbid_version(cur,sbid,version)
+            # Run the tarball creator in a separate process and do NOT wait for it to finish
+            p = mp.Process(target=get_linefinder_tarball, args=(cur,sbid_val,static_dir,sid,version), name='get_linefinder_tarball')
+            p.start()
+            #get_linefinder_tarball(cur,sbid_val,static_dir,sid,version)
+            name = f"{sbid}_{version}.tar"
             conn.close()
 
             csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
