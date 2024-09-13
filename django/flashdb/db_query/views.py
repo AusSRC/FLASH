@@ -196,13 +196,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,ver
     return outputs,alt_outputs
 
 ##################################################################################################
-def get_linefinder_tarball(password,sbid,dir_download,version):
-
-    # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
-    conn = connect(password=password)
-    cur = get_cursor(conn)
-    # get the corresponding sbid id for the sbid_num:version
-    sid,version = get_max_sbid_version(cur,sbid,version)
+def get_linefinder_tarball(conn,cur,sbid,dir_download,sid,version):
 
     oid = None
     outputs = None
@@ -238,7 +232,7 @@ def get_linefinder_tarball(password,sbid,dir_download,version):
             print(f"Linefinder was run, but no results stored in db for sbid {sbid}:{version} !!")
             return
         
-    #print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
+    print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
     cur.close()
     conn.close()
 
@@ -482,15 +476,17 @@ def query_database(request):
             static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
             os.system(f"mkdir -p {static_dir}")
             version = None
+            # get the sbid_num:version numbers via psycopg2
+            conn = connect(password=password)
+            cur = get_cursor(conn)
+            sid,version = get_max_sbid_version(cur,sbid_val,version)
             # Screen outputs:
             outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir)
             # Run the tarball creator in a separate process and do NOT wait for it to finish
-            p = mp.Process(target=get_linefinder_tarball, args=(password,sbid_val,static_dir,version), name='get_linefinder_tarball')
+            p = mp.Process(target=get_linefinder_tarball, args=(conn,cur,sbid_val,static_dir,sid,version), name='get_linefinder_tarball')
             p.start()
-            #get_linefinder_tarball(cur,sbid_val,static_dir,sid,version)
+            #name = get_linefinder_tarball(cur,sbid_val,static_dir,sid,version)
 
-            # get the sbid_num:version numbers
-            sid,version = get_max_sbid_version(cur,sbid,version)
             name = f"{sbid_val}_{version}.tar"
 
             csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
