@@ -196,7 +196,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,ver
     return outputs,alt_outputs
 
 ##################################################################################################
-def get_linefinder_tarball(sbid,dir_download,version):
+def get_linefinder_tarball(password,sbid,dir_download,version):
 
     # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
     conn = connect(password=password)
@@ -485,7 +485,7 @@ def query_database(request):
             # Screen outputs:
             outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir)
             # Run the tarball creator in a separate process and do NOT wait for it to finish
-            p = mp.Process(target=get_linefinder_tarball, args=(sbid_val,static_dir,version), name='get_linefinder_tarball')
+            p = mp.Process(target=get_linefinder_tarball, args=(password,sbid_val,static_dir,version), name='get_linefinder_tarball')
             p.start()
             #get_linefinder_tarball(cur,sbid_val,static_dir,sid,version)
             name = f"{sbid_val}_{version}.tar"
