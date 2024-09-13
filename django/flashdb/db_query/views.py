@@ -488,6 +488,9 @@ def query_database(request):
             p = mp.Process(target=get_linefinder_tarball, args=(password,sbid_val,static_dir,version), name='get_linefinder_tarball')
             p.start()
             #get_linefinder_tarball(cur,sbid_val,static_dir,sid,version)
+
+            # get the sbid_num:version numbers
+            sid,version = get_max_sbid_version(cur,sbid,version)
             name = f"{sbid_val}_{version}.tar"
 
             csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
