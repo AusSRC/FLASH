@@ -178,6 +178,8 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
 
     if verbose: # detailed output is saved to file
         f = open(f"{dir_download}/{sbid}_linefinder_outputs.csv","w")
+        if inverted:
+            f = open(f"{dir_download}/{sbid}_linefinder_inverted_outputs.csv","w")
         # we want From component table - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
         # From linefinder, all outputs except name: ModeNum x0_1_maxl dx_1_maxl y0_1_maxl abs_peakz_median abs_peakz_siglo abs_peakz_sighi abs_peakopd_median abs_peakopd_siglo abs_peakopd_sighi abs_intopd_median(km/s) abs_intopd_siglo(km/s) abs_intopd_sighi(km/s) abs_width_median(km/s) abs_width_siglo(km/s) abs_width_sighi(km/s) ln(B)_mean ln(B)_sigma chisq_mean chisq_sigma
         f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,x0_1_maxl,dx_1_maxl,y0_1_maxl,abs_peakz_median,abs_peakz_siglo,abs_peakz_sighi,abs_peakopd_median,abs_peakopd_siglo,abs_peakopd_sighi,abs_intopd_median(km/s),abs_intopd_siglo(km/s),abs_intopd_sighi(km/s),abs_width_median(km/s),abs_width_siglo(km/s),abs_width_sighi(km/s),ln(B)_mean,ln(B)_sigma,chisq_mean,chisq_sigma,field\n")
@@ -209,6 +211,7 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted):
     outputs = None
     name = f"{sbid}_{version}.tar"
     if inverted:
+        name = f"{sbid}_{version}_inverted.tar"
         query = "select invert_detectionF from sbid where id = %s"    
     else:
         query = "select detectionF from sbid where id = %s"    
@@ -219,12 +222,10 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted):
         return
     # The output files are normally stored as both a byte array AND a large object.
     # If the LOB exists, down load that in preference to the byte array, as it's more efficient:
-    if inverted:
-        query = "select invert_detect_tar from sbid where id = %s"
-    else:
+    if not inverted:
         query = "select detect_tar from sbid where id = %s"
-    cur.execute(query,(sid,))
-    oid = cur.fetchone()[0]
+        cur.execute(query,(sid,))
+        oid = cur.fetchone()[0]
     if oid:
         #print(f"Retrieving large object {oid} from db")
         loaded_lob = conn.lobject(oid=oid, mode="rb")
@@ -509,7 +510,7 @@ def query_database(request):
             csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
             tarball = f"db_query/linefinder/{session_id}/{name}"
         if outputs:
-            return render(request, 'linefinder.html', {'session_id': session_id, 'sbid': sbid_val, 'lmean': lmean,'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), 'tarball': tarball})
+            return render(request, 'linefinder.html', {'session_id': session_id, 'sbid': sbid_val, 'lmean': lmean,'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), 'tarball': tarball, 'inverted':inverted})
         else:
             return HttpResponse(f"No Linefinder results for sbid {sbid_val}")
 
