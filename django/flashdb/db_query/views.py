@@ -81,8 +81,8 @@ def getSBIDmetadata(sbid):
         data = cur.fetchone()
     return data
 ##################################################################################################
-def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,verbose=True):
-
+def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inverted,verbose=True):
+#TBD inverted
     # This will print out a table of linefinder output data for a given sbid
     # args[1] = db cursor
     # args[2] = The sbid you want to use - if a version is not declared ("45833" rather than "45833:2"),
@@ -100,17 +100,10 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,ver
         ln_mean = float(LN_MEAN)
     except ValueError: # No value given. Set to 0
         ln_mean = 0.0
-    
-    # Get the relevant results file from the detect_run table:
-    query = "select detect_runid from sbid where id = %s;"
+   
+    # Get the results table 
+    query = "select results from sbid where id = %s;"
     cur.execute(query,(sid,))
-    res = cur.fetchone()[0]
-    if not res:
-        print(f"ERROR - {sbid} not in detection table")
-        return 
-    detect_runid = int(res)
-    query = "select results from detect_run where id = %s;"
-    cur.execute(query,(detect_runid,))
     try:
         result_data = cur.fetchone()[0].split('\n')
     except TypeError:
@@ -193,6 +186,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,ver
 
 ##################################################################################################
 def get_linefinder_tarball(conn,sbid,dir_download,version):
+#TBD inverted
     cur = get_cursor(conn)
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
@@ -387,7 +381,7 @@ def query_database(request):
         conn = connect(password=password)
         conn.close()
     except:
-        return HttpResponse("Password failed")
+        return HttpResponse("Password has failed")
     
     query_type = request.POST.get('query_type')
     reverse = False
@@ -464,16 +458,21 @@ def query_database(request):
             reverse = True
         else:
             reverse = False
+        # See if there are any inverted-spectra linefinder results
+        query = f"SELECT invert_detectionF from sbid where sbid_num = %s"
+        cursor.execute(query,(sbid_val,))
+        inverted = cursor.fetchone() # TBD - check this works
+        print(f"inverted value = {inverted}")
         with connection.cursor() as cursor:
             # The path to Django's static dir for linefinder outputs
             static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
             os.system(f"mkdir -p {static_dir}")
             version = None
         # Screen outputs:
-            outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir)
+            outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir,inverted)
             # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
             conn = connect(password=password)
-            name = get_linefinder_tarball(conn,sbid_val,static_dir,version)
+            name = get_linefinder_tarball(conn,sbid_val,static_dir,version,inverted)
             conn.close()
 
             csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
