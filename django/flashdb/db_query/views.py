@@ -496,6 +496,8 @@ def query_database(request):
                 query = f"SELECT invert_detectionF from sbid where sbid_num = %s"
                 cursor.execute(query,(sbid_val,))
                 inverted = cursor.fetchone()[0] # TBD - check this works
+                if not inverted:
+                    return HttpResponse(f"No inverted-spectra Linefinder results for sbid {sbid_val}")
             print(f"inverted value = {inverted}")
             # The path to Django's static dir for linefinder outputs
             static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
