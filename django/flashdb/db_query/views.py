@@ -507,10 +507,11 @@ def query_database(request):
             name = get_linefinder_tarball(conn,sbid_val,static_dir,version,inverted)
             conn.close()
 
-            csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
             tarball = f"db_query/linefinder/{session_id}/{name}"
             if inverted:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_inverted_outputs.csv"
+            else:
+                csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
         if outputs:
             return render(request, 'linefinder.html', {'session_id': session_id, 'sbid': sbid_val, 'lmean': lmean,'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), 'tarball': tarball, 'inverted':inverted})
         else:
