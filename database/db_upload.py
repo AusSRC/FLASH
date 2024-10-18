@@ -799,8 +799,10 @@ def update_component_detection(cur,comp,sbid_id,processState):
     if not comp.startswith("spec_"):
         comp = "spec_" + comp
     comp.replace(".dat",".fits")
-
-    update_query = "UPDATE component SET processState = %s, detection_date = %s where comp_id = %s and sbid_id = %s;"
+    if processState == "inverted_detection":
+        update_query = "UPDATE component SET processState = %s, invert_detection_date = %s where comp_id = %s and sbid_id = %s;"
+    else:
+        update_query = "UPDATE component SET processState = %s, detection_date = %s where comp_id = %s and sbid_id = %s;"
     cur.execute(update_query,(processState,detect_date,comp,sbid_id))
     print(f"    Detection updated into table 'component': comp_id = {comp}, sbid_id = {sbid_id}")
     return

@@ -27,6 +27,15 @@ psql -U flash -d flashdb
 
 # Create the tables:
 
+#######################################################################################################
+#######################################################################################################
+#
+# The spect_run and detect_run tables give HPC-related resource info on the environment for the 
+# processing run. Originally the idea was to have these as parents of multiple SBID processing jobs,
+# but in practice we have a unique spect_run (and detect_run when it is processed) for each SBID.
+#
+
+
 create table spect_run (
     id int generated always as identity PRIMARY KEY,
     SBIDs int[],
@@ -50,32 +59,103 @@ create table detect_run (
     run_tag varchar(100), 
     date TIMESTAMP
 );
+#######################################################################################################
+#######################################################################################################
+# SBID - primary table for observation bundle data. Columns are:
+#       id - generated primary key
+#       sbid_num - SBID number (per CASDA)
+#
+# These three are technically one to many (parent to child), but in practice are only one to one
+#       spect_runid - id of parent spectral run
+#       detect_runid - id of parent detection run
+#       invert_detect_runid - id of parent inverted_spectra detection run
+# 
+#       spectralF - has spectral processing been done? Should always be True
+#       detectionF - has detection processing been done?
+#       invert_detectionF - has inverted-spectra detection processing been done?
+#
+#       spectral_config_tar - tarball of the spectral processing config files as a byte array
+#       detect_config_tar - tarball of the detection processing config files as a byte array
+#       pointing - the FLASH pointing field (as per CASDA)
+#       quality - one of 'GOOD','BAD','UNCERTAIN','REJECTED','NOT_VALIDATED', as per CASDA
+#
+#       ascii_tar - tarball of spectral processsing output ascii files (as an lob)
+#
+# These two will be depricated in favour of the byte array versions:
+#       detect_tar - tarball of detection processsing output stats,results and small plot files (as an lob)
+#       invert_detect_tar - tarball of inverted-spectra detection processsing output stats,results and small plot files (as an lob)
+#
+#       detect_results - byte array version of detect_tar
+#       invert_detect_results - byte array version of invert_detect_tar
+#
+#       results - the results.dat table from the detection
+#       invert_results - the results.dat table from the inverted_spectra detection
+#
+#       version - can have many versions of the same sbid_num (will have a different id)
+#       comment - a text comment field
 
 create table SBID (
     id int generated always as identity PRIMARY KEY,
     sbid_num int NOT NULL,
     spect_runid int,
     detect_runid int,
+    invert_detect_runid int,
     spectralF boolean,
     detectionF boolean,
+    invert_detectionF boolean,
+    spectral_config_tar bytea,
+    detect_config_tar bytea,
+    pointing text,
+    quality varchar(50),
     ascii_tar oid,
     detect_tar oid,
-    quality varchar(50),
-    version int NOT NULL
+    invert_detect_tar oid,
+    detect_results bytea,
+    invert_detect_results bytea,
+    results text,
+    invert_results text,
+    version int NOT NULL,
+    comment text
 );
 
 alter table SBID drop constraint check_types;
 alter table SBID add constraint check_types check (quality in ('GOOD','BAD','UNCERTAIN','REJECTED','NOT_VALIDATED') );
-alter table sbid add column detect_results bytea;
 
-alter table sbid add column comment text;
-alter table sbid add column results text;
-alter table SBID add column spectral_config_tar bytea;
-alter table SBID add column detect_config_tar bytea;
-alter table SBID add column pointing text;
+#######################################################################################################
+#######################################################################################################
+# component - primary table for a source within an SBID
+#       id - generated primary key
+#       comp_id - full name as per CASDA catalogue
+#       shortname - just the component number eg '100f'
+#       component_name - catalogue id eg 'J024552-095841'
+#       ra_hms_cont - right ascention in hours min sec
+#       dec_dms - declination in degrees min sec
+#       ra_deg_cont - right ascention in decimal degrees
+#       dec_deg_cont - declination in decimal degrees
+#       processState - one of 'spectral', 'detection' or 'inverted_detection'
+#       opd_plotname - name of the associated optical density plot file
+#       flux_plotname - name of the associated flux plot file
+#       fluxfilter - min flux in mJy that was processed (this should be in SBID, as it's the same for all sources)
+#       flux_cutoff - NOT USED
+#       flux_peak - max flux value for this source
+#       flux_int max intergrated flux for this source
+#       has_siblings - NOT USED
+#       opd_image - the actual optical density pdf file as a byte array
+#       flux_image - the actual flux pdf file as a byte array
+#       mode_num - generated by the detection process - roughly how many candidate absorptions found
+#       invert_mode_num - generated by the inverted spectra detection - roughly how many candidate absorptions found
+#       ln_mean - generated by the detection process - roughly how statistically positive the detection is
+#       invert_ln_mean - generated by the inverted-spectra detection - roughly how statistically positive the detection is
+#       spectral_date - timestamp of when the spectral processing was done
+#       detection_date - timestamp of when the detection processing was done
+#       invert_detection_date - timestamp of when the inverted-spectra detection processing was done
+#       sbid_id - the id of the parent SBID entry (one SBID to many sources)
+#       comment - a text comment
 
 create table component (
+    id int generated always as identity PRIMARY KEY,
     comp_id varchar(100) NOT NULL,
+    shortname char(5),
     component_name varchar(100),
     ra_hms_cont varchar(50,
     dec_dms_cont varchar(50,
@@ -92,23 +172,28 @@ create table component (
     opd_image bytea,
     flux_image bytea,
     mode_num int,
+    invert_mode_num int,
     ln_mean real,
+    invert_ln_mean real,
     spectral_date TIMESTAMP,
     detection_date TIMESTAMP,
+    invert_detection_date TIMESTAMP,
     sbid_id int NOT NULL,
-    id int generated always as identity PRIMARY KEY,
+    comment text,
     constraint fk_sbid_id
         foreign key(sbid_id) references SBID(id) on delete cascade
 );
 
 alter table component drop constraint fk_sbid_id; # No longer need this - it slows down deletes
-alter table component add shortname char(5);
 
 # This should be done for all BYTEA columns that store compressed data (to stop Postgresql from trying to re-compress):
 #alter table component alter column opd_image set storage EXTERNAL;
 
+# Don't use this anymore:
 alter table component add constraint check_flux check (flux_cutoff in ('ABOVE','BELOW') );
-alter table component add column comment text;
+
+#######################################################################################################
+#######################################################################################################
 
 create table reports (
     id int generated always as identity PRIMARY KEY,
