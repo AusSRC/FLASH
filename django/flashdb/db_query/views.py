@@ -102,7 +102,10 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
         ln_mean = 0.0
    
     # Get the results table 
-    query = "select results from sbid where id = %s;"
+    if inverted:
+        query = "select invert_results from sbid where id = %s;"
+    else:
+        query = "select results from sbid where id = %s;"
     cur.execute(query,(sid,))
     try:
         result_data = cur.fetchone()[0].split('\n')
@@ -118,13 +121,19 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     # Get the list of relevant components and their values for this sbid from the component table
     if ln_mean == -1: # This means get all components, even if there is no value for ln_mean
         if order == "lnmean":
-            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean")
+            if inverted:
+                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s order by invert_ln_mean")
+            else:
+                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean")
             if reverse:
                 query += " desc;"
             else:
                 query += ";"
         else:
-            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by comp_id")
+            if inverted:
+                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s order by comp_id")
+            else:
+                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by comp_id")
             if reverse:
                 query += " desc;"
             else:
@@ -132,13 +141,19 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
         cur.execute(query,(sid,))
     else:
         if order == "lnmean":
-            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by ln_mean")
+            if inverted:
+                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s and invert_ln_mean > %s and invert_mode_num > 0 order by invert_ln_mean")
+            else:
+                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by ln_mean")
             if reverse:
                 query += " desc;"
             else:
                 query += ";"
         else:
-            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by comp_id")
+            if inverted:
+                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s and invert_ln_mean > %s and invert_mode_num > 0 order by comp_id")
+            else:
+                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by comp_id")
             if reverse:
                 query += " desc;"
             else:
@@ -185,8 +200,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     return outputs,alt_outputs
 
 ##################################################################################################
-def get_linefinder_tarball(conn,sbid,dir_download,version):
-#TBD inverted
+def get_linefinder_tarball(conn,sbid,dir_download,version,inverted):
     cur = get_cursor(conn)
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
@@ -194,7 +208,10 @@ def get_linefinder_tarball(conn,sbid,dir_download,version):
     oid = None
     outputs = None
     name = f"{sbid}_{version}.tar"
-    query = "select detectionF from sbid where id = %s"    
+    if inverted:
+        query = "select invert_detectionF from sbid where id = %s"    
+    else:
+        query = "select detectionF from sbid where id = %s"    
     cur.execute(query,(sid,))
     detect = cur.fetchone()[0]
     if not detect:
@@ -202,7 +219,10 @@ def get_linefinder_tarball(conn,sbid,dir_download,version):
         return
     # The output files are normally stored as both a byte array AND a large object.
     # If the LOB exists, down load that in preference to the byte array, as it's more efficient:
-    query = "select detect_tar from sbid where id = %s"
+    if inverted:
+        query = "select invert_detect_tar from sbid where id = %s"
+    else:
+        query = "select detect_tar from sbid where id = %s"
     cur.execute(query,(sid,))
     oid = cur.fetchone()[0]
     if oid:
@@ -212,7 +232,10 @@ def get_linefinder_tarball(conn,sbid,dir_download,version):
         open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
     else:
         print(f"No LOB found - retrieving byte array from db")
-        query = "select detect_results from sbid where id = %s"
+        if inverted:
+            query = "select invert_detect_results from sbid where id = %s"
+        else:
+            query = "select detect_results from sbid where id = %s"
         cur.execute(query,(sid,))
         outputs = cur.fetchone()[0]
         if outputs:
@@ -454,16 +477,24 @@ def query_database(request):
         lmean = request.POST.get('mean')
         order = request.POST.get('lorder')
         reverse = request.POST.get('reverse2')
+        use_invert = request.POST.get('inverted')
+        inverted = False
+
         if reverse == "on":
             reverse = True
         else:
             reverse = False
-        # See if there are any inverted-spectra linefinder results
-        query = f"SELECT invert_detectionF from sbid where sbid_num = %s"
-        cursor.execute(query,(sbid_val,))
-        inverted = cursor.fetchone() # TBD - check this works
-        print(f"inverted value = {inverted}")
+        if use_invert == "on":
+            use_invert = True
+        else:
+            use_invert = False
         with connection.cursor() as cursor:
+            if use_invert:
+                # See if there are any inverted-spectra linefinder results
+                query = f"SELECT invert_detectionF from sbid where sbid_num = %s"
+                cursor.execute(query,(sbid_val,))
+                inverted = cursor.fetchone()[0] # TBD - check this works
+            print(f"inverted value = {inverted}")
             # The path to Django's static dir for linefinder outputs
             static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
             os.system(f"mkdir -p {static_dir}")
