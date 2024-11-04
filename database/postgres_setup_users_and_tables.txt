@@ -18,16 +18,28 @@ drop database flashdb with (FORCE);
 create database flashdb;
 grant all privileges on database flashdb to flash;
 
-# Removing orphaned large objects:
-# You can use the utility 'vacuumlo' outside of postgres, ie on the linux command line:
-vacuumlo -U flash flashdb
-
 # Re-login as flash user:
 psql -U flash -d flashdb
 
-# Create the tables:
+######################################################################################################
+####### Dumping and Restoring ########################################################################
+
+# First step is removing orphaned large objects:
+# You can use the utility 'vacuumlo' outside of postgres, ie on the linux command line:
+vacuumlo -U flash flashdb
+
+# As the tables SBID and Component make a lot of use of bytea (byte array) data, you should NOT
+# use compression when calling pg_dump, ie use the flag '-Z0', then compress outside of pg_dump
+
+# You can call pg_dump with multi-threading eg 'j 10' 
+
+# Example:
+pg_dump -Z0 -j 10 -Fd flashdb -f /mnt/tmp
+tar -czf flashdb.tar.gz /mnt/tmp
+
 
 #######################################################################################################
+########## Create the tables:
 #######################################################################################################
 #
 # The spect_run and detect_run tables give HPC-related resource info on the environment for the 
