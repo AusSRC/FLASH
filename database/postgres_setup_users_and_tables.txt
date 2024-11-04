@@ -31,7 +31,7 @@ vacuumlo -U flash flashdb
 # As the tables SBID and Component make a lot of use of bytea (byte array) data, you should NOT
 # use compression when calling pg_dump, ie use the flag '-Z0', then compress outside of pg_dump
 
-# You can call pg_dump with multi-threading eg 'j 10' 
+# You can call pg_dump with multi-threading eg '-j 10' 
 
 # Example:
 pg_dump -Z0 -j 10 -Fd flashdb -f /mnt/tmp
