@@ -2,6 +2,19 @@
 version: '3.8'
 
 services:
+  chad_db:
+    build: db
+    image: chad_db
+    container_name: chad_db
+    env_file:
+      - db/psql.env
+    ports:
+      - 5434:5432
+    volumes:
+      - /data/chad_db:/var/lib/postgresql/data
+    networks:
+      - chad_network
+
   chad_nginx:
     image: nginx:latest
     container_name: chad_nginx
@@ -17,9 +30,9 @@ services:
     networks:
       - chad_network
 
-  certbot:
+  chad_certbot:
     image: certbot/certbot:latest
-    container_name: possum_certbot
+    container_name: chad_certbot
     volumes:
       - ./nginx/certs/www:/var/www/certbot
       - ./nginx/certs/letsencrypt:/etc/letsencrypt
