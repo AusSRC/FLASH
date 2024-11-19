@@ -1,0 +1,21 @@
+version: '3.5'
+
+services:
+  chad_db:
+    build:
+       context: .
+    image: chad_db
+    container_name: chad_db
+    env_file:
+      - psql.env
+    ports:
+      - 5434:5432
+    volumes:
+      - /data/chad_db:/var/lib/postgresql/data
+    networks:
+      - chad_network
+
+networks:
+  chad_network:
+    name: chad_network
+    driver: bridge

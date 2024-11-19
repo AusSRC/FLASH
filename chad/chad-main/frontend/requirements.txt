@@ -1,0 +1,4 @@
+astropy
+Flask
+numpy
+psycopg2-binary

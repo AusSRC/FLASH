@@ -5,6 +5,7 @@ import psycopg2
 from psycopg2 import sql
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import numpy as np
+import os
 
 """
 Open a connection to the database
@@ -12,10 +13,16 @@ Outputs:
     - conn: connection (needed to close connection after execution)
     - cur: cursor (needed to execute queries)
 """
-passwd = "aussrc"
+
+passwd = os.getenv('POSTGRES_PASSWORD')
+dbname = os.getenv('POSTGRES_DB')
+user = os.getenv('POSTGRES_USER')
+dbhost = os.getenv('POSTGRES_HOST')
+dbport = 5432
 
 def connect():
-    conn = psycopg2.connect("dbname=chad user=postgres password=%s" % passwd)
+    print(f"dbname={dbname} user=postgres password={passwd}")
+    conn = psycopg2.connect("dbname={} user=postgres password={} host={} port={}".format(dbname, passwd, dbhost, dbport))
     cur = conn.cursor()
     return conn, cur
 

@@ -1,0 +1,50 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  chad_nginx:
+    image: nginx:latest
+    container_name: chad_nginx
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./nginx/conf/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/certs/www:/var/www/certbot
+      - ./nginx/certs/letsencrypt:/etc/letsencrypt
+      - ./nginx/logs:/var/log/nginx
+      - static_volume:/app/static
+    networks:
+      - chad_network
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: possum_certbot
+    volumes:
+      - ./nginx/certs/www:/var/www/certbot
+      - ./nginx/certs/letsencrypt:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - chad_network
+
+  chad:
+    build: chad-main
+    image: chad
+    container_name: chad
+    ports:
+      - "8000:8000"
+    volumes:
+      - static_volume:/app/static
+    env_file:
+      - db/psql.env
+    networks:
+      - chad_network
+
+networks:
+  chad_network:
+    name: chad_network
+    driver: bridge
+
+volumes:
+  static_volume:
+    
