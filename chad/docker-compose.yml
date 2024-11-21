@@ -14,6 +14,11 @@ services:
       - /data/chad_db:/var/lib/postgresql/data
     networks:
       - chad_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   chad_nginx:
     image: nginx:latest
