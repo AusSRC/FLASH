@@ -5,8 +5,7 @@ CREATE EXTENSION IF NOT EXISTS dblink;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'admin') THEN
-        CREATE USER "admin" WITH PASSWORD 'admin';
-        ALTER USER "admin" WITH PASSWORD 'password';
+        CREATE USER "admin" WITH PASSWORD 'password';
         ALTER USER "admin" WITH SUPERUSER;
     END IF;
 END $$;
