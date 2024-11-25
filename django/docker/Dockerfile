@@ -50,9 +50,9 @@ RUN cd /home/flash \
 # IP address used to check route to external-facing interface
 ENV IPCHECK=150.229.69.37
 
-COPY docker/settings.py /home/flash/django/flashdb/flashdb/
-COPY docker/service/*  /home/flash/django/flashdb/service/
-COPY docker/certs/*  /home/flash/django/flashdb/certs/
+COPY settings.py /home/flash/django/flashdb/flashdb/
+COPY service/*  /home/flash/django/flashdb/service/
+COPY certs/*  /home/flash/django/flashdb/certs/
 
 RUN chown -R flash:flash /home/flash \
     && rm -R /home/flash/django/docker
@@ -61,4 +61,4 @@ COPY docker/service/flashdb.sh /usr/local/bin
 RUN chmod a+x /usr/local/bin/flashdb.sh
 
 USER flash
-CMD [ "/usr/local/bin/flashdb.sh" ]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "chad:app", "--workers", "4", "--threads", "2"]
