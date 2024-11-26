@@ -16,6 +16,7 @@ ENV/
 *.pem
 *.key
 TODO.md
-nginx/certs/letsencrypt/
-nginx/certs/www/
+*/nginx/certs/letsencrypt/
+*/nginx/certs/www/
 *logs/
+*settings.py
