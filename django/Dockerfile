@@ -1,9 +1,3 @@
-# 1. Ensure you run from the checked out FLASH/django directory when building. 
-# 2. Copy your real certs to FLASH/django/docker/certs/
-# 3. Copy your real DJANGO flashdb.sh and flashdb.ini to FLASH/django/docker/service/
-# 4. Copy your real DJANGO settings.py to FLASH/django/docker/
-# 5. Edit the cron files in FLASH/django/docker/cron/
-# 6. Build with 'sudo docker build -t flashgui .
 FROM ubuntu:latest
 
 RUN apt update && \
@@ -50,9 +44,9 @@ RUN cd /home/flash \
 # IP address used to check route to external-facing interface
 ENV IPCHECK=150.229.69.37
 
-COPY settings.py /home/flash/django/flashdb/flashdb/
-COPY service/*  /home/flash/django/flashdb/service/
-COPY certs/*  /home/flash/django/flashdb/certs/
+COPY docker/settings.py /home/flash/django/flashdb/flashdb/
+COPY docker/service/*  /home/flash/django/flashdb/service/
+COPY docker/certs/*  /home/flash/django/flashdb/certs/
 
 RUN chown -R flash:flash /home/flash \
     && rm -R /home/flash/django/docker
@@ -61,4 +55,4 @@ COPY docker/service/flashdb.sh /usr/local/bin
 RUN chmod a+x /usr/local/bin/flashdb.sh
 
 USER flash
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "chad:app", "--workers", "4", "--threads", "2"]
+CMD [ "/usr/local/bin/flashdb.sh" ]
