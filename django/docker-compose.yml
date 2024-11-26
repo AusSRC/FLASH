@@ -34,8 +34,6 @@ services:
       - "8000:8000"
     volumes:
       - static_volume:/app/static
-    env_file:
-      - db/psql.env
     networks:
       - flash_network
 
