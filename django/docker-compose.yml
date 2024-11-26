@@ -27,7 +27,7 @@ services:
       - flash_network
 
   flash:
-    build: docker
+    build: .
     image: flash
     container_name: flash
     ports:

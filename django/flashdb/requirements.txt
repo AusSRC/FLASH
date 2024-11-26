@@ -1,0 +1,5 @@
+Django
+django-extensions
+django-sslserver
+psycopg2
+uwsgi
