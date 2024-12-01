@@ -1,0 +1,21 @@
+version: '3.5'
+
+services:
+  flash_db:
+    build:
+       context: .
+    image: flash_db
+    container_name: flash_db
+    env_file:
+      - psql.env
+    ports:
+      - 2095:5432
+    volumes:
+      - /mnt/data/flash_db:/var/lib/postgresql/data
+    networks:
+      - flash_network
+
+networks:
+  flash_network:
+    name: flash_network
+    driver: bridge
