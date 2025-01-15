@@ -394,7 +394,8 @@ def show_csv(request):
     csv_file = request.POST.get('csv')
     sbid_val = request.POST.get('sbid')
     lnmean = request.POST.get('lnmean')
-    return render(request, 'csv_parse.html', {'csv_file': csv_file, 'sbid': sbid_val, 'lnmean': lnmean})
+    invert = request.POST.get('invert')
+    return render(request, 'csv_parse.html', {'csv_file': csv_file, 'sbid': sbid_val, 'lnmean': lnmean, 'inverted': invert})
 
 def query_database(request):
     # Build the SQL query using Django's SQL syntax

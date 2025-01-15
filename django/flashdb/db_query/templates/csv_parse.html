@@ -65,6 +65,7 @@
 	<div class="fixed" style="background-color:aquamarine;">
 		<H1 style="text-align: center;">FLASH Database Linefinder Results</H1>
 		{% load static %}
+                {% if inverted == True %} <h2 style="text-align: center;">For INVERTED-spectra detection</h2> {% endif %}
 		<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
 		<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
 		<p style="text-align: center;"> For SBID = {{ sbid }} and ln_mean(B) minimum = {{ lnmean }}:</p>
