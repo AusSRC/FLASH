@@ -399,7 +399,6 @@ def show_csv(request):
 
 def query_database(request):
     # Build the SQL query using Django's SQL syntax
-    #qs = MyModel.objects.all().values('name', 'age')
     password = request.POST.get('pass')
     session_id = request.POST.get('session_id')
     # Try a psycopg2 connection with the supplied password. If it fails, return error msg
@@ -496,7 +495,7 @@ def query_database(request):
                 # See if there are any inverted-spectra linefinder results
                 query = f"SELECT invert_detectionF from sbid where sbid_num = %s"
                 cursor.execute(query,(sbid_val,))
-                inverted = cursor.fetchone()[0] # TBD - check this works
+                inverted = cursor.fetchone()[0]
                 if not inverted:
                     return HttpResponse(f"No inverted-spectra Linefinder results for sbid {sbid_val}")
             print(f"inverted value = {inverted}")

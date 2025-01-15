@@ -17,15 +17,15 @@
 		left: 0;
 		right: 0;
 	}
-        .demo { border-collapse: collapse; }
-        .demo tr:nth-child(odd) { background: #f2f2f2; }
-        .demo td { border: 1px solid #ddd; padding: 10px; }
-        .demo thead td { font-weight: 700; color: #fff; background: #000; }
+        .CSV { border-collapse: collapse; }
+        .CSV tr:nth-child(odd) { background: #f2f2f2; }
+        .CSV td { border: 1px solid #ddd; padding: 10px; }
+        .CSV thead td { font-weight: 700; color: #fff; background: #000; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script>
     {% load static %}
-	function demoA () {
+	function getCSV () {
 	  // (PART A) FETCH CSV FROM SERVER
 	  Papa.parse("{% static csv_file %}", {
 	    download: true,
@@ -34,7 +34,7 @@
 	    // (PART B) DRAW CSV FILE
 	    complete : csv => {
 	      // (B1) GET + RESET HTML TABLE
-	      var table = document.getElementById("demoA");
+	      var table = document.getElementById("getCSV");
 	      table.innerHTML = "";
 
               // (B2) DRAW TABLE HEADER
@@ -71,8 +71,8 @@
 		<p style="text-align: center;"> For SBID = {{ sbid }} and ln_mean(B) minimum = {{ lnmean }}:</p>
 	</div>
     <div class="slim" style="position:relative; top: 280px; left:200px; right: 200px;">
-        <table id="demoA" class="demo"></table>
-        <input type="button" value="Load Linefinder results.dat" onclick="demoA()">
+        <table id="getCSV" class="CSV"></table>
+        <input type="button" value="Load Linefinder results.dat" onclick="getCSV()">
     </div>
 </body>
 </html>
