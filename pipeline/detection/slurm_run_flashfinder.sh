@@ -13,6 +13,7 @@ source /software/projects/ja3/ger063/setonix/FLASH/set_local_env.sh
 # Output directory:
 mkdir -p "$1"/outputs
 mkdir -p "$1"/logs
+cd "$1"
 
 sbatch <<EOT
 #!/bin/bash
@@ -40,7 +41,7 @@ source /software/projects/ja3/ger063/setonix/FLASH/set_local_env.sh
 export MPICH_GNI_MALLOC_FALLBACK=enabled
 export MPICH_OFI_STARTUP_CONNECT=1
 export MPICH_OFI_VERBOSE=1
-export FI_CXI_DEFAULT_VNI=$(od -vAn -N4 -tu < /dev/urandom)
+export FI_CXI_DEFAULT_VNI="$(od -vAn -N4 -tu < /dev/urandom)"
 export SLURM_EXPORT_ENV=ALL
 
 echo "Checking for bad files"
@@ -50,7 +51,7 @@ python $FINDER/pre_process.py '$3' '$1/$2'
 echo "Starting with $1/$2"
 ## Ensure the correct linefinder.ini is specified here:
 srun -K1 python $FINDER/flash_finder.py --data_path '$1/$2' --model_path '$1/config/model.txt' --out_path '$1/outputs' \
---sbid "$4" --inifile '$1/config/slurm_linefinder.ini'
+--mask_path '$1/config/mask.txt' --sbid "$4" --inifile '$1/config/slurm_linefinder.ini'
 
 exit 0
 EOT
