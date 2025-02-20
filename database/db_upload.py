@@ -477,6 +477,7 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
         config_data = None
         try:
             tar_dir(config_tarball,config_dir,pattern=".")
+            print(f"{config_tarball} created")
             with open(config_tarball,'rb') as f:
                 config_data = f.read()
         except FileNotFoundError:
