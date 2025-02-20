@@ -23,8 +23,17 @@
 ######################################################################################
 ######################################################################################
 ####################### USER EDIT VALUES #############################################
-# The SBIDS to process:
-SBIDARRAY=(55247 55398 55460)
+# The SBIDS to process (if not pass on the command line):
+
+if [ $# -eq 0 ]
+    then
+        rm jobs_to_sbids.txt
+        SBIDARRAY=(55247 55398 55460)
+else
+        SBIDARRAY=( "$@" )
+fi
+echo "${SBIDARRAY[@]}"
+
 
 # The parent directory holding the SBIDS
 PARENT_DIR="/scratch/ja3/ger063/data/casda"
@@ -41,8 +50,14 @@ source /software/projects/ja3/ger063/setonix/FLASH/set_local_env.sh
 for SBID1 in "${SBIDARRAY[@]}"; do
     PARENT1=$PARENT_DIR/$SBID1
     cp slurm_linefinder.ini model.txt $PARENT1/config
+    # Check if a mask file exists:
+    MASK="masks/SBID${SBID1}_mask.txt"
+    if test -f $MASK; then
+            cp $MASK "${PARENT1}/config/mask.txt"
+    fi
+
      # pass to slurm_run scripts: 
-    jid1=$(/bin/bash $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR)
+    jid1=$(/bin/bash $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1)
     # Report
     j1=$(echo $jid1 | awk '{print $4}')
     echo "Sumbitted job $j1"
