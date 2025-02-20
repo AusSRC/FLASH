@@ -38,14 +38,16 @@ class Spectrum():
         self.y.data = data[:,1][(data[:,0]>=float(options.x_min))&(data[:,0]<=float(options.x_max))]         
 
         # Apply mask file
-        if os.path.exists(options.mask_path):
+        if os.path.isfile(options.mask_path):
+            print("Using mask file ",options.mask_path)
             masks = np.genfromtxt(options.mask_path, comments='#')
             for mask in masks:
                 # This doesn't work
                 #self.y.data[(self.y.data > np.min(mask)) & (self.y.data < np.max(mask))] = 0.
                 # Should be:
                 self.y.data[(self.x.data > np.min(mask)) & (self.x.data < np.max(mask))] = 0.
-
+        else:
+            print("No valid mask file found. Not running mask")
         # Invert data if required
         if options.invert_spectra:
             self.y.data = -1*self.y.data
