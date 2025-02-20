@@ -316,7 +316,7 @@ def make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flu
 
 ## writing out ascii files for FLASHfinder (add opd + noise in one file)
 def write_ascii(sbid,compid,compno,chan,freq,flux,z,noiseflux,opd,noiseopd):
-    data_all = Table([chan,freq,z,flux,noiseflux,opd,noiseopd], names=['chan','freq(MHz)','redshift','flux(Jy)','noise(Jy)','opd','opdnoise'])
+    #data_all = Table([chan,freq,z,flux,noiseflux,opd,noiseopd], names=['chan','freq(MHz)','redshift','flux(Jy)','noise(Jy)','opd','opdnoise'])
     data_flux = Table([freq,flux,noiseflux], names=['freq(MHz)','flux(Jy)','noise(Jy)'])
     data_opd = Table([freq,opd,noiseopd], names=['freq(MHz)','opd','opdnoise'])
     #ascii.write(data_all, '%s/spectra_plots/ascii_format/spectrum_contsub_SB%s_component_%s.txt'%(sbid,sbid,compno), include_names=['chan','freq(MHz)','redshift','flux(Jy)','noise(Jy)','opd','opdnoise'], format='commented_header', comment='#', delimiter=' ',overwrite=True)
