@@ -125,8 +125,11 @@ def write_resultsfile(options,source,model,suffix="",name=None):
             else:
                 for j in range(param_index,param_index+nparams):
                     if options.param_out == 'maxl':
-                        maxl = model.output.sline.get_stats()['modes'][mode_index]['maximum'][j]
-                        text += ' %.8f' % (maxl)
+                        try: # This sometimes (rarely) fails in the pymultinest analyse module, causing a seg fault
+                            maxl = model.output.sline.get_stats()['modes'][mode_index]['maximum'][j]
+                            text += ' %.8f' % (maxl)
+                        except:
+                            text += ' n/a'
                     else:
                         if options.mmodal:
                             median = model.output.sline.separated_stats['marginals'][mode_index][j]['median']
