@@ -26,9 +26,6 @@ PARENTDIR="/scratch/ja3/ger063/data/casda"
 # Config file to use for all the sbids
 CONFIGFILE="./config.py"
 
-# The parent directory holding the SBIDS
-PARENT_DIR="/scratch/ja3/ger063/data/casda"
-
 source ~/setonix_set_local_env.sh
 cd $DBDIR
 
