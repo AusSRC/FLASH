@@ -601,7 +601,7 @@ if __name__ == "__main__":
         get_sql_result(conn,cur)
 
     # Get linfinder results for sbid
-    if MODE in ["LINEFINDER","LINEFINDER_INVERT"]
+    if MODE in ["LINEFINDER","LINEFINDER_INVERT"]:
         if MODE == "LINEFINDER_INVERT":
             invertF = True
         get_results_for_sbid(cur,SBID,VERSION,invertF,verbose=True)
