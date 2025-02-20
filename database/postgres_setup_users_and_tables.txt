@@ -7,6 +7,13 @@ telnet 146.118.64.208 5432
 # Tried to reset 'postgres' passwd to 'teapottery' but failed?
 # Survey sbids start after SB 43426
 #
+######### Psycopg2 ###########################################
+
+# install psycopg2 
+sudo apt install pip
+sudo apt-get install --reinstall libpq-dev
+sudo pip install psycopg2
+#######################################################################################################
 
 ssh -i ~/src/aussrc.pem ubuntu@146.118.64.208
 
@@ -20,23 +27,6 @@ grant all privileges on database flashdb to flash;
 
 # Re-login as flash user:
 psql -U flash -d flashdb
-
-######################################################################################################
-####### Dumping and Restoring ########################################################################
-
-# First step is removing orphaned large objects:
-# You can use the utility 'vacuumlo' outside of postgres, ie on the linux command line:
-vacuumlo -U flash flashdb
-
-# As the tables SBID and Component make a lot of use of bytea (byte array) data, you should NOT
-# use compression when calling pg_dump, ie use the flag '-Z0', then compress outside of pg_dump
-
-# You can call pg_dump with multi-threading eg '-j 10' 
-
-# Example:
-pg_dump -Z0 -j 10 -Fd flashdb -f /mnt/tmp
-tar -czf flashdb.tar.gz /mnt/tmp
-
 
 #######################################################################################################
 ########## Create the tables:
@@ -206,7 +196,17 @@ alter table component add constraint check_flux check (flux_cutoff in ('ABOVE','
 
 #######################################################################################################
 #######################################################################################################
+# Black listed: This table lists sbids and optionally components of sbids, that are not to be processed 
+# or stored in the database
 
+create table black_list (
+    id int generated always as identity PRIMARY KEY,
+    sbid int NOT NULL,
+    components int[]
+);
+
+#######################################################################################################
+#######################################################################################################
 create table reports (
     id int generated always as identity PRIMARY KEY,
     name varchar(100) NOT NULL,
@@ -216,6 +216,7 @@ create table reports (
     detect_runid int,
     report oid,
     date TIMESTAMP
+);
 
 #########################################################################################
 ######### NOT USED ######################################################################
@@ -322,7 +323,8 @@ $$;
 SELECT get_lo_size(1234567);
 SELECT pg_size_pretty(get_lo_size(1234567));
 
-# Function to delete components one by one:
+# Function to delete components one by one - note this will fail if there are no components (sources) stored
+# for the sbid:
 CREATE OR REPLACE FUNCTION delete_comps(integer) RETURNS void 
 LANGUAGE 'plpgsql'
 AS $$
@@ -342,19 +344,13 @@ $$;
 SELECT delete_comps(310);
 
 ############################################################################################
-
+￼
 # Find the objects / tables taking up the most space in the database:
 SELECT oid::regclass, pg_relation_size(oid), relkind FROM pg_class ORDER BY 2 DESC;
 
 # Find storage and data types used in database:
 SELECT table_name, column_name, attstorage, atttypid::regtype FROM information_schema.columns JOIN pg_attribute ON ( columns.table_name = pg_attribute.attrelid::regclass::text AND columns.column_name = pg_attribute.attname) where table_name = 'sbid';
 
-######### Psycopg2 ###########################################
-
-# install psycopg2 
-sudo apt install pip
-sudo apt-get install --reinstall libpq-dev
-sudo pip install psycopg2
 #################################################
 # Find sbids with duplicate components:
 select distinct s.id,s.sbid_num from sbid s inner join component c on s.id = c.sbid_id where c.comp_id in (select comp_id from component group by comp_id having count(*) > 1) order by s.sbid_num;
@@ -365,17 +361,27 @@ DELETE from component where id in (select id from component except (select max(i
 DELETE from component where id in (select id from component except (select max(id) from component where sbid_id = 372 group by comp_id));
 
 #################################################
-# run long-running transactions from thwhere sbid_id = 427;e command line and disconnect:
+# run long-running transactions from the command line and disconnect:
 psql -U flash -d flashdb -c 'update component set opd_image = NULL where sbid_id = 312' &
 bg
 disown
 
-#################################################
-# Backup and restore
-# TO back up as a directory structure (gzipped)
-sudo su postgres
-pg_dump -F d -Z gzip -f <backup_dir_name> flashdb 
+######################################################################################################
+####### Dumping and Restoring ########################################################################
 
-# To restore the above, dropping the database before restoring:
-sudo su postgres
-pg_restore -c -f <backup_dir_name>
+# First step is removing orphaned large objects:
+# You can use the utility 'vacuumlo' outside of postgres, ie on the linux command line:
+vacuumlo -U flash -v flashdb >> pg_vacuum.txt 2>&1
+# as the above will take a long time, background and disown it. Then run:
+vacuumdb -U flash -v -d flashdb
+
+# As the tables SBID and Component make a lot of use of bytea (byte array) data, you should NOT
+# use compression when calling pg_dump, ie use the flag '-Z0', then compress outside of pg_dump
+
+# You can call pg_dump with multi-threading eg '-j 10' 
+
+# Example:
+pg_dump -Z0 -j 10 -Fd flashdb -f /mnt/tmp
+tar -czf flashdb.tar.gz /mnt/tmp
+
+#################################################
