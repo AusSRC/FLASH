@@ -23,7 +23,7 @@ from casda_download import *
 ############################################### USER SECTION ###################################################
 # If an attribute doesn't apply, set it to ""
 
-# Note that these are all now set via cmd line key arguments - see set_parser() below.
+# Note that these are out of date; the required attribs are set via the cmd line - see set_parser() below.
 RUN_TYPE = ""
 DOWNLOAD_CAT = True # If the catalogues are not already downloaded, set this to True
 ADD_CAT = True # Don't just download the catalogues - add them to the database too.
@@ -230,10 +230,15 @@ def delete_sbids(conn,sbids,versions=None):
 
         # Now remove the sbid from the SBID table (remove associated components first)
         print("\tDeleting components ...This may take 30min or so")
+        # Check if there are any components to delete:
+        count_comps = "select count(*) from component where sbid_id = %s"
+        cur.execute(count_comps,(sbid_id,))
+        count = int(cur.fetchall()[0][0])
         # This delete can take 20mins or more:
         #comp_delete = "delete from component where sbid_id = %s;"
-        comp_delete = "select delete_comps(%s);"
-        cur.execute(comp_delete,(sbid_id,))
+        if count > 0:
+            comp_delete = "select delete_comps(%s);"
+            cur.execute(comp_delete,(sbid_id,))
         sbid_delete = "DELETE from SBID where id = %s;"
         cur.execute(sbid_delete,(sbid_id,))
         print(f"\t{sbid}:{version} deleted!",flush=True)
