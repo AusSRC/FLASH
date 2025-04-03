@@ -213,10 +213,9 @@ def delete_sbids(conn,sbids,versions=None):
         try:
             runid = cur.fetchall()[0][0]
             cur = remove_sbids_from_detection(conn,[sbid],[version],runid)
-            print("\tRemoved reference in detect table",flush=True)
+            print("\tRemoved reference in detect_run table",flush=True)
         except IndexError:
             print(f"\tNo detection run found for sbid {sbid}:{version}",flush=True)
-
         # It will DEFINITELY be referenced in the spect_run table - remove
         sbid_query = "SELECT id from spect_run where %s = ANY (SBIDS);"
         cur.execute(sbid_query,(sbid,))
