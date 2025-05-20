@@ -120,6 +120,12 @@ create table SBID (
     comment text
 );
 
+# Add masking
+alter table sbid add column mask_detectionF boolean;
+alter table sbid add column mask text;
+alter table sbid add column mask_detect_results bytea;
+alter table sbid add column mask_results text;
+
 alter table SBID drop constraint check_types;
 alter table SBID add constraint check_types check (quality in ('GOOD','BAD','UNCERTAIN','REJECTED','NOT_VALIDATED') );
 
@@ -378,10 +384,68 @@ vacuumdb -U flash -v -d flashdb
 # As the tables SBID and Component make a lot of use of bytea (byte array) data, you should NOT
 # use compression when calling pg_dump, ie use the flag '-Z0', then compress outside of pg_dump
 
-# You can call pg_dump with multi-threading eg '-j 10' 
+# You can call pg_dump with multi-threading eg '-j 10'  - do this as the postgres user
 
 # Example:
-pg_dump -Z0 -j 10 -Fd flashdb -f /mnt/tmp
+pg_dump -Z0 -j 10 -Fd flashdb -f /mnt/tmp &
 tar -czf flashdb.tar.gz /mnt/tmp
 
+##################################################################################################
+##################################################################################################
+
 #################################################
+# SETUP on Oracle Cloud
+#################################################
+
+# Note - the Flash VM at Oracle is at 152.67.97.254, and on that subnet the 
+# private ip for the database is 10.0.2.225
+
+# Use the "Create database" option from the pull-down menu
+#  - admin username is "admin_aussrc"
+#  - psswd is "Grid1#pensive" 
+current secret: ZTFXXkFwMiRFKzNpeFo=
+
+#################################################
+# Logging into the Db from the Oracle VM:
+# Using the OracleCloud web portal, find the db and under the details section, download the CA cert 
+# and transfer it to the VM. Also note the FQDN.
+FQDN = primary.llmu46sbzkgzzctqy5wudukbdyt6cq.postgresql.ap-sydney-1.oci.oraclecloud.com
+
+# On the Oracle VM: install the postgres_client software, then remove the default password file:
+rm -fr ~/.pgpass
+
+# Log into the database with the CA cert
+psql "sslmode=verify-full sslrootcert=/home/ubuntu/CaCertificate-flashdb.pub host=primary.llmu46sbzkgzzctqy5wudukbdyt6cq.postgresql.ap-sydney-1.oci.oraclecloud.com hostaddr=10.0.2.225 dbname=postgres user=admin_aussrc"
+
+#################################################
+# Using pg_dump & pg_restore with directory format, the migration works efficiently and its useful for 
+# large database migration or parallel restoration. Below is the step by step procedure - db endpoint is 10.0.2.142
+
+# Syntax for pg_dump (on Nimbus VM with running postgres db):
+
+pg_dumpall -U postgres -g --no-role-passwords --no-tablespaces -f all_roles.sql
+
+pg_dump -v -U postgres -d flashdb -Fd -C  -j 8 -Z0 -f /mnt/db/archived/latest
+
+# The above sql file and "latest" directory then need to be copied to OracleCloud VM
+
+# Then on OracleCloud VM, run pg_restore. Syntax for pg_restore:
+/usr/lib/postgresql/bin/psql -U <username> -d <databasename> -h 10.0.2.142 -f all_roles.sql  
+
+ 
+
+/usr/lib/postgresql/bin /pg_restore -v -h < IP_of_Target_Database_System > -U <username> -j <Num of parallel jobs> -Fd -C -d <databasename> sampledb_dir_format
+
+-v = Specifies verbose mode – to check progress of the pg_restore.
+
+-Fd = Specifies directory format which will allow to create multiple-file output. By default, the output is compressed.
+
+-C = Data is always restored into the database name that appears in the dump file.
+
+-Z0 = Specifies compression level to use. Zero means no compression. Zero compression during the pg_dump process could help with performance gains.
+
+-j = Number of concurrent jobs for parallel backup/restoration. The number of parallel jobs should be less than or equal to the number of OCPUs that are allocated for the database server.
+
+ 
+
+Also, you can use pg_stat_activity to check the progress of data restoration operation.
