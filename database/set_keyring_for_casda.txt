@@ -1,0 +1,5 @@
+# This will prompt for password and store it in the keyring
+keyring set astroquery:casda.csiro.au Gordon.German@csiro.au
+
+# On Setonix you have to specify the backend to use:
+keyring -b keyring.backends.chainer.ChainerBackend set astroquery:casda.csiro.au Gordon.German@csiro.au
