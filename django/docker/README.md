@@ -17,6 +17,13 @@ Commit the image:
     sudo docker ps -l
     sudo docker commit <container ID> aussrc/flashgui
 
+# Certs
+In the container, check the certificate:
+    sudo certbot certificates
+(if required):
+    sudo certbot renew
+
+
 
 # Production Run
 Run with:

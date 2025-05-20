@@ -115,6 +115,16 @@ sudo uwsgi --https :443,/home/flash/django/flashdb/certs/fullchain.pem,/home/fla
 sudo uwsgi --https `ip -o route get to 150.229.69.37 | sed -n 's/.*src \([0-9.]\+\).*/\1/p' `:443,/home/flash/django/flashdb/certs/fullchain.pem,/home/flash/django/flashdb/certs/privkey.pem flashdb.ini
 
 ###############################################################################################################################
+# Checking ports, certs etc
+
+# Check that nothing is running on port 80:
+sudo lsof -i tcp:80
+
+# Check valid certs:
+sudo certbot certificates
+sudo certbot renew
+
+###############################################################################################################################
 
 # The above was replaced by Dockerfile July 2024. Prior to build, ensure all code changes are committed to the git repo. Build with:
 
