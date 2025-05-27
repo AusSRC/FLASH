@@ -1,0 +1,54 @@
+1 Firstly, set up a pasword-less login:
+On Nimbus:
+    ssh-keygen -t rsa -b 2048
+    ssh-copy-id ger063@setonix.pawsey.org.au
+
+Test the login to setonix without password
+
+2. Create cron script on Nimbus: ~/cronjobs/casda_update.sh
+3. Create processing script on Setonix: ~/src/cronjobs/casda_updates.sh
+4. Create cron job on Nimbus as Ubuntu user:
+    crontab -e
+	00 00 * * 1-5 /bin/bash /home/ubuntu/cronjobs/nimbus_casda_update.sh
+	00 01 * * 1-5 /bin/bash /home/ubuntu/cronjobs/nimbus_get_casda_logs.sh
+	00 02 * * 1-5 /bin/bash /home/ubuntu/cronjobs/nimbus_get_detect_logs.sh
+	00 03 * * 1-5 /bin/bash /home/ubuntu/cronjobs/nimbus_linefinder.sh
+
+
+5. Set up logging for cron job:
+    edit /etc/rsyslog.d/50-default.conf - uncomment '#cron.* /var/log/cron.log'
+    sudo touch /var/log/cron.log
+    sudo chmod 640 /var/log/cron.log
+    sudo chown syslog:adm /var/log/cron.log
+    sudo systemctl restart rsyslog.service
+
+
+6. Example crontab:
+# Edit this file to introduce tasks to be run by cron.
+# 
+# Each task to run has to be defined through a single line
+# indicating with different fields when the task will be run
+# and what command to run for the task
+# 
+# To define the time you can provide concrete values for
+# minute (m), hour (h), day of month (dom), month (mon),
+# and day of week (dow) or use '*' in these fields (for 'any').
+# 
+# Notice that tasks will be started based on the cron's system
+# daemon's notion of time and timezones.
+# 
+# Output of the crontab jobs (including errors) is sent through
+# email to the user the crontab file belongs to (unless redirected).
+# 
+# For example, you can run a backup of all your user accounts
+# at 5 a.m every week with:
+# 0 5 * * 1 tar -zcf /var/backups/home.tgz /home/
+# 
+# For more information see the manual pages of crontab(5) and cron(8)
+# 
+# m h  dom mon dow   command
+00 00 * * 1-5 /bin/bash /home/ubuntu/cronjobs/nimbus_casda_update.sh
+00 01 * * 1-5 /bin/bash /home/ubuntu/cronjobs/nimbus_get_casda_logs.sh
+00 02 * * 1-5 /bin/bash /home/ubuntu/cronjobs/nimbus_get_detect_logs.sh
+00 03 * * 1-5 /bin/bash /home/ubuntu/cronjobs/nimbus_linefinder.sh
+~                                                                     
