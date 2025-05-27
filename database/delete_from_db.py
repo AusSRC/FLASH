@@ -195,6 +195,7 @@ def delete_sbids(conn,sbids,versions=None):
         oid_query = "select ascii_tar from sbid where id = %s;"
         cur.execute(oid_query,(sbid_id,))
         lon = cur.fetchone()
+        print("\tDeleting ascii LOB")
         oid_delete = "SELECT lo_unlink(%s);"
         try:
             for i in lon:

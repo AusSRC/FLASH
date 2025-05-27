@@ -288,8 +288,7 @@ def get_files_for_sbid(conn,cur,sbid,version,invertF):
         name = f"{sbid}_{version}.tar.gz"
         query = "select detectionF,invert_detectionF from sbid where id = %s"    
         cur.execute(query,(sid,))
-        detect = cur.fetchone()[0][0]
-        invert_detect = cur.fetchone()[0][1]
+        detect,invert_detect = cur.fetchall()[0]
         if not detect:
             print(f"No linefinder results available for sbid {sbid}:{version} !!")
             return
