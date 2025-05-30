@@ -131,7 +131,7 @@ def make_plot(freq,chan,flux,opd,noiseflux,noiseopd,z,compno, compname, peak_flu
         ax1.set_xlabel('')
         ax1.set_ylabel('')
         if float(subplot) == 0.5*nplots:
-            ylabh = ax1.set_ylabel(r"Flux density (Jy/bm)", fontsize=10)
+            ylabh = ax1.set_ylabel(r"Flux density (Jy)", fontsize=10)
             yshift = 1.0+(0.5*fig_pad)
             ylabh.set_position((ylabh.get_position()[1],yshift))
         if float(subplot) == nplots-1.:
