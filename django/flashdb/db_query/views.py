@@ -4,10 +4,13 @@ import re
 import psycopg2
 import random
 import string
+import sys
+sys.path.append('../..')
 
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.db import connection
+from database import db_download
 from .models import MyModel
 
 #######################################################################################
@@ -100,8 +103,8 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
         ln_mean = float(LN_MEAN)
     except ValueError: # No value given. Set to 0
         ln_mean = 0.0
-   
-    # Get the results table 
+
+    # Get the results table
     if inverted:
         query = "select invert_results from sbid where id = %s;"
     else:
@@ -111,7 +114,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
         result_data = cur.fetchone()[0].split('\n')
     except TypeError:
         print(f"Output data = 0 for sbid {sbid}:{version}!")
-        return 
+        return
 
     # Get the pointing field for the sbid:
     query = "select pointing from sbid where id = %s;"
@@ -213,9 +216,9 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted):
     name = f"{sbid}_{version}.tar"
     if inverted:
         name = f"{sbid}_{version}_inverted.tar"
-        query = "select invert_detectionF from sbid where id = %s"    
+        query = "select invert_detectionF from sbid where id = %s"
     else:
-        query = "select detectionF from sbid where id = %s"    
+        query = "select detectionF from sbid where id = %s"
     cur.execute(query,(sid,))
     detect = cur.fetchone()[0]
     if not detect:
@@ -245,11 +248,10 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted):
         else:
             print(f"Linefinder was run, but no results stored in db for sbid {sbid}:{version} !!")
             return
-        
+
     #print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
 
     return name
-
 
 ##################################################################################################
 def get_bright_comps(cur,sbid,number,version=None):
@@ -272,14 +274,14 @@ def get_bright_comps(cur,sbid,number,version=None):
     keys = list(namedir.keys())
     keys.sort()
     sorted_sources = {i: namedir[i] for i in keys}
-   
-    if number: 
+
+    if number:
         n = int(number)
     else:
         n = len(sorted_sources)
     bright_sources = []
     for idx,(key,sources) in enumerate(sorted_sources.items()):
-        if idx == n: 
+        if idx == n:
             break
         sources.sort()
         for source in sources:
@@ -331,7 +333,7 @@ def index(request):
     if session_id is not None:
         print(f"Got {session_id} from POST")
         request.session["session_id"] = session_id
-    else:    
+    else:
         session_id = request.session.get("session_id")
         if session_id is None:
             session_id = generate_id(20)
@@ -339,11 +341,12 @@ def index(request):
             request.session["session_id"] = session_id
         else:
             print(f"Got {session_id} from session")
-    
+
     # Cleanup user session files
     try:
         os.system(f"sudo rm -R {static_dir}/plots/{session_id}")
         os.system(f"sudo rm -R {static_dir}/linefinder/{session_id}")
+        os.system(f"sudo rm -R {static_dir}/ascii/{session_id}")
     except:
         pass
 
@@ -370,13 +373,13 @@ def index(request):
         survey_accept = int(survey_records) - int(survey_reject)
         cursor.execute("select count(*) from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%Survey%' and sbid.quality = 'NOT_VALIDATED';")
         survey_unvalidated = cursor.fetchone()[0]
-    return render(request, 'index.html', {'records': num_records, 
-                                          'pilot1': pilot1_records, 
-                                          'rpilot1': pilot1_reject, 
-                                          'apilot1': pilot1_accept, 
-                                          'pilot2': pilot2_records, 
-                                          'rpilot2': pilot2_reject, 
-                                          'apilot2': pilot2_accept, 
+    return render(request, 'index.html', {'records': num_records,
+                                          'pilot1': pilot1_records,
+                                          'rpilot1': pilot1_reject,
+                                          'apilot1': pilot1_accept,
+                                          'pilot2': pilot2_records,
+                                          'rpilot2': pilot2_reject,
+                                          'apilot2': pilot2_accept,
                                           'survey': survey_records,
                                           'asurvey': survey_accept,
                                           'unvalid': survey_unvalidated,
@@ -407,7 +410,7 @@ def query_database(request):
         conn.close()
     except:
         return HttpResponse("Password has failed")
-    
+
     query_type = request.POST.get('query_type')
     reverse = False
 
@@ -452,7 +455,7 @@ def query_database(request):
 
         with connection.cursor() as cursor:
             if sbid_val == "-1":
-                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,invert_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid" 
+                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,invert_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
                 if where_clause:
                     query = query + where_clause
                 query = query + f" order by {order}"
@@ -551,9 +554,19 @@ def query_database(request):
             os.system(f"cd {static_dir}; tar -zcvf {tarball_name} spec_SB{sbid_val}*")
             tarball = f"db_query/plots/{session_id}/{tarball_name}"
 
-        return render(request, 'source.html', {'session_id': session_id, 'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball,'render': view_or_tar, 'metadata': metadata})
+        return render(request, 'source.html', {'session_id': session_id, 'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball, 'render': view_or_tar, 'metadata': metadata})
+    elif query_type == "ASCII":
+        ascii_dir = os.path.abspath(f"db_query/static/db_query/ascii/{session_id}/")
+        os.system(f"mkdir -p {ascii_dir}")
+        sbid_val = request.POST.get('sbid_for_ascii')
+        with connection.cursor() as cur:
+            sid,version = get_max_sbid_version(cur,sbid_val)
+            conn = connect(password=password)
+            db_download.get_ascii_files_tarball(conn,cur,sid,sbid_val,ascii_dir,version)
+            conn.close()
+            ascii_tar = f"db_query/ascii/{session_id}/{sbid_val}_{version}.tar.gz"
 
-
+        return render(request, 'ascii.html', {'session_id': session_id, 'sbid': sbid_val, 'version': version, 'ascii_tar': ascii_tar})
 
 
 def my_view(request):

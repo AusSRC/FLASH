@@ -35,17 +35,17 @@ def set_parser():
             help='Specify run mode: PLOTS, ASCII, LINEFINDER, LINEFINDER_INVERT,QUERY, SQL, SOURCE (default: %(default)s)')
     parser.add_argument('-s', '--sbid',
             default=None,
-            help='Specify the sbid eg 11346 or 41050:1 for a specific version (use "-1" to get all sbids) (default: %(default)s)') 
+            help='Specify the sbid eg 11346 or 41050:1 for a specific version (use "-1" to get all sbids) (default: %(default)s)')
 
     parser.add_argument('-c', '--component',
             default='1a',
-            help='Specify the component eg "4c" to get a specific source of a given sbid (Use with mode = "SOURCE" (default: %(default)s)') 
+            help='Specify the component eg "4c" to get a specific source of a given sbid (Use with mode = "SOURCE" (default: %(default)s)')
     parser.add_argument('-S', '--sql_stat',
             default=None,
-            help='SQL statement to pass to db (only with --mode SQL)') 
+            help='SQL statement to pass to db (only with --mode SQL)')
     parser.add_argument('-d', '--dir',
             default="/scratch/ja3/ger063/data/casda",
-            help='Specify local directory to download to (default: %(default)s)')    
+            help='Specify local directory to download to (default: %(default)s)')
     parser.add_argument('-b', '--brightest',
             default="-1",
             help='in QUERY or PLOTS mode, enter number of top brightest sources to download (-1 for all). OR enter a filename that contains the source names to download, 1 per line (default: %(default)s)')
@@ -58,7 +58,7 @@ def set_parser():
             help='in PLOTS mode, get the flux plots instead of the opd ones (default: %(default)s)')
     parser.add_argument('-pw', '--flashpw',
             default=None,
-            help='Specify the password for login to FLASHDB (default: %(default)s)')    
+            help='Specify the password for login to FLASHDB (default: %(default)s)')
     parser.add_argument('-t', '--untar',
             default=False,
             action='store_true',
@@ -78,7 +78,7 @@ def set_mode_and_values(args):
     if MODE == "SQL":
         SQL = args.sql_stat.strip()
         return
-    
+
     if MODE == "SOURCE":
         SOURCE = args.component.strip()
 
@@ -158,7 +158,7 @@ def returnBrightestSources(names,number=None):
 
     # This will sort the sources by component number = relative brightness.
     # If 'number' is defined, it will only return that many component groups.
-    # For example, number = 2 would return the sub-components of the top two source groups, say 
+    # For example, number = 2 would return the sub-components of the top two source groups, say
     # component_1a, component_1b and component_2a, component_2b and component_2c.
 
     namedir = {}
@@ -173,14 +173,14 @@ def returnBrightestSources(names,number=None):
     keys = list(namedir.keys())
     keys.sort()
     sorted_sources = {i: namedir[i] for i in keys}
-   
-    if number: 
+
+    if number:
         n = int(number)
     else:
         n = len(sorted_sources)
     bright_sources = []
     for idx,(key,sources) in enumerate(sorted_sources.items()):
-        if idx == n: 
+        if idx == n:
             break
         sources.sort()
         for source in sources:
@@ -249,12 +249,28 @@ def query_db_for_sbid(cur,sbid):
 def write_lob(lobj,filename):
     lobj.export(filename)
     return
+##################################################################################################
 
+def get_ascii_files_tarball(conn,cur,sid,sbid,static_dir,version):
+    # Download tar of ascii files for the sbid
+    query = "select ascii_tar from sbid where id = %s"
+    cur.execute(query,(sid,))
+    oid = cur.fetchone()[0]
+    print(f"Retrieving large object {oid} from db")
+    loaded_lob = conn.lobject(oid=oid, mode="rb")
+    name = f"{sbid}_{version}.tar.gz"
+    # This may run out of mem for a very large object:
+    #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
+    # So use streaming function:
+    write_lob(loaded_lob,f"{static_dir}/{name}")
+    loaded_lob.close()
+    print(f"Downloaded tar of ascii files for {sbid}:{version}")
+    return name
 ##################################################################################################
 
 def get_files_for_sbid(conn,cur,sbid,version,invertF):
 
-    # This will return a tarball of ascii files stored for a particular sbid, 
+    # This will return a tarball of ascii files stored for a particular sbid,
     # or linefinder results files for an sbid, if available.
 
     # The directory for downloads:
@@ -268,25 +284,12 @@ def get_files_for_sbid(conn,cur,sbid,version,invertF):
 
     # Download tar of ascii files for the sbid
     if MODE == "ASCII":
-        query = "select ascii_tar from sbid where id = %s"
-        cur.execute(query,(sid,))
-        oid = cur.fetchone()[0]
-        print(f"Retrieving large object {oid} from db")
-        loaded_lob = conn.lobject(oid=oid, mode="rb")
-        name = f"{sbid}_{version}.tar.gz"
-        # This may run out of mem for a very large object:
-        #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
-        # So use streaming function:
-        write_lob(loaded_lob,f"{dir_download}/{name}")
-        loaded_lob.close()
-        print(f"Downloaded tar of ascii files for {sbid}:{version}")
-        return name
-
+        return get_ascii_files_tarball(conn,cur,sid,sbid,dir_download,version)
     elif MODE == "LINEFINDER":
         oid = None
         outputs = None
         name = f"{sbid}_{version}.tar.gz"
-        query = "select detectionF,invert_detectionF from sbid where id = %s"    
+        query = "select detectionF,invert_detectionF from sbid where id = %s"
         cur.execute(query,(sid,))
         detect,invert_detect = cur.fetchall()[0]
         if not detect:
@@ -324,7 +327,7 @@ def get_files_for_sbid(conn,cur,sbid,version,invertF):
             else:
                 print(f"Linefinder was run, but no results stored in db for sbid {sbid}:{version} !!")
                 return
-            
+
         print(f"Downloaded tar of linefinder result files for {sbid}:{version}")
 
         return name
@@ -355,7 +358,7 @@ def get_plots_for_component(cur,sbid,comp):
             continue
         name = source_name.replace(".fits",f"_{data_type}.png")
         open(f"{dir_download}/{name}", 'wb').write(data[0])
-    return    
+    return
 
 ##################################################################################################
 
@@ -376,7 +379,7 @@ def get_plots_for_sbid(cur,sbid,version,get_flux=False):
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
 
-    # The component png's you want to download - ordered by brightness, eg '20' will 
+    # The component png's you want to download - ordered by brightness, eg '20' will
     # download the top 20 components (and their 'a', 'b', 'c' etc varieties, so there will
     # be more than 20 files!)
     #
@@ -467,13 +470,13 @@ def get_results_for_sbid(cur,sbid,version,invertF,verbose=False):
                 name = line.strip().split("component_")[1].split("_")[0]
                 source_list.append("component_" + name)
 
-    
+
     #query = "select detect_runid from sbid where id = %s;"
     #cur.execute(query,(sid,))
     #res = cur.fetchone()[0]
     #if not res:
     #    print(f"ERROR - {sbid} not in detection table")
-    #    return 
+    #    return
     #detect_runid = int(res)
 
     # Get the relevant results from the sbid table:
@@ -486,7 +489,7 @@ def get_results_for_sbid(cur,sbid,version,invertF,verbose=False):
         result_data = cur.fetchone()[0].split('\n')
     except TypeError:
         print(f"Output data = 0 for sbid {sbid}:{version}!")
-        return 
+        return
 
     # Get the pointing field for the sbid:
     query = "select pointing from sbid where id = %s;"
@@ -605,7 +608,7 @@ if __name__ == "__main__":
             invertF = True
         get_results_for_sbid(cur,SBID,VERSION,invertF,verbose=True)
 
-    
+
     cur.close()
     conn.close()
 

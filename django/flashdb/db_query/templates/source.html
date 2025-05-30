@@ -37,7 +37,7 @@
 	<p style="text-align: center;"> uploaded: <i>{{ metadata.2 }}</i>, in <i>{{ metadata.3 }}</i>, field: <i>{{ metadata.1 }}</i></p>
 	<p  style="text-align: center;"> Number of Components (sources): <strong>{{ num_sources }}</strong> </p>
 	{% if num_sources > 0 %}
-	    <p  style="text-align: left;"> <a href="{% static tarball %}" download>Download</a> the sources in a tar archive</p>
+	    <p  style="text-align: left;"> <a href="{% static tarball %}" download>Download</a> the source plots in a tar archive</p>
 	{% endif %}
 	<form action="/db_query/">
                 <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>
@@ -58,7 +58,7 @@
 		{% for source in sources %}
 		<tr>
 		<td>
-			<p style="text-align: center;"><b>ra:</b> {{ source.2.0 }} <b>dec:</b> {{ source.2.1 }}</p> 
+			<p style="text-align: center;"><b>ra:</b> {{ source.2.0 }} <b>dec:</b> {{ source.2.1 }}</p>
 			<p style="text-align: left;">View in <a href="https://chad.aussrc.org?ra={{ source.2.0 }}&dec={{ source.2.1 }}" target="_blank">CHAD</a>
 			<form action=/db_query/show_aladin/ method="post" target="_blank">
 			{% csrf_token %}
