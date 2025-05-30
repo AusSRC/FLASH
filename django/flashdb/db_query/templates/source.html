@@ -37,7 +37,7 @@
 	<p style="text-align: center;"> uploaded: <i>{{ metadata.2 }}</i>, in <i>{{ metadata.3 }}</i>, field: <i>{{ metadata.1 }}</i></p>
 	<p  style="text-align: center;"> Number of Components (sources): <strong>{{ num_sources }}</strong> </p>
 	{% if num_sources > 0 %}
-	    <p  style="text-align: left;"> <a href="{% static tarball %}" download>Download</a> the sources in a tar archive</p>
+	    <p  style="text-align: left;"> <a href="{% static tarball %}" download>Download</a> the source plots in a tar archive</p>
 	{% endif %}
 	<form action="/db_query/">
                 <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>

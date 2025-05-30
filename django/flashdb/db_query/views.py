@@ -4,10 +4,13 @@ import re
 import psycopg2
 import random
 import string
+import sys
+sys.path.append('../..')
 
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.db import connection
+from database import db_download
 from .models import MyModel
 
 #######################################################################################
@@ -344,6 +347,7 @@ def index(request):
     try:
         os.system(f"sudo rm -R {static_dir}/plots/{session_id}")
         os.system(f"sudo rm -R {static_dir}/linefinder/{session_id}")
+        os.system(f"sudo rm -R {static_dir}/ascii/{session_id}")
     except:
         pass
 
@@ -552,10 +556,19 @@ def query_database(request):
             tarball = f"db_query/plots/{session_id}/{tarball_name}"
 
         return render(request, 'source.html', {'session_id': session_id, 'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball,'render': view_or_tar, 'metadata': metadata})
+    elif query_type == "ASCII":
+        ascii_dir = os.path.abspath(f"db_query/static/db_query/ascii/{session_id}/")
+        os.system(f"mkdir -p {ascii_dir}")
+        sbid_val = request.POST.get('sbid_for_ascii')
+        with connection.cursor() as cur:
+            sid,version = get_max_sbid_version(cur,sbid_val)
+            conn = connect(password=password)
+            db_download.get_ascii_files_tarball(conn,cur,sid,sbid_val,ascii_dir,version)
+            conn.close()
+            ascii_tar = f"db_query/ascii/{session_id}/{sbid_val}_{version}.tar.gz"
 
-
-
-
+        return render(request, 'ascii.html', {'session_id': session_id, 'sbid': sbid_val, 'version': version, 'ascii_tar': ascii_tar})
+    
 def my_view(request):
     with connection.cursor() as cursor:
         cursor.execute("SELECT sbid_num,version,comment FROM SBID order by sbid_num,version;")

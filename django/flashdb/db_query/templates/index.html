@@ -76,6 +76,8 @@
 		<label for="linefinder">Get linefinder outputs</label><br>
 		<input type="radio" id="source" name="query_type" value="SOURCE">
 		<label for="source">View and/or download plots for source</label><br>
+		<input type="radio" id="asciifiles" name="query_type" value="ASCII">
+		<label for="asciifiles">Download ASCII files</label><br>
 
 		<div id="dbQUERY" class="desc" style="display: none;">
 			<p>QUERY the database - this will display metadata on an sbid</p>
@@ -109,6 +111,7 @@
 			<input type="checkbox" id="reverse2" name="reverse2">Reverse sort order<br>
 			<input type="checkbox" id="inverted" name="inverted">Use results from inverted-spectra run, if available.
 		</div>
+		
 		<div id="dbSOURCE" class="desc" style="display: none;">
 			<p>Get plots for individual source, or <i>n</i> brightest sources - 
                             NOTE: Only sources with a min flux value > 30mJy are stored in the DB </p>
@@ -121,9 +124,15 @@
 			source_id <input type="text" id="comp" name="comp"> OR brightest 
 			<input type="text" id="bright" name="bright">sources<br>
 		</div>
+		
+		<div id="dbASCII" class="desc" style="display: none;">
+			<p>Download ASCII tarball for individual SBID</p>
+			<label for="sbid_for_ascii">Enter integer for SBID to query:</label><br>
+			<input type="text" id="sbid_for_ascii" name="sbid_for_ascii"><br>
+		</div>
 
-                <input type="hidden" id="session_id" name="session_id" value={{ session_id }}>
-		<input type="submit" id="submit" value="Submit" onClick="return empty()" /> <i>(The last two may take some time to process)</i>
+        <input type="hidden" id="session_id" name="session_id" value={{ session_id }}>
+		<input type="submit" id="submit" value="Submit" onClick="return empty()" /> <i>(The last three may take some time to process)</i>
 	</form>
 	</div>
 	<div class="dark-image">
