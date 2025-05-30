@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FLASHDB</title>
+    <style>
+        div {
+	    	border: 2px solid black;
+	    	padding: 4px;
+	}
+	div.slim {
+		border: 0;
+		padding: 0;
+	}
+	table, th, td {
+		border: 1px solid black;
+		border-collapse: collapse;
+		margin-left: auto;
+		margin-right: auto;
+	}
+	.fixed {
+		position:fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+	}
+
+
+    </style>
+</head>
+<body style="background-color:#ABB2B9;">
+	<div class="fixed" style="background-color:aquamarine;">
+	<H1 style="text-align: center;">FLASH Database Query Result</H1>
+	{% load static %}
+	<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
+	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
+	<p style="text-align: center;"> <strong><i>Query for SBID = {{ sbid }}</i></strong></p>
+	<p  style="text-align: left;"> <a href="{% static ascii_tar %}" download>Download</a> the source ASCII files in a tar archive</p>
+	<form action="/db_query/">
+                <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>
+		<input type="submit" value="Return to Main page"/>
+	</form>
+</body>
+</html>
