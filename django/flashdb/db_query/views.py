@@ -214,7 +214,7 @@ def get_ascii_files_tarball(conn,cur,sid,sbid,static_dir,version):
     # This may run out of mem for a very large object:
     #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
     # So use streaming function:
-    write_lob(loaded_lob,f"{static_dir}/{name}")
+    loaded_lob.export(f"{static_dir}/{name}")
     loaded_lob.close()
     print(f"Downloaded tar of ascii files for {sbid}:{version}")
     return name
