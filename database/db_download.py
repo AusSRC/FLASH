@@ -243,13 +243,28 @@ def query_db_for_sbid(cur,sbid):
     print()
     print(f"Number of records: {len(res)}")
     return
-
 ##################################################################################################
 
 def write_lob(lobj,filename):
     lobj.export(filename)
     return
+##################################################################################################
 
+def get_ascii_files_tarball(conn,cur,sid,sbid,static_dir,version):
+    # Download tar of ascii files for the sbid
+    query = "select ascii_tar from sbid where id = %s"
+    cur.execute(query,(sid,))
+    oid = cur.fetchone()[0]
+    print(f"Retrieving large object {oid} from db")
+    loaded_lob = conn.lobject(oid=oid, mode="rb")
+    name = f"{sbid}_{version}.tar.gz"
+    # This may run out of mem for a very large object:
+    #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
+    # So use streaming function:
+    write_lob(loaded_lob,f"{static_dir}/{name}")
+    loaded_lob.close()
+    print(f"Downloaded tar of ascii files for {sbid}:{version}")
+    return name
 ##################################################################################################
 
 def get_files_for_sbid(conn,cur,sbid,version,invertF):
@@ -268,19 +283,7 @@ def get_files_for_sbid(conn,cur,sbid,version,invertF):
 
     # Download tar of ascii files for the sbid
     if MODE == "ASCII":
-        query = "select ascii_tar from sbid where id = %s"
-        cur.execute(query,(sid,))
-        oid = cur.fetchone()[0]
-        print(f"Retrieving large object {oid} from db")
-        loaded_lob = conn.lobject(oid=oid, mode="rb")
-        name = f"{sbid}_{version}.tar.gz"
-        # This may run out of mem for a very large object:
-        #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
-        # So use streaming function:
-        write_lob(loaded_lob,f"{dir_download}/{name}")
-        loaded_lob.close()
-        print(f"Downloaded tar of ascii files for {sbid}:{version}")
-        return name
+        return get_ascii_files_tarball(conn,cur,sid,sbid,dir_download,version)
 
     elif MODE == "LINEFINDER":
         oid = None
