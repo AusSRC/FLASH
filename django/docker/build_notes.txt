@@ -1,3 +1,149 @@
+# Install on VM  (ubuntu@152.67.97.254):
+
+# do basic update:
+apt update && apt upgrade
+apt install curl vim
+
+# Create flash user
+apt install sudo adduser
+adduser flash
+# passwd = aussrc
+usermod -aG sudo flash
+
+# Add prerequisites:
+sudo apt install apt-utils
+sudo apt install git
+sudo apt install python3-dev
+sudo apt install build-essential
+sudo apt install iproute2
+sudo apt install python3-django
+sudo apt install python3-pip
+sudo apt install python3-psycopg2
+sudo apt install psmisc
+
+sudo pip3 install django-extensions
+
+# for local testing of the web server:
+sudo apt install lynx
+
+# Build uwsgi
+sudo apt install libssl-dev
+cd ~/
+git clone https://github.com/unbit/uwsgi.git
+cd uwsgi
+sudo python3 uwsgiconfig.py --build
+sudo cp uwsgi /usr/local/bin
+
+###########################################################################
+# Networking
+###########################################################################
+# disable UFW or firewalld
+sudo systemctl disable firewalld
+sudo systemctl disable ufw
+
+# Set up iptables - flush first
+sudo iptables -F
+
+# set new rules
+
+sudo iptables -I INPUT 1 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+sudo netfilter-persistent save
+sudo iptables -I INPUT 1 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+sudo netfilter-persistent save
+
+# Check 
+sudo iptables -L --line-numbers
+
+# make persistent
+sudo su
+iptables-save > /etc/iptables/rules.v4
+exit
+
+# This SHOULDN'T be required - in the OCI dashboard, set up ingress rules for http
+# - see https://www.youtube.com/watch?v=IyQ9iyn6QOY&ab_channel=OracleLearning
+
+###########################################################################
+# Checkout FLASH git repo
+# OR
+# To only checkout the django part of the FLASH git repo, do the following:
+
+mkdir raw_django
+git clone -n --depth=1 --filter=tree:0 https://github.com/AusSRC/FLASH raw_django
+cd raw_django
+git sparse-checkout set --no-cone django
+git checkout
+
+cd
+ln -s raw_django/django django
+
+###########################################################################
+# Configure django:
+cd ~/django/flashdb/flashdb
+cp settings.py.example settings.py
+# Edit settings.py to set debug=False, ALLOWED_HOSTS = ['flash.aussrc.org'] and DATABASES (postgres is at 146.118.64.208:2095)
+
+# Test uwsgi - create a test.py script
+mkdir testing
+cd testing
+vi test.py 
+
+def application(env, start_response):
+    start_response('200 OK', [('Content-Type','text/html')])
+    return [b"Hello World"] # python3
+    #return ["Hello World"] # python2
+
+# run as:
+uwsgi --http :80 --wsgi-file test.py
+
+# Check that browser on host at localhost:80 can see the 'Hello World' message
+
+# check that the external ip address is correct, eg for 150.229.69.37:
+ip -o route get to 150.229.69.37 | sed -n 's/.*src \([0-9.]\+\).*/\1/p'
+# Configure uwsgi - edit ~/django/flashdb/service/flashdb.ini
+# Test locally:
+cd ~/django/flashdb/service
+uwsgi --http :80 flashdb.ini
+
+# You should be able to reach the flashdb from 127.0.0.1 in the lynx browser on the VM
+
+## Copy CA certificates to VM dir ~/django/flashdb/certs
+
+# Now start ssl server with:
+cd ~/django/flashdb/service
+sudo uwsgi --https :443,/home/flash/django/flashdb/certs/fullchain.pem,/home/flash/django/flashdb/certs/privkey.pem flashdb.ini
+
+###########################################################################
+# Running FLASH as a service
+
+## flashdb.sh
+This script starts the uwsgi web server using ip and sed to determine the current external-facing ip address. It should live at `/etc/flashdb/`. 
+
+ - Set permissions:
+```bash
+sudo chmod a+x /etc/flashdb/flashdb.sh
+```
+
+## flashdb.service
+This is the daemon script to start / stop the flashdb service. It should live at `/etc/systemd/system/`. service is enabled with:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable flashdb.service
+```
+
+and can then be started or stopped as normal:
+
+```bash
+sudo systemctl start flashdb.service
+```
+## flash_rotate
+This script rotates the logs and restarts the service daily. Copy this to /etc/logrotate.d/
+
+
+###########################################################################
+###########################################################################
+# Install in container (not using Dockerfile)
+
 # NOTE Tos start or restart docker services use 'sudo snap restart docker'
 
 # Load latest ubuntu image and run
@@ -58,6 +204,7 @@ ln -s raw_django/django django
 cd ~/django/flashdb/flashdb
 cp settings.py.example settings.py
 # Edit settings.py to set debug=False, ALLOWED_HOSTS = ['flash.aussrc.org'] and DATABASES (postgres is at 146.118.64.208:2095)
+# Note that views.py in django/flashdb/db_query also needs the db ip:port set
 
 # Exit and save
 exit 
