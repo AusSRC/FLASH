@@ -63,6 +63,8 @@ RUN_TAG = "FLASH survey 1"
 SBID_COMMENT = ""
 QUALITY = "UNCERTAIN"
 PASSWD = ""
+DBHOST = ""
+DBPORT = ""
 
 
 # These are the allowed command line overrides:
@@ -85,6 +87,12 @@ def set_parser():
     parser.add_argument('-d', '--parent_dir',
             default=DATA_DIR,
             help='Specify local directory to use (default: %(default)s)')    
+    parser.add_argument('-h', '--host',
+            default="10.0.2.225",
+            help='database host ip (default: %(default)s)')    
+    parser.add_argument('-pt', '--port',
+            default="5432",
+            help='database host port (default: %(default)s)')    
     parser.add_argument('-t', '--tmp_dir',
             default=TMP_TAR_DIR,
             help='Specify local directory to use as tmp (default: %(default)s)')    
@@ -122,6 +130,7 @@ def set_mode_and_values(args):
 
     global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT, PASSWD
     global SPECTRAL_CONFIG_DIR,LINEFINDER_CONFIG_DIR,LINEFINDER_OUTPUT_DIR,LINEFINDER_SUMMARY_FILE, QUALITY
+    global DBHOST, DBPORT
 
     RUN_TYPE = args.mode.strip().upper()
     if RUN_TYPE == "QUALITY":
@@ -154,6 +163,8 @@ def set_mode_and_values(args):
     SBID_COMMENT = args.comment.strip()
     QUALITY = args.quality.strip()
     PASSWD = args.flashpw
+    DBHOST = args.host.strip()
+    DBPORT = args.port.strip()
 
     print("CLI overriding defaults")
 
@@ -179,7 +190,7 @@ NOISE_PATH = ""
 ########################## DO NOT EDIT FURTHER #####################################################################
 ####################################################################################################################
 
-def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
+def connect(db="flashdb",user="flash",password=None):
 
     if not password:
         password = PASSWD
@@ -187,8 +198,8 @@ def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
         database = db,
         user = user,
         password = password,
-        host = host,
-        port = 2095
+        host = DBHOST,
+        port = DBPORT
     )
     #print(conn.get_dsn_parameters(),"\n")
     return conn
@@ -576,8 +587,11 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
    
     # Create the tarball of ascii output files
     ascii_tarball = f"{TMP_TAR_DIR}/{sbid}_ascii_tarball.tar.gz"
-    print(f"Creating tarball {ascii_tarball}")
-    tar_dir(ascii_tarball,f"{dataDict['ascii_path']}")
+    if os.path.isfile(ascii_tarball):
+        print(f"Using existing {ascii_tarball}",flush=True)
+    else:
+        print(f"Creating tarball {ascii_tarball}")
+        tar_dir(ascii_tarball,f"{dataDict['ascii_path']}")
 
     # Create a large object in the database:
     print("    -- loading to database",flush=True)
