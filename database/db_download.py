@@ -3,7 +3,7 @@
 #       Script to download png files from flashdb database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.15 26/08/2024
+#       version 1.16 06/06/2025
 #######################################################################################
 import os
 import sys
@@ -25,6 +25,8 @@ LN_MEAN = "-1"
 SQL = ""
 UNTAR = False
 PASSWD = ""
+DBHOST = ""
+DBPORT = ""
 
 #######################################################################################
 def set_parser():
@@ -36,7 +38,12 @@ def set_parser():
     parser.add_argument('-s', '--sbid',
             default=None,
             help='Specify the sbid eg 11346 or 41050:1 for a specific version (use "-1" to get all sbids) (default: %(default)s)') 
-
+    parser.add_argument('-h', '--host',
+            default="10.0.2.225",
+            help='database host ip (default: %(default)s)')    
+    parser.add_argument('-pt', '--port',
+            default="5432",
+            help='database host port (default: %(default)s)')    
     parser.add_argument('-c', '--component',
             default='1a',
             help='Specify the component eg "4c" to get a specific source of a given sbid (Use with mode = "SOURCE" (default: %(default)s)') 
@@ -69,11 +76,13 @@ def set_parser():
 
 def set_mode_and_values(args):
 
-    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN, SQL, UNTAR, PASSWD, SOURCE
+    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN, SQL, UNTAR, PASSWD, SOURCE, DBHOST, DBPORT
 
     MODE = args.mode.strip().upper()
     DIR = args.dir.strip()
     PASSWD = args.flashpw
+    DBHOST = args.host.strip()
+    DBPORT = args.port.strip()
 
     if MODE == "SQL":
         SQL = args.sql_stat.strip()
@@ -105,7 +114,7 @@ def set_mode_and_values(args):
 
 #######################################################################################
 
-def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
+def connect(db="flashdb",user="flash",password=None):
 
     if not password:
         password = PASSWD
@@ -113,8 +122,8 @@ def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
         database = db,
         user = user,
         password = password,
-        host = host,
-        port = 2095
+        host = DBHOST,
+        port = DBPORT
     )
     #print(conn.get_dsn_parameters(),"\n")
     return conn

@@ -36,6 +36,8 @@ UNTAR = False
 DELETE_CATS = False # save space by deleting catalogues after processing
 ONLY_CATS = True # Only download catalogues - not spectral and noise data
 PASSWD = ""
+DBHOST = ""
+DBPORT = ""
 
 
 ####################################################################################################################
@@ -57,6 +59,12 @@ def set_parser():
     parser.add_argument('-e', '--email_address',
             default=None,
             help='Specify email address for login to CASDA (default: %(default)s)')
+    parser.add_argument('-h', '--host',
+            default="10.0.2.225",
+            help='database host ip (default: %(default)s)')    
+    parser.add_argument('-pt', '--port',
+            default="5432",
+            help='database host port (default: %(default)s)')    
     parser.add_argument('-p', '--password',
             default=None,
             help='Specify the password for login to CASDA (default: %(default)s)')    
@@ -67,7 +75,7 @@ def set_parser():
     return args
 
 def set_mode_and_values(args):
-    global RUN_TYPE, SBIDDIR, DATADIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, PASSWD
+    global RUN_TYPE, SBIDDIR, DATADIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, PASSWD, DBHOST, DBPORT
 
     RUN_TYPE = args.mode.strip().upper()
     SBIDDIR = args.sbid_dir.strip()
@@ -82,10 +90,11 @@ def set_mode_and_values(args):
                 SBIDS.append(sbid)
                 VERSIONS.append(None)
     PASSWD = args.flashpw
+    DBHOST = args.host.strip()
+    DBPORT = args.port.strip()
 
 
-
-def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
+def connect(db="flashdb",user="flash",password=None):
 
     if not password:
         password = PASSWD
@@ -93,8 +102,8 @@ def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
         database = db,
         user = user,
         password = password,
-        host = host,
-        port = 2095
+        host = DBHOST,
+        port = DBPORT
     )
     #print(conn.get_dsn_parameters(),"\n")
     return conn
