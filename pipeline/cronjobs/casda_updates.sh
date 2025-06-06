@@ -26,9 +26,13 @@ PARENTDIR="/scratch/ja3/ger063/data/casda"
 # Config file to use for all the sbids
 CONFIGFILE="./config.py"
 
+# The parent directory holding the SBIDS
+PARENT_DIR="/scratch/ja3/ger063/data/casda"
+
 source ~/setonix_set_local_env.sh
 cd $DBDIR
 
+echo "Querying CASDA"
 # Query CASDA for new sbids
 python3.9 $FLASHDB/db_utils.py -m GETNEWSBIDS -e Gordon.German@csiro.au -p Haggis15 -pw aussrc -r > $CRONDIR/new_sbids.log
 output=$( tail -n 1 $CRONDIR/new_sbids.log)
@@ -65,17 +69,20 @@ for i in "${!SBIDARRAY[@]}"; do
     SBID="${SBIDARRAY[$i]}"
     CONFIG="${CONFIGARRAY[$i]}"
 
-    cd $PLOTDIR
-    # pass to container script:
-    #   1) parent input data directory (holds the sbid, noise, catalogues subdirectories)
-    #   2) string of sbids to process
-    #   3) plot_spectral config directory (holds config.py)
-    mkdir -p $PARENTDIR/$SBID/$CONFIG
-    cp $CONFIGFILE $PARENTDIR/$SBID/$CONFIG
-    jid1=$(/bin/bash ./run_container_spectral.sh $PARENTDIR "$SBID" $PARENT_DIR/$SBID/$CONFIG)
-    j1=$(echo $jid1 | awk '{print $4}')
-    echo "Sumbitted job $j1"
-    echo "$j1 = sbid $SBID" >> jobs_to_sbids.txt
-    cd $DBDIR
-    jid2=$(sbatch --dependency=afterok:$j1 $FLASHDB/slurm_plot_db_upload.sh $SBID "$TAG" $TMPDIR $CONFIG $PARENTDIR $PLATFORM $COMMENT $FLASHPASS)
+    if [ -d "$PARENTDIR/$SBID/SourceSpectra" ]
+    then
+        cd $PLOTDIR
+        # pass to container script:
+        #   1) parent input data directory (holds the sbid, noise, catalogues subdirectories)
+        #   2) string of sbids to process
+        #   3) plot_spectral config directory (holds config.py)
+        mkdir -p $PARENTDIR/$SBID/$CONFIG
+        cp $CONFIGFILE $PARENTDIR/$SBID/$CONFIG
+        jid1=$(/bin/bash ./run_container_spectral.sh $PARENTDIR "$SBID" $PARENT_DIR/$SBID/$CONFIG)
+        j1=$(echo $jid1 | awk '{print $4}')
+        echo "Sumbitted job $j1"
+        echo "$j1 = sbid $SBID" >> jobs_to_sbids.txt
+        cd $DBDIR
+        jid2=$(sbatch --dependency=afterok:$j1 $FLASHDB/slurm_plot_db_upload.sh $SBID "$TAG" $TMPDIR $CONFIG $PARENTDIR $PLATFORM $COMMENT $FLASHPASS)
+    fi
 done
