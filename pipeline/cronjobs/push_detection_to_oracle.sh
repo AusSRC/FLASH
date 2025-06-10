@@ -6,29 +6,34 @@
 # SBID.
 #########################################################
 
-# $1 is the sbid
-#
-QUALITY=`cat "$DATA"/"$1"/data_quality.txt`
-if [ -z "$QUALITY" ]; then
-    QUALITY="NOT_VALIDATED"
-fi
- 
-echo "Uploading $1 linefinder results via Oracle to database"
+# $@ is the sbid(s) to process
+SBIDARRAY=( "$@" )
 
-# Set the tmp dir on Oracle
-TMPDIR=/mnt/db/data/tmp
-# Set the data dir (parent to SBID dir) on Oracle
-PARENTDIR=/mnt/db/data
-# set up directories on Oracle VM
-ssh -i ~/.ssh/oracle_flash_vm.key flash@152.67.97.254 "cd /mnt/db/data; rm -R $1/outputs $1/logs $1/config $TMPDIR/$1*; mkdir -p $1/config $1/logs $1/outputs;"
-# Copy data to Oracle
-scp -i ~/.ssh/oracle_flash_vm.key $DATA/$1/$1_linefinder.tar.gz flash@152.67.97.254:$PARENTDIR/$1/outputs/
-scp -i ~/.ssh/oracle_flash_vm.key $DATA/$1/config/* flash@152.67.97.254:/mnt/db/data/$1/config/
-scp -i ~/.ssh/oracle_flash_vm.key $DATA/$1/logs/* flash@152.67.97.254:/mnt/db/data/$1/logs/
-# Start a db_upload session at Oracle
-ssh -i ~/.ssh/oracle_flash_vm.key flash@152.67.97.254 "cd /mnt/db/data/$1/outputs; tar -zxvf $1_linefinder.tar.gz; rm $1_linefinder.tar.gz"
-ssh -i ~/.ssh/oracle_flash_vm.key flash@152.67.97.254 "cd ~/src/FLASH/database; python3 db_upload.py -m DETECTION -s $1 -t $TMPDIR -d $PARENTDIR -pw aussrc -cs config -C 'Linefinder_run'"
+echo "Processing ${SBIDARRAY[@]}"
 
-# Stash the SLURM logs
-mv slurm-*.out $DATA/tmp/
+for SBID1 in "${SBIDARRAY[@]}"; do
+    QUALITY=`cat "$DATA"/"$SBID1"/data_quality.txt`
+    if [ -z "$QUALITY" ]; then
+        QUALITY="NOT_VALIDATED"
+    fi
+     
+    echo "Uploading $SBID1 linefinder results via Oracle to database"
+
+    # Set the tmp dir on Oracle
+    TMPDIR=/mnt/db/data/tmp
+    # Set the data dir (parent to SBID dir) on Oracle
+    PARENTDIR=/mnt/db/data
+    # set up directories on Oracle VM
+    ssh -i ~/.ssh/oracle_flash_vm.key flash@152.67.97.254 "cd /mnt/db/data; rm -R $SBID1/outputs $1/logs $SBID1/config $TMPDIR/$SBID1*; mkdir -p $SBID1/config $SBID1/logs $SBID1/outputs;"
+    # Copy data to Oracle
+    scp -i ~/.ssh/oracle_flash_vm.key $DATA/$SBID1/linefinder.tar.gz flash@152.67.97.254:$PARENTDIR/$SBID1/outputs/
+    scp -i ~/.ssh/oracle_flash_vm.key $DATA/$SBID1/config/* flash@152.67.97.254:/mnt/db/data/$SBID1/config/
+    scp -i ~/.ssh/oracle_flash_vm.key $DATA/$SBID1/logs/* flash@152.67.97.254:/mnt/db/data/$SBID1/logs/
+    # Start a db_upload session at Oracle
+    ssh -i ~/.ssh/oracle_flash_vm.key flash@152.67.97.254 "cd /mnt/db/data/$SBID1/outputs; tar -zxvf linefinder.tar.gz; rm linefinder.tar.gz"
+    ssh -i ~/.ssh/oracle_flash_vm.key flash@152.67.97.254 "cd ~/src/FLASH/database; python3 db_upload.py -m DETECTION -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw aussrc -cs config -C 'Linefinder_run'"
+
+    # Stash the SLURM logs
+    mv slurm-*.out $DATA/tmp/
+done
 exit 0
