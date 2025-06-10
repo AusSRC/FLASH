@@ -484,7 +484,9 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
             for line in f:
                 line = line.replace("\"","'")
                 results = results + line.strip() + "\n"
-        
+
+        if not DATA_DIR in config_dir:
+            config_dir = f"{DATA_DIR}/{sbid}/{config_dir}"
         version = versions[i]
         sbid_id = None
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
@@ -498,7 +500,7 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
                 config_data = f.read()
         except FileNotFoundError:
             print(f"Config dir {config_dir} not found!!")
-
+        
         # Update the sbid if it exists:
         if sbid_id:
             update_sbid_detection(cur,sbid=sbid,sbid_id=sbid_id,runid=runid,detectionF=True,dataDict=dataDict[sbid],datapath=output_dir,ver=version,config=config_data,results=results,invertF=invertF)
