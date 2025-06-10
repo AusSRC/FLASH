@@ -2,9 +2,10 @@
 ###############################################################
 # This script will tar up the linefinder outputs directory of a given SBID
 # ############################################################
-# $1 is the SBID
-#
-echo "Tarring $1 linefinder results"
+# $@ is the sbid(s) to process
+SBIDARRAY=( "$@" )
 
-cd $DATA/$1/outputs; tar -zcvf $1_linefinder.tar.gz results* *stats.dat *.pdf; mv $1_linefinder.tar.gz ../
+for SBID1 in "${SBIDARRAY[@]}"; do
+    echo "Tarring $SBID1 linefinder results"
+    cd $DATA/$SBID1/outputs; tar -zcvf linefinder.tar.gz results* *stats.dat *.pdf; mv linefinder.tar.gz ../
 exit 0
