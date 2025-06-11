@@ -110,5 +110,14 @@ for j in ${!not_started[@]}; do
     fi
 done
 
+if [ $running == 0 ] && [ $not_started == 0 ]
+then
+        echo "All jobs finished!!"
+else
+        echo "Some jobs not finished (or not started)"
+fi
+
+
+
 cd $cwd
 echo
