@@ -3,11 +3,15 @@
 # This script will tar up the spectra_ascii and spectra_plots directory
 # of a given SBID
 # ############################################################
-# $1 is the SBID
-#
-echo "Tarring $1 spectral plot results"
+# $@ is the sbid(s) to process
+SBIDARRAY=( "$@" )
 
-cd $DATA/$1/spectra_ascii; tar -zcvf $1_ascii_tarball.tar.gz *; mv $1_ascii_tarball.tar.gz ../
-cd $DATA/$1/spectra_plots; tar -zcvf $1_plots_tarball.tar.gz *; mv $1_plots_tarball.tar.gz ../
-cd $DATA/$1/SourceSpectra; tar -zcvf $1_sources_tarball.tar.gz *; mv $1_sources_tarball.tar.gz ../
+for SBID1 in "${SBIDARRAY[@]}"; do
+
+    echo "Tarring $SBID1 spectral plot results"
+
+    cd $DATA/$SBID1/spectra_ascii; tar -zcvf $SBID1_ascii_tarball.tar.gz *; mv $SBID1_ascii_tarball.tar.gz ../
+    cd $DATA/$SBID1/spectra_plots; tar -zcvf $SBID1_plots_tarball.tar.gz *; mv $SBID1_plots_tarball.tar.gz ../
+    cd $DATA/$SBID1/SourceSpectra; tar -zcvf $SBID1_sources_tarball.tar.gz *; mv $SBID1_sources_tarball.tar.gz ../
+done
 exit 0

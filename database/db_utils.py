@@ -35,11 +35,21 @@ VERSIONS = [] # This list should correspond to the above sbids list = set to emp
 CATDIR = SBIDDIR + "/catalogues"
 DATADIR = CATDIR
 UNTAR = False
+INVERT=False # if in detection mode, are we looking for inverted detections or normal ones?
 DELETE_CATS = False # save space by deleting catalogues after processing
 ONLY_CATS = True # Only download catalogues - not spectral and noise data
 DUMMY=False # Set to true to only query - don't download or upload anything.
 REJECTED=True # If set, process sbids even if marked as 'REJECTED'.
+CASDA_EMAIL = ""
 PASSWD = ""
+
+###############################################################################################################
+############ - FLASHDB details ################################################################################
+HOST = "10.0.2.225"
+PORT = 5432
+
+#HOST = "146.118.64.208"
+#PORT = 2095
 
 ####################################################################################################################
 ########################## DO NOT EDIT FURTHER #####################################################################
@@ -56,13 +66,17 @@ def set_parser():
             help='Specify the sbid list eg 11346,11348 (default: %(default)s)')    
     parser.add_argument('-d', '--sbid_dir',
             default="/scratch/ja3/ger063/data/casda",
-            help='Specify local directory to use (default: %(default)s)')    
+            help='Specify local directory to use (default: %(default)s)')   
+    parser.add_argument('-i', '--invert',
+            default=False,
+            action='store_true',
+            help='Specify if using inverted spectra for SBIDSTODETECT (default: %(default)s)')   
     parser.add_argument('-c', '--catalogues_only',
             default=False,
             action='store_true',
             help='Specify whether you want to download catalogues only (default: %(default)s)')    
     parser.add_argument('-e', '--email_address',
-            default='Gordon.German@csiro.au',
+            default=CASDA_EMAIL,
             help='Specify email address for login to CASDA (default: %(default)s)')
     parser.add_argument('-p', '--password',
             default=None,
@@ -86,7 +100,7 @@ def set_parser():
     return args
 
 def set_mode_and_values(args):
-    global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, DUMMY, REJECTED, PASSWD
+    global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, INVERT, DUMMY, REJECTED, CASDA_EMAIL, PASSWD
 
     RUN_TYPE = args.mode.strip().upper()
     SBIDDIR = args.sbid_dir.strip()
@@ -101,14 +115,16 @@ def set_mode_and_values(args):
             else:
                 SBIDS.append(sbid)
                 VERSIONS.append(None)
+    CASDA_EMAIL = args.email_address.strip()
     ONLY_CATS = args.catalogues_only
+    INVERT = args.invert
     ADD_CAT = args.add_cat
     DUMMY = args.no_action
     REJECTED = args.rejected
     PASSWD = args.flashpw
 
 
-def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
+def connect(db="flashdb",user="flash",host=HOST,port=PORT,password=None):
 
     if not password:
         password = PASSWD
@@ -117,7 +133,7 @@ def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
         user = user,
         password = password,
         host = host,
-        port = 2095
+        port = port
     )
     #print(conn.get_dsn_parameters(),"\n")
     return conn
@@ -169,14 +185,18 @@ def check_sbids_in_db(conn):
 
 ###############################################
 
-def check_db_detection_run(conn):
+def check_db_detection_run(conn,invert=False):
     # check the flashdb for any sbids that need to have the LINEFINDER run against them.
     # This only checks Survey sbids (not pilot) and will check if any sbid with quality not 'BAD', 'REJECTED' or 'NOT_VALIDATED'
     # has not been processed by the linfinder
 
     sbids = []
     cur = get_cursor(conn)
-    query = "select sbid_num from sbid where quality not in ('BAD','NOT_VALIDATED','REJECTED') and detectionF = false and sbid_num > 43426 order by sbid_num;"
+    if invert:
+        print("For inversion:")
+        query = "select sbid_num from sbid where quality not in ('BAD','NOT_VALIDATED','REJECTED') and (invert_detectionF = false or invert_detectionF is NULL) and sbid_num > 43426 order by sbid_num;"
+    else:
+        query = "select sbid_num from sbid where quality not in ('BAD','NOT_VALIDATED','REJECTED') and detectionF = false and sbid_num > 43426 order by sbid_num;"
     cur.execute(query,)
     result = cur.fetchall()
     for res in result:
@@ -509,11 +529,9 @@ if __name__ == "__main__":
         conn.commit()
         conn.close()
     elif RUN_TYPE == "SBIDSTODETECT":
-        sbids = check_db_detection_run(conn)
+        sbids = check_db_detection_run(conn,INVERT)
         print("SBIDS that need detection analysis:")
         print(sbids)
-        sys.exit()
-
         conn.commit()
         conn.close()
     elif RUN_TYPE == "CHECK_SBIDS":

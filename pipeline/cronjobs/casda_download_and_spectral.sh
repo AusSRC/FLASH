@@ -1,15 +1,24 @@
 
 #!/bin/bash
+
+#######################################################################################################
+# Edit these for the specific user:
+CASDA_EMAIL="user@email"
+CASDA_PWD="password_at_CASDA"
+#######################################################################################################
+
 IFS=","
 FLASHPASS=$1
 
+
+
 # Local directories:
-CRONDIR="/home/ger063/src/cronjobs"
-DBDIR="/home/ger063/src/database"
-PLOTDIR="/home/ger063/src/spectral_plot"
+CRONDIR="/home/$USER/src/cronjobs"
+DBDIR="/home/$USER/src/database"
+PLOTDIR="/home/$USER/src/spectral_plot"
 
 # Tmp directory for tarring etc - needs to be large capacity
-TMPDIR="/scratch/ja3/ger063/tmp"
+TMPDIR="/scratch/ja3/$USER/tmp"
 
 # The tag to give the data: eg "FLASH Survey 1", or "FLASH Pilot2" etc
 TAG="FLASH Survey 1"
@@ -34,7 +43,7 @@ cd $DBDIR
 
 echo "Querying CASDA"
 # Query CASDA for new sbids
-python3.9 $FLASHDB/db_utils.py -m GETNEWSBIDS -e Gordon.German@csiro.au -p Haggis15 -pw aussrc -r > $CRONDIR/new_sbids.log
+python3.9 $FLASHDB/db_utils.py -m GETNEWSBIDS -e $CASDA_EMAIL -p $CASDA_PWD -pw $FLASHPASS -r > $CRONDIR/new_sbids.log
 output=$( tail -n 1 $CRONDIR/new_sbids.log)
 sbids=${output:1: -1}
 if test "$output" == "[]"
@@ -78,7 +87,7 @@ for i in "${!SBIDARRAY[@]}"; do
         #   3) plot_spectral config directory (holds config.py)
         mkdir -p $PARENTDIR/$SBID/$CONFIG
         cp $CONFIGFILE $PARENTDIR/$SBID/$CONFIG
-        jid1=$(/bin/bash ./run_container_spectral.sh $PARENTDIR "$SBID" $PARENT_DIR/$SBID/$CONFIG)
+        jid1=$(/bin/bash $SPECTRAL/run_container_spectral.sh $PARENTDIR "$SBID" $PARENT_DIR/$SBID/$CONFIG)
         j1=$(echo $jid1 | awk '{print $4}')
         echo "Sumbitted job $j1"
         echo "$j1 = sbid $SBID" >> jobs_to_sbids.txt
