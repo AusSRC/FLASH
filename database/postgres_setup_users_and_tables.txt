@@ -417,6 +417,9 @@ rm -fr ~/.pgpass
 # Log into the database with the CA cert
 psql "sslmode=verify-full sslrootcert=/home/ubuntu/CaCertificate-flashdb.pub host=primary.llmu46sbzkgzzctqy5wudukbdyt6cq.postgresql.ap-sydney-1.oci.oraclecloud.com hostaddr=10.0.2.225 dbname=postgres user=admin_aussrc"
 
+# OR if on the Oracle VM you can log in directly:
+psql -h 10.0.2.225 -U flash -d flashdb
+
 #################################################
 # Using pg_dump & pg_restore with directory format, the migration works efficiently and its useful for 
 # large database migration or parallel restoration. Below is the step by step procedure - db endpoint is 10.0.2.142
@@ -434,7 +437,7 @@ pg_dump -v -U postgres -d flashdb -Fd -C  -j 8 -Z0 -f /mnt/db/archived/latest
 
  
 
-/usr/lib/postgresql/bin /pg_restore -v -h < IP_of_Target_Database_System > -U <username> -j <Num of parallel jobs> -Fd -C -d <databasename> sampledb_dir_format
+/usr/lib/postgresql/bin/pg_restore -v -h < IP_of_Target_Database_System > -U <username> -j <Num of parallel jobs> -Fd -C -d <databasename> sampledb_dir_format
 
 -v = Specifies verbose mode – to check progress of the pg_restore.
 
@@ -449,3 +452,18 @@ pg_dump -v -U postgres -d flashdb -Fd -C  -j 8 -Z0 -f /mnt/db/archived/latest
  
 
 Also, you can use pg_stat_activity to check the progress of data restoration operation.
+
+
+# run sql or postgres commands with:
+psql -h 10.0.2.225 -U flash -d flashdb -c "\lo_export 766522 '/home/flash/tmp/59998.tar.gz' ";
+
+# Change ownership (if required) of large objects (lobs) in the database:
+do $$
+declare r record;
+begin
+for r in select distinct oid from pg_catalog.pg_largeobject_metadata loop
+   execute 'ALTER LARGE OBJECT ' || r.oid || ' OWNER TO flash';
+end loop;
+end$$;
+CLOSE ALL;
+
