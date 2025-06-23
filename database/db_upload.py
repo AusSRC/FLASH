@@ -3,6 +3,7 @@ import sys
 import subprocess
 import logging
 import time
+import glob
 import datetime as dt
 import os.path
 import tarfile
@@ -14,7 +15,7 @@ import db_utils as dbu
 #       Script to upload data to the FLASH database
 #       GWHG @ CSIRO, July 2023
 #
-#       version 1.11 26/08/2024
+#       version 1.12 10/06/2025
 ##################################### USER SET VARIABLES ###################################################
 
 # For the below variables, set to "" if they don't apply.
@@ -87,7 +88,7 @@ def set_parser():
     parser.add_argument('-d', '--parent_dir',
             default=DATA_DIR,
             help='Specify local directory to use (default: %(default)s)')    
-    parser.add_argument('-h', '--host',
+    parser.add_argument('-ht', '--host',
             default="10.0.2.225",
             help='database host ip (default: %(default)s)')    
     parser.add_argument('-pt', '--port',
@@ -237,13 +238,14 @@ def createDataDict(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH
         sbidsDict[sbid]["ascii_path"] = ascii_path
         sbidsDict[sbid]["output_path"] = output_path
         if RUN_TYPE not in ["DETECTION","INVERTED"]:
+            # Get the list of various files
+            asciis = [f for f in os.listdir(ascii_path) if f.endswith(".dat")]
             components = [f for f in os.listdir(component_path) if f.endswith(".fits")]
             plots = [f for f in os.listdir(plots_path) if f.endswith(".png")]
         else:
             components = None
             plots = None
-        # Get the list of ascii files
-        asciis = [f for f in os.listdir(ascii_path) if f.endswith(".dat")]
+            asciis = None
         if RUN_TYPE not in ["DETECTION","INVERTED"]:
             # Get the name of the SourceSpectra tarball, so we can extract the pointing field value
             sspectraname = [f for f in os.listdir(f'{data_path}/{sbid}') if f.startswith("SourceSpectra-image")][0]
@@ -435,6 +437,7 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
 ###############################################
 def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_file,output_dir,invertF,versions=None):
 
+    
     cur = get_cursor(conn)
     if not invertF:
         print(f"Adding detection run for sbids {sbids}",flush=True)
@@ -465,13 +468,6 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
     # Get current datetime and format for postgres
     detect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
  
-    # Create the results file
-    results = ""
-    with open(result_file,'r') as f:
-        for line in f:
-            line = line.replace("\"","'")
-            results = results + line.strip() + "\n"
-
     # insert into detect_run table
     insert_query = "INSERT into detect_run(SBIDS,errlog,stdlog,result_filepath,platform,date,run_tag,invertF) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
     cur.execute(insert_query,(sbids,errdata,stddata,result_file,platform,detect_date,RUN_TAG,invertF))
@@ -480,6 +476,17 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
 
     # Add each of the processed SBIDS
     for i,sbid in enumerate(sbids):
+        if not DATA_DIR in result_file:
+            result_file = f"{DATA_DIR}/{sbid}/outputs/{result_file}"
+        # Create the results file
+        results = ""
+        with open(result_file,'r') as f:
+            for line in f:
+                line = line.replace("\"","'")
+                results = results + line.strip() + "\n"
+
+        if not DATA_DIR in config_dir:
+            config_dir = f"{DATA_DIR}/{sbid}/{config_dir}"
         version = versions[i]
         sbid_id = None
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
@@ -493,7 +500,7 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
                 config_data = f.read()
         except FileNotFoundError:
             print(f"Config dir {config_dir} not found!!")
-
+        
         # Update the sbid if it exists:
         if sbid_id:
             update_sbid_detection(cur,sbid=sbid,sbid_id=sbid_id,runid=runid,detectionF=True,dataDict=dataDict[sbid],datapath=output_dir,ver=version,config=config_data,results=results,invertF=invertF)
@@ -753,13 +760,17 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ve
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),new_oid,psycopg2.Binary(config),results,sbid_id))
     print(f"sbid table updated with detection for sbid = {sbid}, version {ver}")
 
-    # Update the component table with the detection
-    for comp in dataDict["ascii"]:
-        if ("_opd") in comp:
-            if invertF:
-                update_component_detection(cur,comp,sbid_id,processState="inverted_detection")
-            else:
-                update_component_detection(cur,comp,sbid_id,processState="detection")
+    # Update the component table with the detection, first find the components (sources) used
+    components = []
+    sources = glob.glob(f"{DATA_DIR}/{sbid}/outputs/*{sbid}*opd_spectline_stats.dat")
+    #for comp in dataDict["ascii"]:
+    for source in sources:
+        comp_number = source.split("component_")[1].split("_")[0]
+        comp = f"SB{sbid}_component_{comp_number}_opd.dat"
+        if invertF:
+            update_component_detection(cur,comp,sbid_id,processState="inverted_detection")
+        else:
+            update_component_detection(cur,comp,sbid_id,processState="detection")
 
 ###############################################
 def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral",fluxcutoff=None):
