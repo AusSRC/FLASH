@@ -20,8 +20,10 @@ def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
         database = db,
         user = user,
         password = password,
-        host = host,
-        port = 2095
+        #host = host,
+        #port = 2095
+        host = "10.0.2.225",
+        port = 5432
     )
     #print(conn.get_dsn_parameters(),"\n")
     return conn
@@ -203,21 +205,29 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     return outputs,alt_outputs
 
 ##################################################################################################
-def get_ascii_files_tarball(conn,cur,sid,sbid,static_dir,version):
+def get_ascii_files_tarball(conn,cur,sid,sbid,static_dir,version,password=None):
     # Download tar of ascii files for the sbid
     query = "select ascii_tar from sbid where id = %s"
     cur.execute(query,(sid,))
     oid = cur.fetchone()[0]
-    print(f"Retrieving large object {oid} from db")
-    loaded_lob = conn.lobject(oid=oid, mode="rb")
+    print(f"Retrieving large object {oid} from db to {static_dir}")
     name = f"{sbid}_{version}.tar.gz"
+    pathname = f"{static_dir}/{name}"
+    export_q = f"\lo_export {oid} '{pathname}'"
+    os.system(f'export PGPASSWORD={password}; psql -h 10.0.2.225 -p 5432 -d flashdb -U flash -c "{export_q}"') 
+    print(f"Downloaded tar of ascii files for {sbid}:{version} to {static_dir}",flush=True)
+    return name
+
+
+    #loaded_lob = conn.lobject(oid=oid, mode="rb")
+    #name = f"{sbid}_{version}.tar.gz"
     # This may run out of mem for a very large object:
     #open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
     # So use streaming function:
-    loaded_lob.export(f"{static_dir}/{name}")
-    loaded_lob.close()
-    print(f"Downloaded tar of ascii files for {sbid}:{version}")
-    return name
+    #loaded_lob.export(f"{static_dir}/{name}")
+    #loaded_lob.close()
+    #print(f"Downloaded tar of ascii files for {sbid}:{version}")
+    #return name
 
 ##################################################################################################
 def get_linefinder_tarball(conn,sbid,dir_download,version,inverted):
@@ -577,7 +587,7 @@ def query_database(request):
         with connection.cursor() as cur:
             sid,version = get_max_sbid_version(cur,sbid_val)
             conn = connect(password=password)
-            get_ascii_files_tarball(conn,cur,sid,sbid_val,ascii_dir,version)
+            get_ascii_files_tarball(conn,cur,sid,sbid_val,ascii_dir,version,password)
             conn.close()
             ascii_tar = f"db_query/ascii/{session_id}/{sbid_val}_{version}.tar.gz"
 
