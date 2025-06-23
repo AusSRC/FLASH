@@ -1,5 +1,12 @@
 
 #!/bin/bash
+
+#######################################################################################################
+# Edit these for the specific user:
+CASDA_EMAIL="user@email"
+CASDA_PWD="password_at_CASDA"
+#######################################################################################################
+
 FLASHPASS=$1
 
 sbids="72751"
@@ -8,12 +15,12 @@ sbids="72398,72494,72495,72496,72507,72669,72670,72746"
 sbids="72746,72751"
 
 # Local directories:
-CRONDIR="/home/ger063/src/cronjobs"
-DBDIR="/home/ger063/src/database"
-PLOTDIR="/home/ger063/src/spectral_plot"
+CRONDIR="/home/$USER/src/cronjobs"
+DBDIR="/home/$USER/src/database"
+PLOTDIR="/home/$USER/src/spectral_plot"
 
 # Tmp directory for tarring etc - needs to be large capacity
-TMPDIR="/scratch/ja3/ger063/tmp"
+TMPDIR="/scratch/ja3/$USER/tmp"
 
 # The tag to give the data: eg "FLASH Survey 1", or "FLASH Pilot2" etc
 TAG="flash pilot 2"
@@ -32,13 +39,13 @@ PARENTDIR="/scratch/ja3/ger063/data/casda"
 CONFIGFILE="./config.py"
 
 # The parent directory holding the SBIDS
-PARENT_DIR="/scratch/ja3/ger063/data/casda"
+PARENT_DIR=$DATA
 
 source ~/setonix_set_local_env.sh
 cd $DBDIR
 
 # Query CASDA for new sbids
-python3.9 $FLASHDB/db_utils.py -m CATALOGUE -s $sbids -e Gordon.German@csiro.au -p Haggis15 -pw aussrc -r
+python3.9 $FLASHDB/db_utils.py -m CATALOGUE -s $sbids -e $CASDA_EMAIL -p $CASDA_PWD -pw $FLASHPASS -r
 
 echo "Finished CASDA downloads"
 SBIDS=$(sed "s/,/ /g" <<< $sbids)
