@@ -532,6 +532,7 @@ if __name__ == "__main__":
         sbids = check_db_detection_run(conn,INVERT)
         print("SBIDS that need detection analysis:")
         print(sbids)
+        sys.exit()
         conn.commit()
         conn.close()
     elif RUN_TYPE == "CHECK_SBIDS":
@@ -567,4 +568,3 @@ if __name__ == "__main__":
             
     print(f"Job took {time.time()-starttime} sec for {len(SBIDS)} sbids:\n{SBIDS}")
 
-#python $FLASHDB/db_utils.py -m CATALOGUE -s 52688,52640,52627,52620,52618,52594,52548,52547,52542,52541,52540,52537,52536,52528,52527,52526,51955,51954,51947,51946,51452,51451,51450,51449,51446,51444,51443,51442,51441,51440,51015,50022,50021,50019,45835,45833,45828,45825,45823,45815,45762 -e Gordon.German@csiro.au
