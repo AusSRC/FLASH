@@ -38,7 +38,7 @@ def set_parser():
     parser.add_argument('-s', '--sbid',
             default=None,
             help='Specify the sbid eg 11346 or 41050:1 for a specific version (use "-1" to get all sbids) (default: %(default)s)') 
-    parser.add_argument('-h', '--host',
+    parser.add_argument('-ht', '--host',
             default="10.0.2.225",
             help='database host ip (default: %(default)s)')    
     parser.add_argument('-pt', '--port',

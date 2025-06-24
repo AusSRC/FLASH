@@ -64,7 +64,13 @@ def set_parser():
     parser.add_argument('-s', '--sbid_list',
             default=None,
             help='Specify the sbid list eg 11346,11348 (default: %(default)s)')    
-    parser.add_argument('-d', '--sbid_dir',
+    parser.add_argument('-ht', '--host',
+            default="10.0.2.225",
+            help='database host ip (default: %(default)s)')    
+    parser.add_argument('-pt', '--port',
+            default="5432",
+            help='database host port (default: %(default)s)')    
+     parser.add_argument('-d', '--sbid_dir',
             default="/scratch/ja3/ger063/data/casda",
             help='Specify local directory to use (default: %(default)s)')   
     parser.add_argument('-i', '--invert',
@@ -100,7 +106,8 @@ def set_parser():
     return args
 
 def set_mode_and_values(args):
-    global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, INVERT, DUMMY, REJECTED, CASDA_EMAIL, PASSWD
+    global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, INVERT, DUMMY, REJECTED, CASDA_EMAIL
+    global HOST, PORT, PASSWD
 
     RUN_TYPE = args.mode.strip().upper()
     SBIDDIR = args.sbid_dir.strip()
@@ -122,6 +129,9 @@ def set_mode_and_values(args):
     DUMMY = args.no_action
     REJECTED = args.rejected
     PASSWD = args.flashpw
+    HOST = args.host.strip()
+    PORT = args.port.strip()
+
 
 
 def connect(db="flashdb",user="flash",host=HOST,port=PORT,password=None):
