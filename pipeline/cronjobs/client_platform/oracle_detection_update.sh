@@ -31,11 +31,11 @@ MODE=$2
 # Query FLASHDB for new sbids
 if [ "$MODE" = "INVERT" ]; then
     echo "Querying FLASHDB for inverted detection status"
-    cd ~/src/FLASH/database; python3 ./db_utils.py -m SBIDSTODETECT -i -pw $FLASHPASS > ~/src/cronjobs/find_invert_detection.log
+    python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -i -pw $FLASHPASS > find_invert_detection.log
     output=$( tail -n 1 find_invert_detection.log)
 else
     echo "Querying FLASHDB for detection status"
-     cd ~/src/FLASH/database; python3 ./db_utils.py -m SBIDSTODETECT -pw $FLASHPASS > ~/src/cronjobs/find_detection.log
+    python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -pw $FLASHPASS > find_detection.log
     output=$( tail -n 1 find_detection.log)
 fi
 
