@@ -82,6 +82,10 @@ for SBID1 in ${SBIDARRAY[@]}; do
     # Untar ASCII tarball
     cd $DIR1; tar -zxvf $SBID*.tar.gz;rm $SBID*.tar.gz
 
+    # Check for bad (all NaN values) files, move them to bad files directory
+    echo "Checking for bad files"
+    python $FINDER/pre_process.py '$BAD_FILES_DIR' '$DIR1'
+
     # Process the files
     cd $DETECTDIR
     cp slurm_linefinder.ini model.txt $PARENT1/config
