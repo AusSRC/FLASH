@@ -31,11 +31,11 @@ MODE=$2
 # Query FLASHDB for new sbids
 if [ "$MODE" = "INVERT" ]; then
     echo "Querying FLASHDB for inverted detection status"
-    python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -i -pw $FLASHPASS > find_invert_detection.log
+    python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -ht $HOST -pt $PORT -i -pw $FLASHPASS > find_invert_detection.log
     output=$( tail -n 1 find_invert_detection.log)
 else
     echo "Querying FLASHDB for detection status"
-    python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -pw $FLASHPASS > find_detection.log
+    python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -ht $HOST -pt $PORT -pw $FLASHPASS > find_detection.log
     output=$( tail -n 1 find_detection.log)
 fi
 
@@ -62,7 +62,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
     mkdir "$SBID1"
     echo "Downloading $SBID1 spectral ascii files from database"
     cd $SBID1
-    python3 ~/src/FLASH/database/db_download.py -m ASCII -s $SBID1 -d ./ -pw $FLASHPASS -t
+    python3 ~/src/FLASH/database/db_download.py -m ASCII -s $SBID1 -ht $HOST -pt $PORT -d ~/tmp/$SBID1 -pw $FLASHPASS
     cd ../
 done
 echo "Alerting HPC platform $PLATFORM"
