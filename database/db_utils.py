@@ -71,7 +71,7 @@ def set_parser():
             default="5432",
             help='database host port (default: %(default)s)')    
     parser.add_argument('-d', '--sbid_dir',
-            default="/scratch/ja3/ger063/data/casda",
+            default=CATDIR
             help='Specify local directory to use (default: %(default)s)')   
     parser.add_argument('-i', '--invert',
             default=False,
