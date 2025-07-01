@@ -2,13 +2,8 @@
 #!/bin/bash
 
 #######################################################################################################
-# Edit these for the specific user:
-CASDA_EMAIL="user@email"
-CASDA_PWD="password_at_CASDA"
-#######################################################################################################
 
 IFS=","
-FLASHPASS=$1
 
 
 
@@ -19,15 +14,6 @@ PLOTDIR="/home/$USER/src/spectral_plot"
 
 # Tmp directory for tarring etc - needs to be large capacity
 TMPDIR="/scratch/ja3/$USER/tmp"
-
-# The tag to give the data: eg "FLASH Survey 1", or "FLASH Pilot2" etc
-TAG="FLASH Survey 1"
-
-# Compute resource used
-PLATFORM="setonix@pawsey"
-
-# Comment to add (no spaces!)
-COMMENT="CASDA_update"
 
 # The parent directory holding the SBIDS
 PARENTDIR=$DATA
@@ -41,9 +27,7 @@ PARENT_DIR=$DATA
 source ~/setonix_set_local_env.sh
 cd $DBDIR
 
-echo "Querying CASDA"
-# Query CASDA for new sbids
-python3.9 $FLASHDB/db_utils.py -m GETNEWSBIDS -e $CASDA_EMAIL -p $CASDA_PWD -pw $FLASHPASS -r > $CRONDIR/new_sbids.log
+echo "Getting SBIDS to process from new_sbids.log"
 output=$( tail -n 1 $CRONDIR/new_sbids.log)
 sbids=${output:1: -1}
 if test "$output" == "[]"

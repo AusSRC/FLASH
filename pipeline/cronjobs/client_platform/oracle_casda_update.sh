@@ -1,3 +1,43 @@
 #!/bin/bash
-ssh ger063@setonix.pawsey.org.au "cd ~/src/cronjobs; ./casda_download_and_spectral.sh aussrc &> spectral.log;" 
-scp ger063@setonix.pawsey.org.au:~/src/cronjobs/spectral.log /home/flash/src/cronjobs/
+
+
+#######################################################################################################
+# Edit these for the specific user:
+CASDA_EMAIL="user@email"
+CASDA_PWD="password_at_CASDA"
+HPC_PLATFORM="setonix.pawsey.org.au"
+HPC_USER="user_at_hpc"
+
+#######################################################################################################
+
+IFS=","
+FLASHPASS=$1
+
+
+
+# Local directories:
+CRONDIR="/home/$USER/src/cronjobs"
+DBDIR="/home/$USER/src/FLASH/database"
+
+# Tmp directory for tarring etc - needs to be large capacity
+TMPDIR="/mnt/tmp"
+
+# The tag to give the data: eg "FLASH Survey 1", or "FLASH Pilot2" etc
+TAG="FLASH Survey 1"
+
+echo "Querying CASDA"
+# Query CASDA for new sbids
+python3.9 $DBDIR/db_utils.py -m GETNEWSBIDS -e $CASDA_EMAIL -p $CASDA_PWD -pw $FLASHPASS -r > $CRONDIR/new_sbids.log
+output=$( tail -n 1 $CRONDIR/new_sbids.log)
+sbids=${output:1: -1}
+if test "$output" == "[]"
+then
+    echo "No sbids to process"
+    exit
+else
+    echo "Starting spectral processing of new SBIDS at $HPC_PLATFORM"
+fi
+
+scp $CRONDIR/new_sbids.log $HPC_USER@$HPC_PLATFORM:~/src/cronjobs 
+ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; ./casda_download_and_spectral.sh &> spectral.log;" 
+scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/spectral.log /home/flash/src/cronjobs/
