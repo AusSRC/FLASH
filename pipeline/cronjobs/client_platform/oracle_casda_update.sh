@@ -16,18 +16,13 @@ FLASHPASS=$1
 
 
 # Local directories:
-CRONDIR="/home/$USER/src/cronjobs"
-DBDIR="/home/$USER/src/FLASH/database"
-
-# Tmp directory for tarring etc - needs to be large capacity
-TMPDIR="/mnt/tmp"
 
 # The tag to give the data: eg "FLASH Survey 1", or "FLASH Pilot2" etc
 TAG="FLASH Survey 1"
 
 echo "Querying CASDA"
 # Query CASDA for new sbids
-python3.9 $DBDIR/db_utils.py -m GETNEWSBIDS -e $CASDA_EMAIL -p $CASDA_PWD -pw $FLASHPASS -r > $CRONDIR/new_sbids.log
+python3 $FLASHDB/db_utils.py -m GETNEWSBIDS -e $CASDA_EMAIL -p $CASDA_PWD -pw $FLASHPASS -r > $CRONDIR/new_sbids.log
 output=$( tail -n 1 $CRONDIR/new_sbids.log)
 sbids=${output:1: -1}
 if test "$output" == "[]"
