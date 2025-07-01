@@ -27,7 +27,7 @@ from casda_download import *
 RUN_TYPE = ""
 DOWNLOAD_CAT = True # If the catalogues are not already downloaded, set this to True
 ADD_CAT = True # Don't just download the catalogues - add them to the database too.
-SBIDDIR = "/scratch/ja3/ger063/data/casda"
+SBIDDIR = os.environ["DATA"]
 DATADIR = SBIDDIR
 BADFILES = "bad_ascii_files" # relative to SBIDDIR
 SBIDS = []

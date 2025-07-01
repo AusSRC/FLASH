@@ -51,9 +51,9 @@ import db_utils as dbu
 RUN_TYPE = ""
 SBIDS = []
 VERSIONS = []
-DATA_DIR = "/scratch/ja3/ger063/data/casda"
-TMP_TAR_DIR = "/scratch/ja3/ger063/tmp"
-SPECTRAL_CONFIG_DIR = "/scratch/ja3/ger063/flash/config1"
+DATA_DIR = os.environ["DATA"]
+TMP_TAR_DIR = os.environ["TMPDIR"]
+SPECTRAL_CONFIG_DIR = DATA_DIR + "/config1"
 LINEFINDER_CONFIG_DIR = ""
 ERROR_LOG = ""
 STDOUT_LOG = ""
