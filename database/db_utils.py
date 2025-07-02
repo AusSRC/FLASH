@@ -514,15 +514,18 @@ if __name__ == "__main__":
     args = set_parser()
     set_mode_and_values(args)
 
-    conn = connect()
+    #conn = connect()
     bad_sbids = []
     casda = None
     casdatap = None
 
     if RUN_TYPE == "GETNEWSBIDS":
+        conn = connect()
         cur,SBIDS,casda,casdatap = get_new_sbids(conn,args,get_rejected=REJECTED)
         print(f"\nValid sbids to process are: {SBIDS}\n")
+        conn.commit()
         cur.close()
+        conn.close()
         if not DUMMY:
             RUN_TYPE = "CATALOGUE"
     if RUN_TYPE == "CATALOGUE" and not DUMMY:
@@ -533,11 +536,13 @@ if __name__ == "__main__":
         SBIDS = list(set(SBIDS) - set(bad_sbids))
         
         if ADD_CAT:
+            conn = connect()
             for i,sbid in enumerate(SBIDS):
                 ver = VERSIONS[i]
                 cur = add_sbid_catalogue(conn,sbid,CATDIR,ver)
             conn.commit()
             cur.close()
+            conn.close()
         if ADD_CAT and DELETE_CATS:
             for sbid in SBIDS:
                 try:
@@ -545,26 +550,27 @@ if __name__ == "__main__":
                 except:
                     continue
             print(f"Downloaded catalogues deleted: {SBIDS}")
-        conn.commit()
-        conn.close()
     elif RUN_TYPE == "SBIDSTODETECT":
+        conn = connect()
         sbids = check_db_detection_run(conn,INVERT)
+        conn.close()
         print("SBIDS that need detection analysis:")
         print(sbids)
         sys.exit()
-        conn.commit()
-        conn.close()
     elif RUN_TYPE == "CHECK_SBIDS":
+        conn = connect()
         cur = check_sbids_in_db(conn)
         conn.commit()
         cur.close()
         conn.close()
     elif RUN_TYPE == "CHECK_LOCAL_SBIDS":
+        conn = connect()
         cur = check_local_processed_sbids(SBIDDIR)
         conn.commit()
         cur.close()
         conn.close()
     elif RUN_TYPE == "CAT_TO_DB":
+        conn = connect()
         for i,sbid in enumerate(SBIDS):
             ver = VERSIONS[i]
             cur = add_sbid_catalogue(conn,sbid,CATDIR,ver)
@@ -572,16 +578,19 @@ if __name__ == "__main__":
         cur.close()
         conn.close()
     elif RUN_TYPE == "UPDATE_POINTING":
+        conn = connect()
         cur = update_pointings_from_casda(conn,args)
         conn.commit()
         cur.close()
         conn.close()
     elif RUN_TYPE == "BAD_COMPS":
+        conn = connect()
         cur = set_bad_components(conn,args)
         conn.commit()
         cur.close()
         conn.close()
     elif RUN_TYPE == "DETECT_TARBALL":
+        conn = connect()
         update_detection_tarball(conn,SBIDS,VERSIONS)
         conn.close()
             
