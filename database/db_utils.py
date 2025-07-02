@@ -30,6 +30,7 @@ ADD_CAT = True # Don't just download the catalogues - add them to the database t
 SBIDDIR = os.environ["DATA"]
 DATADIR = SBIDDIR
 BADFILES = "bad_ascii_files" # relative to SBIDDIR
+BLACKLIST_DIR = os.environ["BLACKLIST_DIRS"]
 SBIDS = []
 VERSIONS = [] # This list should correspond to the above sbids list = set to empty for just the latest version of each sbid.
 CATDIR = SBIDDIR + "/catalogues"
@@ -360,6 +361,14 @@ def get_new_sbids(conn,args,get_rejected=False):
     # if arg '-s' is given, limit size of array to first 's' values
     if args.sbid_list:
         new_sbids = new_sbids[0:int(args.sbid_list)]
+
+    # Check if any sbids are blacklisted:
+    blacklisted_sbids = []
+    for item in os.listdir(BLACKLIST_DIR):
+        item_path = os.path.join(BLACKLIST_DIR, item)
+        if os.path.isdir(item_path):
+            blacklisted_sbids.append(item)
+    new_sbids = list(set(new_sbids) - set(blacklisted_sbids))    
 
     return cur,new_sbids,casda,casdatap
     
