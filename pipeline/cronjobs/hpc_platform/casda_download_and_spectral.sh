@@ -27,7 +27,6 @@ PARENT_DIR=$DATA
 source ~/setonix_set_local_env.sh
 cd $DBDIR
 
-echo "Getting SBIDS to process from new_sbids.log"
 output=$( tail -n 1 $CRONDIR/new_sbids.log)
 sbids=${output:1: -1}
 if test "$output" == "[]"
@@ -39,10 +38,17 @@ fi
 sbids=$(sed "s/ //g" <<< $sbids)
 sbids="${sbids//\'}"
 SBIDS=$(sed "s/,/ /g" <<< $sbids)
+
 IFS=" "
 SBIDARRAY=()
 read -a SBIDARRAY <<< "$SBIDS"
-echo "downloaded: $SBIDS"
+
+for i in "${!SBIDARRAY[@]}"; do
+    SBID="${SBIDARRAY[$i]}"
+    python3 $FLASHDB/db_utils.py -m CATALOGUE -s $SBID -e $CASDA_EMAIL -p $CASDA_PWD -r -d $PARENTDIR
+done
+echo "downloaded: $SBIDS from CASDA"
+
 
 # Process the sbids
 cd $PLOTDIR
