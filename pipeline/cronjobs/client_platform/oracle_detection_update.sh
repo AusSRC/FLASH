@@ -20,8 +20,10 @@
 # Database connection details: edit these as appropiate
 HOST="10.0.2.225"
 PORT="5432"
+# Client platform details: : edit these as appropiate
+source $HOME/set_local_env.sh
 
-# HPC platfom details: edit these as appropiate
+# HPC platform details: edit these as appropiate
 PLATFORM="setonix.pawsey.org.au"
 USER="ger063"
 ###############################################################################################
@@ -56,13 +58,13 @@ SBIDARRAY=${SBIDARR[@]:0:10}
 echo -e "\nprocessing ${SBIDARRAY[@]}"
 
 # Get the data for the sbids from the FLASHDB 
-cd ~/tmp
+cd $TMPDIR
 for SBID1 in ${SBIDARRAY[@]}; do
     # Make temp download directory
     mkdir "$SBID1"
     echo "Downloading $SBID1 spectral ascii files from database"
     cd $SBID1
-    python3 ~/src/FLASH/database/db_download.py -m ASCII -s $SBID1 -ht $HOST -pt $PORT -d ~/tmp/$SBID1 -pw $FLASHPASS
+    python3 ~/src/FLASH/database/db_download.py -m ASCII -s $SBID1 -ht $HOST -pt $PORT -d $TMPDIR/$SBID1 -pw $FLASHPASS
     cd ../
 done
 echo "Alerting HPC platform $PLATFORM"
@@ -73,6 +75,7 @@ else
 fi
 echo "triggering detection_processing.sh on $PLATFORM"
 ssh $USER@$PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $FLASHPASS $MODE &> detection.log"
+scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/detction.log /home/flash/src/cronjobs/
 echo "Done!"
     
 
