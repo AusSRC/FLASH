@@ -2,23 +2,19 @@
 
 
 #######################################################################################################
-# Edit these for the specific user:
+# Edit these for the specific client-platform user:
 CASDA_EMAIL="user@email"
 CASDA_PWD="password_at_CASDA"
+
+# Edit these for the specific hpc-platform user:
 HPC_PLATFORM="setonix.pawsey.org.au"
 HPC_USER="user_at_hpc"
 HPC_SCRATCH="/scratch/ja3/$HPC_USER/data/casda"
 #######################################################################################################
+source $HOME/set_local_env.sh
 
 IFS=","
 FLASHPASS=$1
-
-
-
-# Local directories:
-
-# The tag to give the data: eg "FLASH Survey 1", or "FLASH Pilot2" etc
-TAG="FLASH Survey 1"
 
 echo "Querying CASDA"
 # Query CASDA for new sbids, but don't download anything
