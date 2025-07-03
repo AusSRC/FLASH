@@ -15,7 +15,7 @@
 # upload the outputs to the FLASH database (via ssh).
 
 #######################################################################################################
-# Edit these for the specific user:
+# Edit these for the specific hpc-platform user:
 CASDA_EMAIL="user@email"
 CASDA_PWD="password_at_CASDA"
 ORACLE_DB="TRUE"
@@ -88,7 +88,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
 
     # Process the files
     cd $DETECTDIR
-    cp slurm_linefinder.ini model.txt $PARENT1/config
+    cp slurm_linefinder*.ini model.txt $PARENT1/config
     jid2=$(sbatch $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1)
     j2=$(echo $jid2 | awk '{print $4}')
     echo "Sumbitted detection job $j2"
@@ -96,9 +96,16 @@ for SBID1 in ${SBIDARRAY[@]}; do
 
     # Tar up results and send them back to the client for upload to the FLASH db
     cd $CRONDIR
-    jid3=$(sbatch --dependency=afterok:$j2 tar_detection_outputs.sh $SBID)
-    j3=$(echo $jid3 | awk '{print $4}')
-    jid4=$(sbatch --dependency=afterok:$j3 push_detection_to_oracle.sh $SBID)
+    if [ "$MODE" = "INVERT" ]; then
+        jid3=$(sbatch --dependency=afterok:$j2 tar_detection_inverted_outputs.sh $SBID)
+        j3=$(echo $jid3 | awk '{print $4}')
+        jid4=$(sbatch --dependency=afterok:$j3 push_detection_inverted_to_oracle.sh $SBID)
+
+    else
+        jid3=$(sbatch --dependency=afterok:$j2 tar_detection_outputs.sh $SBID)
+        j3=$(echo $jid3 | awk '{print $4}')
+        jid4=$(sbatch --dependency=afterok:$j3 push_detection_to_oracle.sh $SBID)
+fi
 
 done
 exit
