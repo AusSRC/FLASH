@@ -10,8 +10,8 @@ for SBID1 in "${SBIDARRAY[@]}"; do
 
     echo "Tarring $SBID1 spectral plot results"
 
-    cd $DATA/$SBID1/spectra_ascii; tar -zcvf $SBID1_ascii_tarball.tar.gz *; mv $SBID1_ascii_tarball.tar.gz ../
-    cd $DATA/$SBID1/spectra_plots; tar -zcvf $SBID1_plots_tarball.tar.gz *; mv $SBID1_plots_tarball.tar.gz ../
-    cd $DATA/$SBID1/SourceSpectra; tar -zcvf $SBID1_sources_tarball.tar.gz *; mv $SBID1_sources_tarball.tar.gz ../
+    cd $DATA/$SBID1/spectra_ascii; tar -zcvf "$SBID1"_ascii_tarball.tar.gz *; mv "$SBID1"_ascii_tarball.tar.gz ../
+    cd $DATA/$SBID1/spectra_plots; tar -zcvf "$SBID1"_plots_tarball.tar.gz *; mv "$SBID1"_plots_tarball.tar.gz ../
+    cd $DATA/$SBID1/SourceSpectra; tar -zcvf "$SBID1"_sources_tarball.tar.gz *; mv "$SBID1"_sources_tarball.tar.gz ../
 done
 exit 0
