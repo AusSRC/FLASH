@@ -29,34 +29,55 @@ USER="ger063"
 ###############################################################################################
 FLASHPASS=$1
 MODE=$2
+CHECKDB=true
 
+DETECTLOG="find_detection.log"
+
+# Check if we were passed sbids to process, or we need to check the db
+if [ "$#" -gt 2 ]; then
+    SBIDARR=( "$@" )
+    SBIDARRAY=${SBIDARR[@]:2}
+    CHECKDB=false
+    if [ "$MODE" = "INVERT" ]; then
+        DETECTLOG="find_invert_detection.log"
+    fi
+    rm $DETECTLOG
+    printf "For inversion:\nSBIDS that need detection analysis\n[" > $DETECTLOG
+    for SBID1 in ${SBIDARRAY[@]}; do
+        printf "$SBID1, " >> $DETECTLOG
+    done
+    sed -i '$ s/.$//' $DETECTLOG
+    sed -i '$ s/.$/]/' $DETECTLOG
+     
+fi
 # Query FLASHDB for new sbids
-if [ "$MODE" = "INVERT" ]; then
-    echo "Querying FLASHDB for inverted detection status"
-    python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -ht $HOST -pt $PORT -i -pw $FLASHPASS > find_invert_detection.log
-    output=$( tail -n 1 find_invert_detection.log)
-else
-    echo "Querying FLASHDB for detection status"
-    python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -ht $HOST -pt $PORT -pw $FLASHPASS > find_detection.log
-    output=$( tail -n 1 find_detection.log)
-fi
+if [ "$CHECKDB" = true ]; then
+    if [ "$MODE" = "INVERT" ]; then
+        echo "Querying FLASHDB for inverted detection status"
+        python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -ht $HOST -pt $PORT -i -pw $FLASHPASS > $DETECTLOG
+        output=$( tail -n 1 find_invert_detection.log)
+    else
+        echo "Querying FLASHDB for detection status"
+        python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -ht $HOST -pt $PORT -pw $FLASHPASS > $DETECTLOG
+        output=$( tail -n 1 find_detection.log)
+    fi
 
-sbids=${output:1: -1}
-if test "$output" == "[]"
-then
-    echo "No sbids to process"
-    exit
+    sbids=${output:1: -1}
+    if test "$output" == "[]"
+    then
+        echo "No sbids to process"
+        exit
+    fi
+    sbids=$(sed "s/ //g" <<< $sbids)
+    SBIDS=$(sed "s/,/ /g" <<< $sbids)
+    echo "SBIDS = $SBIDS"
+    SBIDARR=()
+    read -a SBIDARR <<< "$SBIDS"
+    # Limit size of SBIDARRAY to 10:
+    SBIDARRAY=()
+    SBIDARRAY=${SBIDARR[@]:0:10}
 fi
-sbids=$(sed "s/ //g" <<< $sbids)
-SBIDS=$(sed "s/,/ /g" <<< $sbids)
-echo "SBIDS = $SBIDS"
-SBIDARR=()
-read -a SBIDARR <<< "$SBIDS"
-# Limit size of SBIDARRAY to 10:
-SBIDARRAY=()
-SBIDARRAY=${SBIDARR[@]:0:10}
 echo -e "\nprocessing ${SBIDARRAY[@]}"
-
 # Get the data for the sbids from the FLASHDB 
 cd $TMPDIR
 for SBID1 in ${SBIDARRAY[@]}; do
@@ -68,14 +89,10 @@ for SBID1 in ${SBIDARRAY[@]}; do
     cd ../
 done
 echo "Alerting HPC platform $PLATFORM"
-if [ "$MODE" = "INVERT" ]; then
-    scp ~/src/cronjobs/find_invert_detection.log $USER@$PLATFORM:~/src/cronjobs/
-else
-    scp ~/src/cronjobs/find_detection.log $USER@$PLATFORM:~/src/cronjobs/
-fi
+scp ~/src/cronjobs/$DETECTLOG $USER@$PLATFORM:~/src/cronjobs/
 echo "triggering detection_processing.sh on $PLATFORM"
 ssh $USER@$PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $FLASHPASS $MODE &> detection.log"
-scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/detction.log /home/flash/src/cronjobs/
+scp $USER@$PLATFORM:~/src/cronjobs/detction.log /home/flash/src/cronjobs/
 echo "Done!"
     
 

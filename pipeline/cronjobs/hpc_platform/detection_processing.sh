@@ -16,10 +16,12 @@
 
 #######################################################################################################
 # Edit these for the specific hpc-platform user:
-CASDA_EMAIL="user@email"
-CASDA_PWD="password_at_CASDA"
+ORACLE_KEY="~/.ssh/oracle_flash_vm.key"
 ORACLE_DB="TRUE"
 CLIENT="152.67.97.254"
+TMP_ON_CLIENT=/mnt/tmp
+
+CRONDIR=$HOME/src/cronjobs/
 #######################################################################################################
 
 FLASHPASS=$1
@@ -40,7 +42,7 @@ PARENT_DIR=$DATA
 # Directory to move bad data files to:
 BAD_FILES_DIR="$DATA/bad_ascii_files/"
 
-cd $CRONJOBS
+cd $CRONDIR
 # Check logs for new sbids to process
 if [ "$MODE" = "INVERT" ]; then
     output=$( tail -n 1 find_invert_detection.log)
@@ -75,38 +77,45 @@ for SBID1 in ${SBIDARRAY[@]}; do
     PARENT1="$PARENT_DIR/$SBID1"
     DIR1="$PARENT1/spectra_ascii"
     mkdir -p "$PARENT1/config"
+    mkdir -p "$DIR1"
     # Get the ASCII data from the client:
-    scp flash@$CLIENT:~/tmp/$SBID1/$SBID1*.tar.gz $DIR1/
+    scp -i $ORACLE_KEY flash@$CLIENT:$TMP_ON_CLIENT/$SBID1/$SBID1*.tar.gz $DIR1/
     # Delete ASCII directory on client:
-    ssh flash@$CLIENT "cd ~/tmp; rm -R $SBID1"
+    ssh -i $ORACLE_KEY flash@$CLIENT "cd $TMP_ON_CLIENT; rm -R $SBID1"
     # Untar ASCII tarball
     cd $DIR1; tar -zxvf $SBID*.tar.gz;rm $SBID*.tar.gz
 
     # Check for bad (all NaN values) files, move them to bad files directory
     echo "Checking for bad files"
-    python $FINDER/pre_process.py '$BAD_FILES_DIR' '$DIR1'
+    python $FINDER/pre_process.py $BAD_FILES_DIR $DIR1
 
     # Process the files
     cd $DETECTDIR
     cp slurm_linefinder*.ini model.txt $PARENT1/config
-    jid2=$(sbatch $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1)
+    if [ "$MODE" = "INVERT" ]; then
+        jid2=$(sbatch $FINDER/slurm_run_flashfinder_inverted.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1)
+    else
+        jid2=$(sbatch $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1)
+    fi
     j2=$(echo $jid2 | awk '{print $4}')
     echo "Sumbitted detection job $j2"
     echo "$j2 = sbid $SBID1" >> $DETECTDIR/jobs_to_sbids.txt
 
     # Tar up results and send them back to the client for upload to the FLASH db
     cd $CRONDIR
-    if [ "$MODE" = "INVERT" ]; then
-        jid3=$(sbatch --dependency=afterok:$j2 tar_detection_inverted_outputs.sh $SBID)
-        j3=$(echo $jid3 | awk '{print $4}')
-        jid4=$(sbatch --dependency=afterok:$j3 push_detection_inverted_to_oracle.sh $SBID)
+    #if [ "$MODE" = "INVERT" ]; then
+    #    jid3=$(sbatch --dependency=afterok:$j2 tar_detection_inverted_outputs.sh $SBID)
+    #    j3=$(echo $jid3 | awk '{print $4}')
+    #    jid4=$(sbatch --dependency=afterok:$j3 push_detection_inverted_to_oracle.sh $SBID)
 
-    else
-        jid3=$(sbatch --dependency=afterok:$j2 tar_detection_outputs.sh $SBID)
-        j3=$(echo $jid3 | awk '{print $4}')
-        jid4=$(sbatch --dependency=afterok:$j3 push_detection_to_oracle.sh $SBID)
-fi
+    #else
+    #    jid3=$(sbatch --dependency=afterok:$j2 tar_detection_outputs.sh $SBID)
+    #    j3=$(echo $jid3 | awk '{print $4}')
+    #    jid4=$(sbatch --dependency=afterok:$j3 push_detection_to_oracle.sh $SBID)
+    #fi
 
 done
+echo "Processing started for sbids:"
+echo ${SBIDARRAY[@]}
 exit
 

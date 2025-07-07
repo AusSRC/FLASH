@@ -9,6 +9,7 @@
 TMPDIR=/mnt/tmp
 PARENTDIR=/mnt/casda
 CLIENT="152.67.97.254"
+ORACLE_KEY="~/.ssh/oracle_flash_vm.key"
 
 #########################################################
 
@@ -26,14 +27,14 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     echo "Uploading $SBID1 linefinder results via Oracle to database"
 
     # set up directories on Oracle VM
-    ssh -i ~/.ssh/oracle_flash_vm.key flash@$CLIENT "cd $PARENTDIR; rm -R $SBID1/outputs $1/logs $SBID1/config $TMPDIR/$SBID1*; mkdir -p $SBID1/config $SBID1/logs $SBID1/outputs;"
+    ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR; rm -R $SBID1/outputs $1/logs $SBID1/config $TMPDIR/$SBID1*; mkdir -p $SBID1/config $SBID1/logs $SBID1/outputs;"
     # Copy data to Oracle
-    scp -i ~/.ssh/oracle_flash_vm.key $DATA/$SBID1/linefinder.tar.gz flash@$CLIENT:$PARENTDIR/$SBID1/outputs/
-    scp -i ~/.ssh/oracle_flash_vm.key $DATA/$SBID1/config/* flash@$CLIENT:$PARENTDIR/$SBID1/config/
-    scp -i ~/.ssh/oracle_flash_vm.key $DATA/$SBID1/logs/* flash@$CLIENT:$PARENTDIR/$SBID1/logs/
-    ssh -i ~/.ssh/oracle_flash_vm.key flash@$CLIENT "cd $PARENTDIR/$SBID1/outputs; tar -zxvf linefinder.tar.gz; rm linefinder.tar.gz"
+    scp -i $ORACLE_KEY $DATA/$SBID1/linefinder.tar.gz flash@$CLIENT:$PARENTDIR/$SBID1/outputs/
+    scp -i $ORACLE_KEY $DATA/$SBID1/config/* flash@$CLIENT:$PARENTDIR/$SBID1/config/
+    scp -i $ORACLE_KEY $DATA/$SBID1/logs/* flash@$CLIENT:$PARENTDIR/$SBID1/logs/
+    ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID1/outputs; tar -zxvf linefinder.tar.gz; rm linefinder.tar.gz"
     # Start a db_upload session at Oracle
-    ssh -i ~/.ssh/oracle_flash_vm.key flash@$CLIENT "cd ~/src/FLASH/database; python3 db_upload.py -m DETECTION -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw aussrc -cs config -C 'Linefinder_run'"
+    ssh -i $ORACLE_KEY flash@$CLIENT "cd ~/src/FLASH/database; python3 db_upload.py -m DETECTION -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw aussrc -cs config -C 'Linefinder_run'"
 
     # Stash the SLURM logs
     mv slurm-*.out $DATA/tmp/
