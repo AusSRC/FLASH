@@ -20,7 +20,7 @@ sbatch <<EOT
 #SBATCH --time=12:00:00
 #SBATCH --ntasks=100
 #SBATCH --ntasks-per-node=20
-#SBATCH --job-name=FLASHFINDER_mpi
+#SBATCH --job-name=FINDER_mpi
 #SBATCH --no-requeue
 #SBATCH --output="$1"/logs/out.log
 #SBATCH --error="$1"/logs/err.log
