@@ -83,8 +83,7 @@ def getSBIDmetadata(sbid):
         data = cur.fetchone()
     return data
 ##################################################################################################
-def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inverted,verbose=True):
-#TBD inverted
+def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inverted,masked,verbose=True):
     # This will print out a table of linefinder output data for a given sbid
     # args[1] = db cursor
     # args[2] = The sbid you want to use - if a version is not declared ("45833" rather than "45833:2"),
@@ -93,6 +92,8 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     #           then use the latest version
     # args[4] = ln_mean cutoff - only sources with an ln_mean() value larger than this will be shown
     #           If no value is given, it will be set to 0.0
+    # args[8] = if inverted spectra are requested
+    # args[9] = if masked spectra are requested
 
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
@@ -102,10 +103,12 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
         ln_mean = float(LN_MEAN)
     except ValueError: # No value given. Set to 0
         ln_mean = 0.0
-   
+                 
     # Get the results table 
     if inverted:
         query = "select invert_results from sbid where id = %s;"
+    elif masked:
+        query = "select mask_results from sbid where id = %s;"
     else:
         query = "select results from sbid where id = %s;"
     cur.execute(query,(sid,))
@@ -181,6 +184,8 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     if verbose: # detailed output is saved to file
         if inverted:
             f = open(f"{dir_download}/{sbid}_linefinder_inverted_outputs.csv","w")
+        elif masked:
+            f = open(f"{dir_download}/{sbid}_linefinder_masked_outputs.csv","w")
         else:
             f = open(f"{dir_download}/{sbid}_linefinder_outputs.csv","w")
         # we want From component table - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
@@ -507,18 +512,23 @@ def query_database(request):
         lmean = request.POST.get('mean')
         order = request.POST.get('lorder')
         reverse = request.POST.get('reverse2')
-        use_invert = request.POST.get('inverted')
-        inverted = False
-
+        output_type = request.POST.get('output_type')
+        
+        use_invert = False
+        use_masked = False    
+        if output_type == "inverted":
+            use_invert = True
+        elif output_type == "masked":
+            use_masked = True            
+        
         if reverse == "on":
             reverse = True
         else:
             reverse = False
-        if use_invert == "on":
-            use_invert = True
-        else:
-            use_invert = False
+            
         with connection.cursor() as cursor:
+            inverted = False        
+            masked = False
             if use_invert:
                 # See if there are any inverted-spectra linefinder results
                 query = f"SELECT invert_detectionF from sbid where sbid_num = %s"
@@ -527,12 +537,20 @@ def query_database(request):
                 if not inverted:
                     return HttpResponse(f"No inverted-spectra Linefinder results for sbid {sbid_val}")
             print(f"inverted value = {inverted}")
+            if use_masked:
+                # See if there are any masked-spectra linefinder results
+                query = f"SELECT mask_detectionF from sbid where sbid_num = %s"
+                cursor.execute(query,(sbid_val,))
+                masked = cursor.fetchone()[0]
+                if not masked:
+                    return HttpResponse(f"No masked-spectra Linefinder results for sbid {sbid_val}")
+            print(f"masked value = {masked}")    
             # The path to Django's static dir for linefinder outputs
             static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
             os.system(f"mkdir -p {static_dir}")
             version = None
         # Screen outputs:
-            outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir,inverted)
+            outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir,inverted,masked)
             # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
             conn = connect(password=password)
             name = get_linefinder_tarball(conn,sbid_val,static_dir,version,inverted)
@@ -541,10 +559,14 @@ def query_database(request):
             tarball = f"db_query/linefinder/{session_id}/{name}"
             if inverted:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_inverted_outputs.csv"
+            elif masked:
+                csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_outputs.csv"    
             else:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
         if outputs:
-            return render(request, 'linefinder.html', {'session_id': session_id, 'sbid': sbid_val, 'lmean': lmean,'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), 'tarball': tarball, 'inverted':inverted})
+            return render(request, 'linefinder.html', {'session_id': session_id, 'sbid': sbid_val, 'lmean': lmean,\
+                'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), \
+                'tarball': tarball, 'inverted':inverted, 'masked':masked})
         else:
             return HttpResponse(f"No Linefinder results for sbid {sbid_val}")
 
