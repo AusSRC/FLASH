@@ -381,6 +381,7 @@ def index(request):
     try:
         os.system(f"sudo rm -R {static_dir}/plots/{session_id}")
         os.system(f"sudo rm -R {static_dir}/linefinder/{session_id}")
+        os.system(f"sudo rm -R {static_dir}/linefinder/masks/{session_id}")
         os.system(f"sudo rm -R {static_dir}/ascii/{session_id}")
     except:
         pass
