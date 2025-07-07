@@ -437,7 +437,8 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
 ###############################################
 def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_file,output_dir,invertF,versions=None):
 
-    
+    stdlog = f"{DATA_DIR}/{sbid}/logs/{stdlog}"
+    stdlog = f"{DATA_DIR}/{sbid}/logs/{errlog}"
     cur = get_cursor(conn)
     if not invertF:
         print(f"Adding detection run for sbids {sbids}",flush=True)
