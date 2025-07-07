@@ -78,12 +78,8 @@ for SBID1 in ${SBIDARRAY[@]}; do
     DIR1="$PARENT1/spectra_ascii"
     mkdir -p "$PARENT1/config"
     mkdir -p "$DIR1"
-    # Get the ASCII data from the client:
-    scp -i $ORACLE_KEY flash@$CLIENT:$TMP_ON_CLIENT/$SBID1/$SBID1*.tar.gz $DIR1/
-    # Delete ASCII directory on client:
-    ssh -i $ORACLE_KEY flash@$CLIENT "cd $TMP_ON_CLIENT; rm -R $SBID1"
     # Untar ASCII tarball
-    cd $DIR1; tar -zxvf $SBID*.tar.gz;rm $SBID*.tar.gz
+    cd $DIR1; tar -zxf $SBID*.tar.gz;rm $SBID*.tar.gz
 
     # Check for bad (all NaN values) files, move them to bad files directory
     echo "Checking for bad files"
@@ -103,16 +99,16 @@ for SBID1 in ${SBIDARRAY[@]}; do
 
     # Tar up results and send them back to the client for upload to the FLASH db
     cd $CRONDIR
-    #if [ "$MODE" = "INVERT" ]; then
-    #    jid3=$(sbatch --dependency=afterok:$j2 tar_detection_inverted_outputs.sh $SBID)
-    #    j3=$(echo $jid3 | awk '{print $4}')
-    #    jid4=$(sbatch --dependency=afterok:$j3 push_detection_inverted_to_oracle.sh $SBID)
+    if [ "$MODE" = "INVERT" ]; then
+        jid3=$(sbatch --dependency=afterok:$j2 tar_detection_inverted_outputs.sh $SBID)
+        j3=$(echo $jid3 | awk '{print $4}')
+        jid4=$(sbatch --dependency=afterok:$j3 push_detection_inverted_to_oracle.sh $SBID)
 
-    #else
-    #    jid3=$(sbatch --dependency=afterok:$j2 tar_detection_outputs.sh $SBID)
-    #    j3=$(echo $jid3 | awk '{print $4}')
-    #    jid4=$(sbatch --dependency=afterok:$j3 push_detection_to_oracle.sh $SBID)
-    #fi
+    else
+        jid3=$(sbatch --dependency=afterok:$j2 tar_detection_outputs.sh $SBID)
+        j3=$(echo $jid3 | awk '{print $4}')
+        jid4=$(sbatch --dependency=afterok:$j3 push_detection_to_oracle.sh $SBID)
+    fi
 
 done
 echo "Processing started for sbids:"

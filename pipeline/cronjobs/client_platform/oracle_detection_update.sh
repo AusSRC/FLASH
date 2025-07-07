@@ -26,6 +26,7 @@ source $HOME/set_local_env.sh
 # HPC platform details: edit these as appropiate
 PLATFORM="setonix.pawsey.org.au"
 USER="ger063"
+HPC_DATA="/scratch/ja3/$USER/data/casda"
 ###############################################################################################
 FLASHPASS=$1
 MODE=$2
@@ -86,13 +87,16 @@ for SBID1 in ${SBIDARRAY[@]}; do
     echo "Downloading $SBID1 spectral ascii files from database"
     cd $SBID1
     python3 ~/src/FLASH/database/db_download.py -m ASCII -s $SBID1 -ht $HOST -pt $PORT -d $TMPDIR/$SBID1 -pw $FLASHPASS
+    echo "Sending $SBID1 ASCII tarball to $PLATFORM"
+    ssh $USER@$PLATFORM "mkdir -p $HPC_DATA/$SBID1/spectra_ascii; rm $HPC_DATA/$SBID1/spectra_ascii/*;"
+    scp $TMPDIR/$SBID1/*$SBID1*.tar.gz $USER@$PLATFORM:$HPC_DATA/$SBID1/spectra_ascii
     cd ../
 done
 echo "Alerting HPC platform $PLATFORM"
 scp ~/src/cronjobs/$DETECTLOG $USER@$PLATFORM:~/src/cronjobs/
 echo "triggering detection_processing.sh on $PLATFORM"
 ssh $USER@$PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $FLASHPASS $MODE &> detection.log"
-scp $USER@$PLATFORM:~/src/cronjobs/detction.log /home/flash/src/cronjobs/
+scp $USER@$PLATFORM:~/src/cronjobs/detection.log /home/flash/src/cronjobs/
 echo "Done!"
     
 
