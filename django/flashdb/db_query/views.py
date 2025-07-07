@@ -235,7 +235,7 @@ def get_ascii_files_tarball(conn,cur,sid,sbid,static_dir,version,password=None):
     #return name
 
 ##################################################################################################
-def get_linefinder_tarball(conn,sbid,dir_download,version,inverted):
+def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked):
     cur = get_cursor(conn)
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
@@ -245,9 +245,12 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted):
     name = f"{sbid}_{version}.tar"
     if inverted:
         name = f"{sbid}_{version}_inverted.tar"
-        query = "select invert_detectionF from sbid where id = %s"    
+        query = "select invert_detectionF from sbid where id = %s"
+    elif masked:
+        name = f"{sbid}_{version}_masked.tar"
+        query = "select mask_detectionF from sbid where id = %s"
     else:
-        query = "select detectionF from sbid where id = %s"    
+        query = "select detectionF from sbid where id = %s"
     cur.execute(query,(sid,))
     detect = cur.fetchone()[0]
     if not detect:
@@ -255,7 +258,7 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted):
         return
     # The output files are normally stored as both a byte array AND a large object.
     # If the LOB exists, down load that in preference to the byte array, as it's more efficient:
-    if not inverted:
+    if not inverted and not masked:
         query = "select detect_tar from sbid where id = %s"
         cur.execute(query,(sid,))
         oid = cur.fetchone()[0]
@@ -268,6 +271,8 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted):
         print(f"No LOB found - retrieving byte array from db")
         if inverted:
             query = "select invert_detect_results from sbid where id = %s"
+        elif masked:
+            query = "select mask_detect_results from sbid where id = %s"
         else:
             query = "select detect_results from sbid where id = %s"
         cur.execute(query,(sid,))
@@ -485,9 +490,11 @@ def query_database(request):
 
         with connection.cursor() as cursor:
             if sbid_val == "-1":
-                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,invert_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid" 
+                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,invert_detectionF,mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"                
+                mask_query = f"select mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
                 if where_clause:
                     query = query + where_clause
+                    mask_query += where_clause + ";"
                 query = query + f" order by {order}"
                 if reverse:
                     query += " desc;"
@@ -495,16 +502,20 @@ def query_database(request):
                     query += ";"
                 cursor.execute(query,)
             else:
-                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,invert_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s order by {order}"
+                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,invert_detectionF,mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s order by {order}"
+                mask_query = f"select mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s;"
                 if reverse:
                     query += " desc;"
                 else:
                     query += ";"
                 cursor.execute(query,(sbid_val,))
             rows = cursor.fetchall()
+            cursor.execute(mask_query, (sbid_val if sbid_val != "-1" else None,))
+            mask_rows = cursor.fetchall()
+            mask_files = download_mask_files(mask_rows, session_id)
 
         # Render the template with the query results
-        return render(request, 'query_results.html', {'session_id': session_id, 'sbid': sbid_val, 'rows': rows, 'num_rows': len(rows)})
+        return render(request, 'query_results.html', {'session_id': session_id, 'sbid': sbid_val, 'rows': rows, 'num_rows': len(rows), 'mask_files': mask_files})
 
     elif query_type == "LINEFINDER":
         password = request.POST.get('pass')
@@ -513,21 +524,21 @@ def query_database(request):
         order = request.POST.get('lorder')
         reverse = request.POST.get('reverse2')
         output_type = request.POST.get('output_type')
-        
+
         use_invert = False
-        use_masked = False    
+        use_masked = False
         if output_type == "inverted":
             use_invert = True
         elif output_type == "masked":
-            use_masked = True            
-        
+            use_masked = True
+
         if reverse == "on":
             reverse = True
         else:
             reverse = False
             
         with connection.cursor() as cursor:
-            inverted = False        
+            inverted = False
             masked = False
             if use_invert:
                 # See if there are any inverted-spectra linefinder results
@@ -544,7 +555,7 @@ def query_database(request):
                 masked = cursor.fetchone()[0]
                 if not masked:
                     return HttpResponse(f"No masked-spectra Linefinder results for sbid {sbid_val}")
-            print(f"masked value = {masked}")    
+            print(f"masked value = {masked}")
             # The path to Django's static dir for linefinder outputs
             static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
             os.system(f"mkdir -p {static_dir}")
@@ -553,14 +564,14 @@ def query_database(request):
             outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir,inverted,masked)
             # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
             conn = connect(password=password)
-            name = get_linefinder_tarball(conn,sbid_val,static_dir,version,inverted)
+            name = get_linefinder_tarball(conn,sbid_val,static_dir,version,inverted,masked)
             conn.close()
 
             tarball = f"db_query/linefinder/{session_id}/{name}"
             if inverted:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_inverted_outputs.csv"
             elif masked:
-                csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_outputs.csv"    
+                csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_outputs.csv"
             else:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
         if outputs:
@@ -614,7 +625,25 @@ def query_database(request):
             ascii_tar = f"db_query/ascii/{session_id}/{sbid_val}_{version}.tar.gz"
 
         return render(request, 'ascii.html', {'session_id': session_id, 'sbid': sbid_val, 'version': version, 'ascii_tar': ascii_tar})
-    
+
+def download_mask_files(mask_rows, session_id):
+    # Stage mask file downloads
+    mask_files = []
+    if mask_rows.count() > 0:
+        static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/masks/{session_id}")
+        os.system(f"mkdir -p {static_dir}")
+        for mask_row in mask_rows:
+            mask = mask_row[0]
+            if mask:
+                sbid_val = mask_row[1]
+                version = mask_row[2]
+                mask_file = f"{static_dir}/{sbid_val}_{version}_mask.txt"
+                open(mask_file, 'wb').write(mask)
+                mask_files.append(mask_file)
+            else:
+                mask_files.append(None)
+    return mask_files
+
 def my_view(request):
     with connection.cursor() as cursor:
         cursor.execute("SELECT sbid_num,version,comment FROM SBID order by sbid_num,version;")

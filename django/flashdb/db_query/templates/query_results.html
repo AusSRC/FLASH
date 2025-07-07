@@ -66,7 +66,9 @@
 		    <td style="text-align: center;">{% if row.5 == True %} Run {% else %} No {% endif %}</td>
 		    <td style="text-align: center;">{% if row.6 == True %} Run {% else %} No {% endif %}</td>
 		    <td style="text-align: center;">{% if row.7 == True %} Run {% else %} No {% endif %}</td>
-		    <td style="text-align: center; padding:0 15px 0 15px;"><a href="{{ row.8 }}"></a></td>
+			<!-- If the masked file is available, provide a link to it -->
+		    <td style="text-align: center; padding:0 15px 0 15px;">
+				{% if masked_files|index:forloop.counter0 is not None %}<a href="{{masked_files|index:forloop.counter0}}"></a>{% endif %}</td>
 			<td style="text-align: center; padding:0 15px 0 15px;">{{ row.9 }}</td>
 		    <td>{{ row.10 }}</td>
 		</tr>
