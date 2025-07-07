@@ -435,7 +435,7 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
     return cur
 
 ###############################################
-def add_detect_run(conn,sbids,config_dir,errlog=None,stdlog=None,dataDict,platform,result_file,output_dir,invertF,versions=None):
+def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_dir,invertF,versions=None,errlog=None,stdlog=None):
 
     cur = get_cursor(conn)
     if not invertF:
