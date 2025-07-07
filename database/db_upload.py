@@ -55,8 +55,8 @@ DATA_DIR = os.environ["DATA"]
 TMP_TAR_DIR = os.environ["TMPDIR"]
 SPECTRAL_CONFIG_DIR = DATA_DIR + "/config1"
 LINEFINDER_CONFIG_DIR = ""
-ERROR_LOG = ""
-STDOUT_LOG = ""
+ERROR_LOG = "err.log"
+STDOUT_LOG = "out.log"
 LINEFINDER_OUTPUT_DIR = ""
 LINEFINDER_SUMMARY_FILE = "results.dat"
 PLATFORM = "setonix.pawsey.org.au"
@@ -477,7 +477,7 @@ def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_
     # Add each of the processed SBIDS
     for i,sbid in enumerate(sbids):
         if not DATA_DIR in result_file:
-            result_file = f"{DATA_DIR}/{sbid}/outputs/{result_file}"
+            result_file = f"{DATA_DIR}/{sbid}/{output_dir}/{result_file}"
         # Create the results file
         results = ""
         with open(result_file,'r') as f:
