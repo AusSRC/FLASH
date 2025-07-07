@@ -435,10 +435,8 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
     return cur
 
 ###############################################
-def add_detect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform,result_file,output_dir,invertF,versions=None):
+def add_detect_run(conn,sbids,config_dir,errlog=None,stdlog=None,dataDict,platform,result_file,output_dir,invertF,versions=None):
 
-    stdlog = f"{DATA_DIR}/{sbid}/logs/{stdlog}"
-    stdlog = f"{DATA_DIR}/{sbid}/logs/{errlog}"
     cur = get_cursor(conn)
     if not invertF:
         print(f"Adding detection run for sbids {sbids}",flush=True)
@@ -933,8 +931,6 @@ if __name__ == "__main__":
         cur = add_detect_run(conn,
                         sbids=SBIDS,
                         config_dir=LINEFINDER_CONFIG_DIR,
-                        errlog=ERROR_LOG,
-                        stdlog=STDOUT_LOG,
                         dataDict=dataDict,
                         platform=PLATFORM,
                         result_file=LINEFINDER_SUMMARY_FILE,
