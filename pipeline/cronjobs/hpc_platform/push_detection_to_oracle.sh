@@ -19,15 +19,10 @@ SBIDARRAY=( "$@" )
 echo "Processing ${SBIDARRAY[@]}"
 
 for SBID1 in "${SBIDARRAY[@]}"; do
-    QUALITY=`cat "$DATA"/"$SBID1"/data_quality.txt`
-    if [ -z "$QUALITY" ]; then
-        QUALITY="NOT_VALIDATED"
-    fi
-     
     echo "Uploading $SBID1 linefinder results via Oracle to database"
 
     # set up directories on Oracle VM
-    ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR; rm -R $SBID1/outputs $1/logs $SBID1/config $TMPDIR/$SBID1*; mkdir -p $SBID1/config $SBID1/logs $SBID1/outputs;"
+    ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR; rm -R $SBID1/outputs $SBID1/logs $SBID1/config $TMPDIR/$SBID1*; mkdir -p $SBID1/config $SBID1/logs $SBID1/outputs;"
     # Copy data to Oracle
     scp -i $ORACLE_KEY $DATA/$SBID1/linefinder.tar.gz flash@$CLIENT:$PARENTDIR/$SBID1/outputs/
     scp -i $ORACLE_KEY $DATA/$SBID1/config/* flash@$CLIENT:$PARENTDIR/$SBID1/config/
