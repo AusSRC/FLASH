@@ -491,8 +491,8 @@ def query_database(request):
 
         with connection.cursor() as cursor:
             if sbid_val == "-1":
-                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,invert_detectionF,mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"                
-                mask_query = f"select mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
+                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"                
+                mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
                 if where_clause:
                     query = query + where_clause
                     mask_query += where_clause + ";"
@@ -503,8 +503,8 @@ def query_database(request):
                     query += ";"
                 cursor.execute(query,)
             else:
-                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,invert_detectionF,mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s order by {order}"
-                mask_query = f"select mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s;"
+                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s order by {order}"
+                mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s;"
                 if reverse:
                     query += " desc;"
                 else:
@@ -639,7 +639,8 @@ def download_mask_files(mask_rows, session_id):
                 sbid_val = mask_row[1]
                 version = mask_row[2]
                 mask_file = f"{static_dir}/{sbid_val}_{version}_mask.txt"
-                open(mask_file, 'wb').write(mask)
+                # TODO: When the bytea column is available, we use 'wb' mode instead
+                open(mask_file, 'w').write(mask)
                 mask_files.append(mask_file)
             else:
                 mask_files.append(None)
