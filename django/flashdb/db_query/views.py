@@ -630,7 +630,7 @@ def query_database(request):
 def download_mask_files(mask_rows, session_id):
     # Stage mask file downloads
     mask_files = []
-    if mask_rows.count() > 0:
+    if len(mask_rows) > 0:
         static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/masks/{session_id}")
         os.system(f"mkdir -p {static_dir}")
         for mask_row in mask_rows:
