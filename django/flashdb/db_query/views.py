@@ -641,7 +641,8 @@ def download_mask_files(mask_rows, session_id):
                 mask_file = f"{static_dir}/{sbid_val}_{version}_mask.txt"
                 # TODO: When the bytea column is available, we use 'wb' mode instead
                 open(mask_file, 'w').write(mask)
-                mask_files.append(mask_file)
+                mask_file_link = f"db_query/linefinder/masks/{session_id}/{sbid_val}_{version}_mask.txt"
+                mask_files.append(mask_file_link)
             else:
                 mask_files.append(None)
     return mask_files
