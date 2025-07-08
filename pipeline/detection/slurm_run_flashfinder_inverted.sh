@@ -20,7 +20,7 @@ sbatch <<EOT
 #SBATCH --time=12:00:00
 #SBATCH --ntasks=100
 #SBATCH --ntasks-per-node=20
-#SBATCH --job-name=FLASHFINDER_mpi
+#SBATCH --job-name=INV_FINDER_mpi
 #SBATCH --no-requeue
 #SBATCH --output="$1"/logs/out_inverted.log
 #SBATCH --error="$1"/logs/err_inverted.log
@@ -51,7 +51,7 @@ python $FINDER/pre_process.py '$3' '$1/$2'
 echo "Starting with $1/$2"
 ## Ensure the correct linefinder.ini is specified here:
 srun -K1 python $FINDER/flash_finder.py --data_path '$1/$2' --model_path '$1/config/model.txt' --out_path '$1/inverted_outputs' \
---mask_path '$1/config/mask.txt' --sbid "$4" --inifile '$1/config/slurm_linefinder.ini'
+--mask_path '$1/config/mask.txt' --sbid "$4" --inifile '$1/config/slurm_linefinder_inverted.ini'
 
 exit 0
 EOT
