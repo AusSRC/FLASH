@@ -16,6 +16,12 @@
 # The HPC platform is responsible for getting the ASCII files from the clinet,
 # processing them and pushing the results back to the client and initiating a 
 # database upload. This is done (on the HPC platform) by "detection_processing.sh"
+#
+# This script is run with two required arguments: $1 = flashdb password, $2 = MODE 
+# (one of DETECT, INVERT or MASK)
+#
+# If further args are given, they are assumed to be sbid numbers (space separated). If this is the
+# case, the database is not checked for sbids to process.
 ################################################################################################
 # Database connection details: edit these as appropiate
 HOST="10.0.2.225"
