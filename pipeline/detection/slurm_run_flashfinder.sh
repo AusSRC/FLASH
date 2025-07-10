@@ -15,16 +15,6 @@ mkdir -p "$1"/outputs
 mkdir -p "$1"/logs
 cd "$1"
 
-sbatch <<EOT
-#!/bin/bash
-#SBATCH --time=12:00:00
-#SBATCH --ntasks=100
-#SBATCH --ntasks-per-node=20
-#SBATCH --job-name=FINDER_mpi
-#SBATCH --no-requeue
-#SBATCH --output="$1"/logs/out.log
-#SBATCH --error="$1"/logs/err.log
-
 module load python/3.11.6
 module load py-numpy/1.24.4
 module load py-matplotlib/3.8.1
@@ -44,13 +34,13 @@ export FI_CXI_DEFAULT_VNI="$(od -vAn -N4 -tu < /dev/urandom)"
 export SLURM_EXPORT_ENV=ALL
 
 echo "Checking for bad files"
-python $FINDER/pre_process.py '$3' '$1/$2'
+python $FINDER/pre_process.py $3 $1/$2
 
 
 echo "Starting with $1/$2"
 ## Ensure the correct linefinder.ini is specified here:
-srun -K1 python $FINDER/flash_finder.py --data_path '$1/$2' --model_path '$1/config/model.txt' --out_path '$1/outputs' \
---mask_path '$1/config/mask.txt' --sbid "$4" --inifile '$1/config/slurm_linefinder.ini'
+srun -K1 python $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/outputs \
+--mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder.ini
 
 exit 0
 EOT
