@@ -39,15 +39,15 @@ MODE=$2
 CHECKDB=true
 
 DETECTLOG="find_detection.log"
+if [ "$MODE" = "INVERT" ]; then
+    DETECTLOG="find_invert_detection.log"
+fi
 
 # Check if we were passed sbids to process, or we need to check the db
 if [ "$#" -gt 2 ]; then
     SBIDARR=( "$@" )
     SBIDARRAY=${SBIDARR[@]:2}
     CHECKDB=false
-    if [ "$MODE" = "INVERT" ]; then
-        DETECTLOG="find_invert_detection.log"
-    fi
     rm $DETECTLOG
     printf "For inversion:\nSBIDS that need detection analysis\n[" > $DETECTLOG
     for SBID1 in ${SBIDARRAY[@]}; do
@@ -62,11 +62,11 @@ if [ "$CHECKDB" = true ]; then
     if [ "$MODE" = "INVERT" ]; then
         echo "Querying FLASHDB for inverted detection status"
         python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -ht $HOST -pt $PORT -i -pw $FLASHPASS > $DETECTLOG
-        output=$( tail -n 1 find_invert_detection.log)
+        output=$( tail -n 1 $DETECTLOG)
     else
         echo "Querying FLASHDB for detection status"
         python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -ht $HOST -pt $PORT -pw $FLASHPASS > $DETECTLOG
-        output=$( tail -n 1 find_detection.log)
+        output=$( tail -n 1 $DETECTLOG)
     fi
 
     sbids=${output:1: -1}
@@ -80,9 +80,9 @@ if [ "$CHECKDB" = true ]; then
     echo "SBIDS = $SBIDS"
     SBIDARR=()
     read -a SBIDARR <<< "$SBIDS"
-    # Limit size of SBIDARRAY to 10:
+    # Limit size of SBIDARRAY to 6:
     SBIDARRAY=()
-    SBIDARRAY=${SBIDARR[@]:0:10}
+    SBIDARRAY=${SBIDARR[@]:0:6}
 fi
 echo -e "\nprocessing ${SBIDARRAY[@]}"
 # Get the data for the sbids from the FLASHDB 
@@ -96,13 +96,14 @@ for SBID1 in ${SBIDARRAY[@]}; do
     echo "Sending $SBID1 ASCII tarball to $PLATFORM"
     ssh $USER@$PLATFORM "mkdir -p $HPC_DATA/$SBID1/spectra_ascii; rm $HPC_DATA/$SBID1/spectra_ascii/*;"
     scp $TMPDIR/$SBID1/*$SBID1*.tar.gz $USER@$PLATFORM:$HPC_DATA/$SBID1/spectra_ascii
+    
+    echo "Alerting HPC platform $PLATFORM"
+    scp ~/src/cronjobs/$DETECTLOG $USER@$PLATFORM:~/src/cronjobs/
+    echo "triggering detection_processing.sh on $PLATFORM"
+    ssh $USER@$PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $FLASHPASS $MODE $SBID1 &> detection_$SBID1.log"
+    scp $USER@$PLATFORM:~/src/cronjobs/detection_$SBID1.log /home/flash/src/cronjobs/
     cd ../
 done
-echo "Alerting HPC platform $PLATFORM"
-scp ~/src/cronjobs/$DETECTLOG $USER@$PLATFORM:~/src/cronjobs/
-echo "triggering detection_processing.sh on $PLATFORM"
-ssh $USER@$PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $FLASHPASS $MODE &> detection.log"
-scp $USER@$PLATFORM:~/src/cronjobs/detection.log /home/flash/src/cronjobs/
 echo "Done!"
     
 
