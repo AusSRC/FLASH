@@ -108,7 +108,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     if inverted:
         query = "select invert_results from sbid where id = %s;"
     elif masked:
-        query = "select mask_results from sbid where id = %s;"
+        query = "select mask_detect_results from sbid where id = %s;"
     else:
         query = "select results from sbid where id = %s;"
     cur.execute(query,(sid,))
