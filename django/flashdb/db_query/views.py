@@ -545,16 +545,20 @@ def query_database(request):
                 # See if there are any inverted-spectra linefinder results
                 query = f"SELECT invert_detectionF from sbid where sbid_num = %s"
                 cursor.execute(query,(sbid_val,))
-                inverted = cursor.fetchone()
-                if not inverted or not inverted[0]:
+                inverted_results = cursor.fetchone()
+                if inverted_results and inverted_results[0]:
+                    inverted = inverted_results[0]
+                else:
                     return HttpResponse(f"No inverted-spectra Linefinder results for sbid {sbid_val}")
             print(f"inverted value = {inverted}")
             if use_masked:
                 # See if there are any masked-spectra linefinder results
                 query = f"SELECT mask_detectionF from sbid where sbid_num = %s"
                 cursor.execute(query,(sbid_val,))
-                masked = cursor.fetchone()
-                if not masked or not masked[0]:
+                masked_results = cursor.fetchone()
+                if masked_results and masked_results[0]:
+                    masked = masked_results[0]
+                else:
                     return HttpResponse(f"No masked-spectra Linefinder results for sbid {sbid_val}")
             print(f"masked value = {masked}")
             # The path to Django's static dir for linefinder outputs
