@@ -5,6 +5,8 @@
 #               1) "run_mpi_native_script.sh", which calls:
 #                   2) "slurm_run_flashfinder.sh" (this file)
 #
+#   NOTE: This file is not used in production, just for testing. Only "slurm_run_flashfinder.sh"
+#         is normally used.
 ######################################################################################
 ######################################################################################
 # Source the local env script - edit path if required

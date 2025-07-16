@@ -2,7 +2,7 @@
 ######################################################################################
 ######################################################################################
 #   NOTE:   The script calling order is:
-#               1) "run_mpi_native_script.sh", which calls:
+#               1) "run_mpi_native_script.sh",  or "detection_processing.sh" which calls:
 #                   2) "slurm_run_flashfinder.sh" (this file)
 #
 ######################################################################################
@@ -10,6 +10,7 @@
 # Source the local env script - edit path if required
 source /software/projects/ja3/ger063/setonix/FLASH/set_local_env.sh
 
+MODE=$5
 # Output directory:
 mkdir -p "$1"/outputs
 mkdir -p "$1"/logs
@@ -39,8 +40,16 @@ python $FINDER/pre_process.py $3 $1/$2
 
 echo "Starting with $1/$2"
 ## Ensure the correct linefinder.ini is specified here:
-srun -K1 python $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/outputs \
+if [ "$MODE" = "STD" ]; then
+    srun -K1 python $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/outputs \
 --mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder.ini
+elif [ "$MODE" = "INVERT" ]
+    srun -K1 python $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/inverted_outputs \
+--mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder_inverted.ini
+elif [ "$MODE" = "MASK" ]
+    srun -K1 python $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/masked_outputs \
+--mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder.ini
+fi
 
 exit 0
 EOT
