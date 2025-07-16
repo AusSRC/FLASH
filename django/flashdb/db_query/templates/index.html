@@ -8,7 +8,7 @@
         border-collapse: collapse;
     }
 
-    .container {
+    .container-fluid {
         border: 2px solid black;
         padding: 4px;
     }
@@ -70,7 +70,7 @@
     </script>
 </head>
 <body style="background-color:#ABB2B9;">
-    <div class="container" style="background-color:aquamarine;">
+    <div class="container-fluid" style="background-color:aquamarine;">
     <H1 style="text-align: center;">Welcome to the FLASH database at AusSRC</H1>
     {% load static %}
     <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
@@ -80,13 +80,13 @@
     <p style="text-align: center;">Pilot 2 sbids in DB = {{ pilot2 }} ({{ apilot2 }} validated)</p>
     <p style="text-align: center;">Survey sbids in DB = {{ survey }} ({{ asurvey }} validated)</p>
     </div>
-    <div class="container">
+    <div class="container-fluid">
     <form action=/db_query/query_database/ method="post">
         {% csrf_token %}
 
         <label for="pass" class="form-label">Enter DB password:</label>
         <div class="password-wrapper mb-3">
-            <input type="password" placeholder="Password" class="form-control w-25" id="pass" required>
+            <input type="password" placeholder="Password" class="form-control w-25" id="pass" name="pass" required>
             <span class="password-toggle-icon" onclick="showpass()">
                 <i class="bi bi-eye-slash"></i>
             </span>
