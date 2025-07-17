@@ -31,6 +31,8 @@ USELOGFILE=true
 DETECTLOG="find_detection.log"
 if [ "$MODE" = "INVERT" ]; then
     DETECTLOG="find_invert_detection.log"
+elif [ "$MODE" = "MASK"]
+    DETECTLOG="find_mask_detection.log"
 fi
 
 # Check if we were passed an sbid to process - if not it is read from the 'find_detection' logfile
@@ -40,7 +42,13 @@ if [ "$#" -gt 2 ]; then
     SBIDARRAY=${SBIDARR[@]:2}
     CHECKDB=false
     rm $DETECTLOG
-    printf "For inversion:\nSBIDS that need detection analysis\n[" > $DETECTLOG
+    if [ "$MODE" = "STD" ]; then
+        printf "For std detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
+    elif [ "$MODE" = "INVERT" ]
+        printf "For inversion:\nSBIDS that need detection analysis\n[" > $DETECTLOG
+    elif [ "$MODE" = "MASK" ]
+        printf "For masked detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
+    fi
     for SBID1 in ${SBIDARRAY[@]}; do
         printf "$SBID1, " >> $DETECTLOG
     done
@@ -57,6 +65,8 @@ DETECTDIR="/home/$USER/src/linefinder/"
 if [ "$MODE" = "INVERT" ]; then
     DETECTDIR="/home/$USER/src/inverted_linefinder/"
 fi
+
+# if 
 
 # The parent directory to hold the SBIDS
 PARENT_DIR=$DATA
@@ -94,7 +104,14 @@ for SBID1 in ${SBIDARRAY[@]}; do
     
     # Make required config directories and load with ini files
     PARENT1="$PARENT_DIR/$SBID1"
+    MASKDIR="$DETECTDIR/masks"
     DIR1="$PARENT1/spectra_ascii"
+    if [ "$MODE" = "MASK" ]
+        # Check that the mask file exists
+        if ! ls $MASKDIR/*$SBID1_mask.txt 1> /dev/null 2>&1; then
+            echo "$SBID1 mask file not found!! Skipping"
+            continue
+        fi 
     mkdir -p "$PARENT1/config"
     mkdir -p "$DIR1"
     # Untar ASCII tarball
@@ -103,31 +120,28 @@ for SBID1 in ${SBIDARRAY[@]}; do
     # Process the files
     cd $DETECTDIR
     cp slurm_linefinder*.ini model.txt $PARENT1/config
-    # Create parameter string for sbatch:
     jid2=0
-    if [ "$MODE" = "INVERT" ]; then
-        SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_inverted.log --error $PARENT1/logs/err_inverted.log --job-name INV_$SBID1"
-        jid2=$(sbatch $SBATCHARGS $FINDER/slurm_run_flashfinder_inverted.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1)
-    else
+
+    # Create parameter string for sbatch:
+    if [ "$MODE" = "STD" ]; then
         SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out.log --error $PARENT1/logs/err.log --job-name STD_$SBID1"
-        jid2=$(sbatch $SBATCHARGS $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1)
+    elif [ "$MODE" = "INVERT" ]
+        SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_inverted.log --error $PARENT1/logs/err_inverted.log --job-name INV_$SBID1"
+    elif [ "$MODE" = "MASK" ]
+        SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_masked.log --error $PARENT1/logs/err_masked.log --job-name MSK_$SBID1"
     fi
+
+    jid2=$(sbatch $SBATCHARGS $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1 $MODE)
     j2=$(echo $jid2 | awk '{print $4}')
-    echo "Sumbitted detection job $j2"
+    echo "Sumbitted $MODE detection job $j2"
     echo "$j2 = sbid $SBID1" >> $DETECTDIR/jobs_to_sbids.txt
 
     # Tar up results and send them back to the client for upload to the FLASH db
     cd $CRONDIR
-    if [ "$MODE" = "INVERT" ]; then
-        jid3=$(sbatch --dependency=afterok:$j2 tar_detection_inverted_outputs.sh $SBID1)
-        j3=$(echo $jid3 | awk '{print $4}')
-        jid4=$(sbatch --dependency=afterok:$j3 push_detection_inverted_to_oracle.sh $SBID1)
 
-    else
-        jid3=$(sbatch --dependency=afterok:$j2 tar_detection_outputs.sh $SBID1)
-        j3=$(echo $jid3 | awk '{print $4}')
-        jid4=$(sbatch --dependency=afterok:$j3 push_detection_to_oracle.sh $SBID1)
-    fi
+    jid3=$(sbatch --dependency=afterok:$j2 tar_detection_outputs.sh $MODE $SBID1)
+    j3=$(echo $jid3 | awk '{print $4}')
+    jid4=$(sbatch --dependency=afterok:$j3 push_detection_to_oracle.sh $MODE $SBID1)
 
 done
 echo "Processing started for sbids:"
