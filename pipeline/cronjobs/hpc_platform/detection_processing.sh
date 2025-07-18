@@ -31,7 +31,7 @@ USELOGFILE=true
 DETECTLOG="find_detection.log"
 if [ "$MODE" = "INVERT" ]; then
     DETECTLOG="find_invert_detection.log"
-elif [ "$MODE" = "MASK"]
+elif [ "$MODE" = "MASK"]; then
     DETECTLOG="find_mask_detection.log"
 fi
 
@@ -44,9 +44,9 @@ if [ "$#" -gt 2 ]; then
     rm $DETECTLOG
     if [ "$MODE" = "STD" ]; then
         printf "For std detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
-    elif [ "$MODE" = "INVERT" ]
+    elif [ "$MODE" = "INVERT" ]; then
         printf "For inversion:\nSBIDS that need detection analysis\n[" > $DETECTLOG
-    elif [ "$MODE" = "MASK" ]
+    elif [ "$MODE" = "MASK" ]; then
         printf "For masked detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
     fi
     for SBID1 in ${SBIDARRAY[@]}; do
@@ -106,12 +106,13 @@ for SBID1 in ${SBIDARRAY[@]}; do
     PARENT1="$PARENT_DIR/$SBID1"
     MASKDIR="$DETECTDIR/masks"
     DIR1="$PARENT1/spectra_ascii"
-    if [ "$MODE" = "MASK" ]
+    if [ "$MODE" = "MASK" ]; then
         # Check that the mask file exists
         if ! ls $MASKDIR/*$SBID1_mask.txt 1> /dev/null 2>&1; then
             echo "$SBID1 mask file not found!! Skipping"
             continue
-        fi 
+        fi
+    fi 
     mkdir -p "$PARENT1/config"
     mkdir -p "$DIR1"
     # Untar ASCII tarball
@@ -125,9 +126,9 @@ for SBID1 in ${SBIDARRAY[@]}; do
     # Create parameter string for sbatch:
     if [ "$MODE" = "STD" ]; then
         SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out.log --error $PARENT1/logs/err.log --job-name STD_$SBID1"
-    elif [ "$MODE" = "INVERT" ]
+    elif [ "$MODE" = "INVERT" ]; then
         SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_inverted.log --error $PARENT1/logs/err_inverted.log --job-name INV_$SBID1"
-    elif [ "$MODE" = "MASK" ]
+    elif [ "$MODE" = "MASK" ]; then
         SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_masked.log --error $PARENT1/logs/err_masked.log --job-name MSK_$SBID1"
     fi
 
