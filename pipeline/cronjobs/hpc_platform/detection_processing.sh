@@ -31,7 +31,7 @@ USELOGFILE=true
 DETECTLOG="find_detection.log"
 if [ "$MODE" = "INVERT" ]; then
     DETECTLOG="find_invert_detection.log"
-elif [ "$MODE" = "MASK"]; then
+elif [ "$MODE" = "MASK" ]; then
     DETECTLOG="find_mask_detection.log"
 fi
 
@@ -113,7 +113,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
             continue
         fi
     fi 
-    mkdir -p "$PARENT1/config"
+    mkdir "$PARENT1/config"
     mkdir -p "$DIR1"
     # Untar ASCII tarball
     cd $DIR1; tar -zxf $SBID*.tar.gz;rm $SBID*.tar.gz
@@ -147,5 +147,10 @@ for SBID1 in ${SBIDARRAY[@]}; do
 done
 echo "Processing started for sbids:"
 echo ${SBIDARRAY[@]}
+# delete the detection logs (they've been pulled by the client
+for SBID1 in ${SBIDARRAY[@]}; do
+    rm detection_$SBID1.log
+done
+
 exit
 
