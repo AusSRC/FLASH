@@ -11,8 +11,7 @@
 source /software/projects/ja3/ger063/setonix/FLASH/set_local_env.sh
 
 MODE=$5
-# Output directory:
-mkdir -p "$1"/outputs
+# Log directory:
 mkdir -p "$1"/logs
 cd "$1"
 
@@ -41,12 +40,15 @@ python $FINDER/pre_process.py $3 $1/$2
 echo "Starting with $1/$2"
 ## Ensure the correct linefinder.ini is specified here:
 if [ "$MODE" = "STD" ]; then
+    mkdir -p "$1"/outputs
     srun -K1 python $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/outputs \
 --mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder.ini
 elif [ "$MODE" = "INVERT" ]
+    mkdir -p "$1"/inverted_outputs
     srun -K1 python $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/inverted_outputs \
 --mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder_inverted.ini
 elif [ "$MODE" = "MASK" ]
+    mkdir -p "$1"/masked_outputs
     srun -K1 python $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/masked_outputs \
 --mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder.ini
 fi
