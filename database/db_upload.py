@@ -749,7 +749,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
     if DETECTMODE == "INVERT":
         update_query = "UPDATE SBID SET invert_detect_runid = %s, invert_detectionF = %s, invert_detect_results = %s, detect_config_tar = %s, invert_results = %s where id = %s;"
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),psycopg2.Binary(config),results,sbid_id))
-    elif DETECTMODE == "STD"::
+    elif DETECTMODE == "STD":
         # We add both 'detect_data' byte array and the lob, for redundancy
         update_query = "UPDATE SBID SET detect_runid = %s, detectionF = %s, detect_results = %s, detect_tar = %s , detect_config_tar = %s, results = %s where id = %s;"
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),new_oid,psycopg2.Binary(config),results,sbid_id))
