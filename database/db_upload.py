@@ -173,7 +173,7 @@ def set_mode_and_values(args):
         DETECTMODE = "INVERT"
     elif RUN_TYPE == "MASKED":
         DETECTMODE = "MASK"
-    else
+    else:
         DETECTMODE = None
 
     print("CLI overriding defaults")
