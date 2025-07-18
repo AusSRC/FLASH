@@ -40,6 +40,10 @@ HPC_DATA="/scratch/ja3/$USER/data/casda"
 FLASHPASS=$1
 MODE=$2
 CHECKDB=true
+
+SBIDARR=()
+SBIDARY=()
+SBIDARRAY=()
 SBIDMASKS=""
 
 DETECTLOG="find_detection.log"
@@ -84,13 +88,20 @@ if [ "$CHECKDB" = true ]; then
     # For masked detection, only process if there is a matching mask file
     if [ "$MODE" = "MASK" ]; then
         MASKFILES=$(printf '%s ' $MASKDIR/SB*.txt)
-        SBIDSTR=$(echo "$MASKFILES" | grep -oE '[0-9]+')
-        SBIDARY=$(comm -12 <(printf "%s\n" "${SBIDSTR[@]}" | sort) <(printf "%s\n" "${SBIDARR[@]}" | sort))
-        SBIDARR=("${SBIDARY[@]}")
+        SBIDSTR=($(echo "$MASKFILES" | grep -oE '[0-9]+'))
+        for item1 in "${SBIDSTR[@]}"; do
+            for item2 in "${SBIDARR[@]}"; do
+                if [[ "$item1" == "$item2" ]]; then
+                    SBIDARY+=("$item1")
+                    break
+                fi
+            done
+        done
+        SBIDARR=()
+        SBIDARR="${SBIDARY[@]}"
     fi
     # Limit size of SBIDARRAY to 6:
-    SBIDARRAY=()
-    SBIDARRAY=${SBIDARR[@]:0:6}
+    SBIDARRAY=("${SBIDARY[@]:0:6}")
 fi
 echo -e "\nprocessing\n ${SBIDARRAY[@]}"
 # Get the data for the sbids from the FLASHDB 
@@ -106,7 +117,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
     scp $TMPDIR/$SBID1/*$SBID1*.tar.gz $USER@$PLATFORM:$HPC_DATA/$SBID1/spectra_ascii
 
     # If masking, we need to transfer the mask file to the HPC:
-    if [ "$MODE" = "MASK"]; then
+    if [ "$MODE" = "MASK" ]; then
         scp ~/src/cronjobs/masks/*$SBID1_mask.txt $USER@$PLATFORM:~/src/linefinder/masks/
     fi
     
