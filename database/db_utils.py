@@ -36,7 +36,8 @@ VERSIONS = [] # This list should correspond to the above sbids list = set to emp
 CATDIR = SBIDDIR + "/catalogues"
 DATADIR = CATDIR
 UNTAR = False
-INVERT=False # if in detection mode, are we looking for inverted detections or normal ones?
+PILOT_SBID_CUTOFF = "43426" # last sbid of the Pilot survey (anything larger is assumed to be part of the Survey)
+MODE="STD" # if RUN_TYPE is for detection, the MODE can be STD, INVERT or MASK
 DELETE_CATS = False # save space by deleting catalogues after processing
 ONLY_CATS = True # Only download catalogues - not spectral and noise data
 DUMMY=False # Set to true to only query - don't download or upload anything.
@@ -74,10 +75,9 @@ def set_parser():
     parser.add_argument('-d', '--sbid_dir',
             default=SBIDDIR,
             help='Specify local directory to use (default: %(default)s)')   
-    parser.add_argument('-i', '--invert',
-            default=False,
-            action='store_true',
-            help='Specify if using inverted spectra for SBIDSTODETECT (default: %(default)s)')   
+    parser.add_argument('-sm', '--submode',
+            default="STD",
+            help='For SBIDSTODETECT, run as STD, INVERT or MASK (default: %(default)s)')   
     parser.add_argument('-c', '--catalogues_only',
             default=False,
             action='store_true',
@@ -107,8 +107,8 @@ def set_parser():
     return args
 
 def set_mode_and_values(args):
-    global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, INVERT, DUMMY, REJECTED, CASDA_EMAIL
-    global HOST, PORT, PASSWD
+    global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, DUMMY, REJECTED, CASDA_EMAIL
+    global HOST, PORT, PASSWD, MODE
 
     RUN_TYPE = args.mode.strip().upper()
     SBIDDIR = args.sbid_dir.strip()
@@ -125,7 +125,10 @@ def set_mode_and_values(args):
                 VERSIONS.append(None)
     CASDA_EMAIL = args.email_address.strip()
     ONLY_CATS = args.catalogues_only
+    if (RUN_TYPE == "SBIDSTODETECT"):
+        MODE = args.submode.strip().upper()
     INVERT = args.invert
+    MASK = args.mask
     ADD_CAT = args.add_cat
     DUMMY = args.no_action
     REJECTED = args.rejected
@@ -196,18 +199,24 @@ def check_sbids_in_db(conn):
 
 ###############################################
 
-def check_db_detection_run(conn,invert=False):
+def check_db_detection_run(conn,mode=MODE)
     # check the flashdb for any sbids that need to have the LINEFINDER run against them.
+    # 
     # This only checks Survey sbids (not pilot) and will check if any sbid with quality not 'BAD', 'REJECTED' or 'NOT_VALIDATED'
     # has not been processed by the linfinder
+    # It can check for STD detection, INVERT or MASK - the last two can only be checked if a STD detection was already done.
 
     sbids = []
     cur = get_cursor(conn)
-    if invert:
+    if (mode == "INVERT"):
         print("For inversion:")
-        query = "select sbid_num from sbid where quality not in ('BAD','NOT_VALIDATED','REJECTED') and (invert_detectionF = false or invert_detectionF is NULL) and sbid_num > 43426 order by sbid_num;"
+        query = f"select sbid_num from sbid where quality not in ('BAD','NOT_VALIDATED','REJECTED') and detectionF = true and (invert_detectionF = false or invert_detectionF is NULL) and sbid_num > {PILOT_SBID_CUTOFF} order by sbid_num;"
+    elif (mode == "MASK"):
+        print("For masked detection:")
+        query = f"select sbid_num from sbid where quality not in ('BAD','NOT_VALIDATED','REJECTED') and detectionF = true and (mask_detectionF = false or mask_detectionF is NULL) and sbid_num > {PILOT_SBID_CUTOFF} order by sbid_num;"
     else:
-        query = "select sbid_num from sbid where quality not in ('BAD','NOT_VALIDATED','REJECTED') and detectionF = false and sbid_num > 43426 order by sbid_num;"
+        print("For std detection:")
+        query = f"select sbid_num from sbid where quality not in ('BAD','NOT_VALIDATED','REJECTED') and detectionF = false and sbid_num > {PILOT_SBID_CUTOFF} order by sbid_num;"
     cur.execute(query,)
     result = cur.fetchall()
     for res in result:
@@ -552,7 +561,7 @@ if __name__ == "__main__":
             print(f"Downloaded catalogues deleted: {SBIDS}")
     elif RUN_TYPE == "SBIDSTODETECT":
         conn = connect()
-        sbids = check_db_detection_run(conn,INVERT)
+        sbids = check_db_detection_run(conn,MODE)
         conn.close()
         print("SBIDS that need detection analysis:")
         print(sbids)
