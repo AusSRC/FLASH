@@ -656,7 +656,7 @@ def add_sbid_pointing(conn,sbid,dataDict,cur=None,ver=None):
 ###############################################
 def add_component_results(cur,sbid,result_file,output_dir,version=None):
 
-    print(f"Adding LINEFINDER results to components of {sbids}")
+    print(f"Adding LINEFINDER results to components of {sbid}")
     # Get the results file
     
     results = ""
