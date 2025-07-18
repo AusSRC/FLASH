@@ -29,6 +29,9 @@ PORT="5432"
 # Client platform details: : edit these as appropiate
 source $HOME/set_local_env.sh
 
+# For masked detection, provide the directory that holds the mask files
+MASKDIR="$HOME/src/cronjobs/masks"
+
 # HPC platform details: edit these as appropiate
 PLATFORM="setonix.pawsey.org.au"
 USER="ger063"
@@ -37,10 +40,13 @@ HPC_DATA="/scratch/ja3/$USER/data/casda"
 FLASHPASS=$1
 MODE=$2
 CHECKDB=true
+SBIDMASKS=""
 
 DETECTLOG="find_detection.log"
 if [ "$MODE" = "INVERT" ]; then
     DETECTLOG="find_invert_detection.log"
+elif [ "$MODE" = "MASK" ]; then
+    DETECTLOG="find_mask_detection.log"
 fi
 
 # Check if we were passed sbids to process, or we need to check the db
@@ -49,7 +55,7 @@ if [ "$#" -gt 2 ]; then
     SBIDARRAY=${SBIDARR[@]:2}
     CHECKDB=false
     rm $DETECTLOG
-    printf "For inversion:\nSBIDS that need detection analysis\n[" > $DETECTLOG
+    printf "For $MODE detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
     for SBID1 in ${SBIDARRAY[@]}; do
         printf "$SBID1, " >> $DETECTLOG
     done
@@ -59,15 +65,9 @@ if [ "$#" -gt 2 ]; then
 fi
 # Query FLASHDB for new sbids
 if [ "$CHECKDB" = true ]; then
-    if [ "$MODE" = "INVERT" ]; then
-        echo "Querying FLASHDB for inverted detection status"
-        python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -ht $HOST -pt $PORT -i -pw $FLASHPASS > $DETECTLOG
-        output=$( tail -n 1 $DETECTLOG)
-    else
-        echo "Querying FLASHDB for detection status"
-        python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -ht $HOST -pt $PORT -pw $FLASHPASS > $DETECTLOG
-        output=$( tail -n 1 $DETECTLOG)
-    fi
+    echo "Querying FLASHDB for $MODE detection status"
+    python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -sm $MODE -ht $HOST -pt $PORT -pw $FLASHPASS > $DETECTLOG
+    output=$( tail -n 1 $DETECTLOG)
 
     sbids=${output:1: -1}
     if test "$output" == "[]"
@@ -80,11 +80,19 @@ if [ "$CHECKDB" = true ]; then
     echo "SBIDS = $SBIDS"
     SBIDARR=()
     read -a SBIDARR <<< "$SBIDS"
+
+    # For masked detection, only process if there is a matching mask file
+    if [ "$MODE" = "MASK" ]; then
+        MASKFILES=$(printf '%s ' $MASKDIR/SB*.txt)
+        SBIDSTR=$(echo "$MASKFILES" | grep -oE '[0-9]+')
+        SBIDARY=$(comm -12 <(printf "%s\n" "${SBIDSTR[@]}" | sort) <(printf "%s\n" "${SBIDARR[@]}" | sort))
+        SBIDARR=("${SBIDARY[@]}")
+    fi
     # Limit size of SBIDARRAY to 6:
     SBIDARRAY=()
     SBIDARRAY=${SBIDARR[@]:0:6}
 fi
-echo -e "\nprocessing ${SBIDARRAY[@]}"
+echo -e "\nprocessing\n ${SBIDARRAY[@]}"
 # Get the data for the sbids from the FLASHDB 
 cd $TMPDIR
 for SBID1 in ${SBIDARRAY[@]}; do
@@ -96,6 +104,11 @@ for SBID1 in ${SBIDARRAY[@]}; do
     echo "Sending $SBID1 ASCII tarball to $PLATFORM"
     ssh $USER@$PLATFORM "mkdir -p $HPC_DATA/$SBID1/spectra_ascii; rm $HPC_DATA/$SBID1/spectra_ascii/*;"
     scp $TMPDIR/$SBID1/*$SBID1*.tar.gz $USER@$PLATFORM:$HPC_DATA/$SBID1/spectra_ascii
+
+    # If masking, we need to transfer the mask file to the HPC:
+    if [ "$MODE" = "MASK"]; then
+        scp ~/src/cronjobs/masks/*$SBID1_mask.txt $USER@$PLATFORM:~/src/linefinder/masks/
+    fi
     
     echo "Alerting HPC platform $PLATFORM"
     scp ~/src/cronjobs/$DETECTLOG $USER@$PLATFORM:~/src/cronjobs/
