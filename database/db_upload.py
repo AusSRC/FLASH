@@ -171,7 +171,7 @@ def set_mode_and_values(args):
         DETECTMODE = "STD"
     elif RUN_TYPE == "INVERTED":
         DETECTMODE = "INVERT"
-    elif RUN_TYPE = "MASKED":
+    elif RUN_TYPE == "MASKED":
         DETECTMODE = "MASK"
     else
         DETECTMODE = None
@@ -447,12 +447,16 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
 def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_dir,versions=None,errlog=None,stdlog=None):
 
     cur = get_cursor(conn)
+    invertF = False
+    maskF = False
     if DETECTMODE == "STD":
         print(f"Adding detection run for sbids {sbids}",flush=True)
     elif DETECTMODE == "INVERT":
         print(f"Adding inverted spectra detection for sbids {sbids}", flush =True)
+        invertF = True
     elif DETECTMODE == "MASK":
         print(f"Adding masked detection run for sbids {sbids}", flush =True)
+        maskF = True
     # Check if any of the sbids have been entered before
     repeated_sbids = check_sbids(cur,sbids,versions,table="detect_run")
     if repeated_sbids and DETECTMODE == "STD":
@@ -480,8 +484,8 @@ def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_di
     detect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
  
     # insert into detect_run table
-    insert_query = "INSERT into detect_run(SBIDS,errlog,stdlog,result_filepath,platform,date,run_tag,invertF) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
-    cur.execute(insert_query,(sbids,errdata,stddata,result_file,platform,detect_date,RUN_TAG,invertF))
+    insert_query = "INSERT into detect_run(SBIDS,errlog,stdlog,result_filepath,platform,date,run_tag,invertF,maskF) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
+    cur.execute(insert_query,(sbids,errdata,stddata,result_file,platform,detect_date,RUN_TAG,invertF,maskF))
     runid = cur.fetchone()[0]
     print(f"Data inserted into table 'detect_run': runid = {runid}",flush=True)
 
