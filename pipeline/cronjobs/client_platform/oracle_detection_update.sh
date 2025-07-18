@@ -119,10 +119,10 @@ for SBID1 in ${SBIDARRAY[@]}; do
     # If masking, we need to transfer the mask file to the HPC:
     if [ "$MODE" = "MASK" ]; then
         scp ~/src/cronjobs/masks/*$SBID1_mask.txt $USER@$PLATFORM:~/src/linefinder/masks/
+        echo "Sent mask file to HPC platform $PLATFORM"
     fi
     
-    echo "Alerting HPC platform $PLATFORM"
-    scp ~/src/cronjobs/$DETECTLOG $USER@$PLATFORM:~/src/cronjobs/
+    #scp ~/src/cronjobs/$DETECTLOG $USER@$PLATFORM:~/src/cronjobs/
     echo "triggering detection_processing.sh on $PLATFORM"
     ssh $USER@$PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $FLASHPASS $MODE $SBID1 &> detection_$SBID1.log"
     scp $USER@$PLATFORM:~/src/cronjobs/detection_$SBID1.log /home/flash/src/cronjobs/
