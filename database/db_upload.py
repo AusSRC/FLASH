@@ -56,7 +56,6 @@ ERROR_LOG = "err.log"
 LINEFINDER_CONFIG_DIR = ""
 LINEFINDER_OUTPUT_DIR = ""
 LINEFINDER_SUMMARY_FILE = "results.dat"
-MASKDIR = f"{os.environ["HOME"]}/src/cronjobs/masks"
 PASSWD = ""
 PLATFORM = "setonix.pawsey.org.au"
 QUALITY = "UNCERTAIN"
@@ -96,9 +95,6 @@ def set_parser():
     parser.add_argument('-pt', '--port',
             default="5432",
             help='database host port (default: %(default)s)')    
-    parser.add_argument('-md', '--maskdir',
-            default=f"{os.environ["HOME"]}/src/cronjobs/masks",
-            help='directory holding mask files (default: %(default)s)')    
     parser.add_argument('-t', '--tmp_dir',
             default=TMP_TAR_DIR,
             help='Specify local directory to use as tmp (default: %(default)s)')    
@@ -176,7 +172,6 @@ def set_mode_and_values(args):
     elif RUN_TYPE == "INVERTED":
         DETECTMODE = "INVERT"
     elif RUN_TYPE == "MASKED":
-        MASKDIR = args.maskdir.strip()
         DETECTMODE = "MASK"
     else:
         DETECTMODE = None
@@ -760,7 +755,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),new_oid,psycopg2.Binary(config),results,sbid_id))
     elif DETECTMODE == "MASK":
         # There is an additional 'mask' file for masked detections, so we need to store its contents
-        maskfile = f"{MASKDIR}/SBID{sbid}_mask.txt"
+        maskfile = f"{DATA_DIR}/{sbid}/config/mask.txt"
         mask_contents = ""
         with open(maskfile,'r') as f:
         for line in f:
