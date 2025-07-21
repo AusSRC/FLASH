@@ -5,7 +5,7 @@
 # Edit these for the specific hpc-platform user:
 CASDA_EMAIL="user@email"
 CASDA_PWD="password_at_CASDA"
-source $HOME/setonix_set_local_env.sh
+source $HOME/set_local_flash_env.sh
 
 # Local directories:
 CRONDIR="/home/$USER/src/cronjobs"

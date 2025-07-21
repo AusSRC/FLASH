@@ -58,7 +58,7 @@ if [ "$#" -gt 2 ]; then
 fi
 
 output=""
-source ~/setonix_set_local_env.sh
+source ~/set_local_flash_env.sh
 # Local directories on setonix:
 DBDIR="/home/$USER/src/database/"
 DETECTDIR="/home/$USER/src/linefinder/"
@@ -147,10 +147,5 @@ for SBID1 in ${SBIDARRAY[@]}; do
 done
 echo "Processing started for sbids:"
 echo ${SBIDARRAY[@]}
-# delete the detection logs (they've been pulled by the client
-for SBID1 in ${SBIDARRAY[@]}; do
-    rm detection_$SBID1.log
-done
-
 exit
 

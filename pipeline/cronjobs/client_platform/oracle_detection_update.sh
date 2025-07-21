@@ -113,12 +113,12 @@ for SBID1 in ${SBIDARRAY[@]}; do
     cd $SBID1
     python3 ~/src/FLASH/database/db_download.py -m ASCII -s $SBID1 -ht $HOST -pt $PORT -d $TMPDIR/$SBID1 -pw $FLASHPASS
     echo "Sending $SBID1 ASCII tarball to $PLATFORM"
-    ssh $USER@$PLATFORM "mkdir -p $HPC_DATA/$SBID1/spectra_ascii; rm $HPC_DATA/$SBID1/spectra_ascii/*;"
+    ssh $USER@$PLATFORM "mkdir -p $HPC_DATA/$SBID1/spectra_ascii; mkdir -p $HPC_DATA/$SBID1/config; rm $HPC_DATA/$SBID1/spectra_ascii/* $HPC_DATA/$SBID1/config/*;"
     scp $TMPDIR/$SBID1/*$SBID1*.tar.gz $USER@$PLATFORM:$HPC_DATA/$SBID1/spectra_ascii
 
     # If masking, we need to transfer the mask file to the HPC:
     if [ "$MODE" = "MASK" ]; then
-        scp ~/src/cronjobs/masks/*$SBID1_mask.txt $USER@$PLATFORM:~/src/linefinder/masks/
+        scp ~/src/cronjobs/masks/*"$SBID1"_mask.txt $USER@$PLATFORM:$HPC_DATA/$SBID1/config/mask.txt
         echo "Sent mask file to HPC platform $PLATFORM"
     fi
     
@@ -126,6 +126,8 @@ for SBID1 in ${SBIDARRAY[@]}; do
     echo "triggering detection_processing.sh on $PLATFORM"
     ssh $USER@$PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $FLASHPASS $MODE $SBID1 &> detection_$SBID1.log"
     scp $USER@$PLATFORM:~/src/cronjobs/detection_$SBID1.log /home/flash/src/cronjobs/
+    ssh $USER@$PLATFORM "cd ~/src/cronjobs; rm detection_$SBID1.log"
+
     cd ../
 done
 echo "Done!"
