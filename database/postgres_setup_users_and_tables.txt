@@ -78,6 +78,7 @@ create table detect_run (
 #       spectralF - has spectral processing been done? Should always be True
 #       detectionF - has detection processing been done?
 #       invert_detectionF - has inverted-spectra detection processing been done?
+#       mask_detectionF - has masked detection processing been done?
 #
 #       spectral_config_tar - tarball of the spectral processing config files as a byte array
 #       detect_config_tar - tarball of the detection processing config files as a byte array

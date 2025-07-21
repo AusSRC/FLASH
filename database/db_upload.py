@@ -48,25 +48,26 @@ import db_utils as dbu
 
 # These are the default values (overridden by command line args):
 
-RUN_TYPE = ""
-SBIDS = []
-VERSIONS = []
 DATA_DIR = os.environ["DATA"]
-TMP_TAR_DIR = os.environ["TMPDIR"]
-SPECTRAL_CONFIG_DIR = DATA_DIR + "/config1"
-LINEFINDER_CONFIG_DIR = ""
-ERROR_LOG = "err.log"
-STDOUT_LOG = "out.log"
-LINEFINDER_OUTPUT_DIR = ""
-LINEFINDER_SUMMARY_FILE = "results.dat"
-PLATFORM = "setonix.pawsey.org.au"
-RUN_TAG = "FLASH survey 1"
-SBID_COMMENT = ""
-QUALITY = "UNCERTAIN"
-PASSWD = ""
 DBHOST = ""
 DBPORT = ""
-DETECTMODE = ""
+DETECTMODE = "STD"
+ERROR_LOG = "err.log"
+LINEFINDER_CONFIG_DIR = ""
+LINEFINDER_OUTPUT_DIR = ""
+LINEFINDER_SUMMARY_FILE = "results.dat"
+MASKDIR = f"{os.environ["HOME"]}/src/cronjobs/masks"
+PASSWD = ""
+PLATFORM = "setonix.pawsey.org.au"
+QUALITY = "UNCERTAIN"
+RUN_TAG = "FLASH survey 1"
+RUN_TYPE = ""
+SBIDS = []
+SBID_COMMENT = ""
+SPECTRAL_CONFIG_DIR = DATA_DIR + "/config1"
+STDOUT_LOG = "out.log"
+TMP_TAR_DIR = os.environ["TMPDIR"]
+VERSIONS = []
 
 
 # These are the allowed command line overrides:
@@ -95,6 +96,9 @@ def set_parser():
     parser.add_argument('-pt', '--port',
             default="5432",
             help='database host port (default: %(default)s)')    
+    parser.add_argument('-md', '--maskdir',
+            default=f"{os.environ["HOME"]}/src/cronjobs/masks",
+            help='directory holding mask files (default: %(default)s)')    
     parser.add_argument('-t', '--tmp_dir',
             default=TMP_TAR_DIR,
             help='Specify local directory to use as tmp (default: %(default)s)')    
@@ -172,6 +176,7 @@ def set_mode_and_values(args):
     elif RUN_TYPE == "INVERTED":
         DETECTMODE = "INVERT"
     elif RUN_TYPE == "MASKED":
+        MASKDIR = args.maskdir.strip()
         DETECTMODE = "MASK"
     else:
         DETECTMODE = None
@@ -754,8 +759,15 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
         update_query = "UPDATE SBID SET detect_runid = %s, detectionF = %s, detect_results = %s, detect_tar = %s , detect_config_tar = %s, results = %s where id = %s;"
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),new_oid,psycopg2.Binary(config),results,sbid_id))
     elif DETECTMODE == "MASK":
-        update_query = "UPDATE SBID SET mask_detect_runid = %s, mask_detectionF = %s, mask_detect_results = %s, detect_config_tar = %s, mask_results = %s where id = %s;"
-        cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),psycopg2.Binary(config),results,sbid_id))
+        # There is an additional 'mask' file for masked detections, so we need to store its contents
+        maskfile = f"{MASKDIR}/SBID{sbid}_mask.txt"
+        mask_contents = ""
+        with open(maskfile,'r') as f:
+        for line in f:
+            mask_contents = mask_contents + line.strip() + "\n"
+ 
+        update_query = "UPDATE SBID SET mask_detect_runid = %s, mask_detectionF = %s, mask_detect_results = %s, detect_config_tar = %s, mask_results = %s, mask = %s where id = %s;"
+        cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),psycopg2.Binary(config),results,,mask_contents,sbid_id))
 
     else:
         print(f"{sbid}: ERROR in detection mode - aborting!!")
