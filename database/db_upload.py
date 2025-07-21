@@ -758,8 +758,8 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
         maskfile = f"{DATA_DIR}/{sbid}/config/mask.txt"
         mask_contents = ""
         with open(maskfile,'r') as f:
-        for line in f:
-            mask_contents = mask_contents + line.strip() + "\n"
+            for line in f:
+                mask_contents = mask_contents + line.strip() + "\n"
  
         update_query = "UPDATE SBID SET mask_detect_runid = %s, mask_detectionF = %s, mask_detect_results = %s, detect_config_tar = %s, mask_results = %s, mask = %s where id = %s;"
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),psycopg2.Binary(config),results,,mask_contents,sbid_id))
