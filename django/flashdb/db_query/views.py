@@ -495,20 +495,25 @@ def query_database(request):
                 mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
                 if where_clause:
                     query = query + where_clause
-                    mask_query += where_clause + ";"
+                    mask_query += where_clause
                 query = query + f" order by {order}"
+                mask_query = mask_query + f" order by {order}"
                 if reverse:
                     query += " desc;"
+                    mask_query += " desc;"
                 else:
                     query += ";"
+                    mask_query += ";"
                 cursor.execute(query,)
             else:
                 query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s order by {order}"
-                mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s;"
+                mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s"
                 if reverse:
                     query += " desc;"
+                    mask_query += " desc;"
                 else:
                     query += ";"
+                    mask_query += ";"
                 cursor.execute(query,(sbid_val,))
             rows = cursor.fetchall()
             cursor.execute(mask_query, (sbid_val if sbid_val != "-1" else None,))
