@@ -28,7 +28,7 @@ scp -i ~/.ssh/oracle_flash_vm.key $DATA/$1/*Spectra-image*.tar flash@152.67.97.2
 scp -i ~/.ssh/oracle_flash_vm.key $DATA/$1/*sources_tarball.tar.gz flash@152.67.97.254:$PARENTDIR/$1/SourceSpectra/
 ssh -i ~/.ssh/oracle_flash_vm.key flash@152.67.97.254 "cd $PARENTDIR/$1/spectra_plots; tar -zxvf *plots_tarball.tar.gz; rm *plots_tarball.tar.gz"
 ssh -i ~/.ssh/oracle_flash_vm.key flash@152.67.97.254 "cd $PARENTDIR/$1/SourceSpectra; tar -zxvf *sources_tarball.tar.gz; rm *sources_tarball.tar.gz"
-ssh -i ~/.ssh/oracle_flash_vm.key flash@152.67.97.254 "source ~/set_local_env.sh; cd ~/src/FLASH/database; python3 db_upload.py -m SPECTRAL -q $QUALITY -s $1 -t $TMPDIR -d $PARENTDIR -pw aussrc -cs config -C 'CASDA_upload'"
+ssh -i ~/.ssh/oracle_flash_vm.key flash@152.67.97.254 "source ~/set_local_flash_env.sh; cd ~/src/FLASH/database; python3 db_upload.py -m SPECTRAL -q $QUALITY -s $1 -t $TMPDIR -d $PARENTDIR -pw aussrc -cs config -C 'CASDA_upload'"
 
 # Stash the SLURM logs
 mv slurm-*.out $DATA/tmp/

@@ -48,24 +48,25 @@ import db_utils as dbu
 
 # These are the default values (overridden by command line args):
 
-RUN_TYPE = ""
-SBIDS = []
-VERSIONS = []
 DATA_DIR = os.environ["DATA"]
-TMP_TAR_DIR = os.environ["TMPDIR"]
-SPECTRAL_CONFIG_DIR = DATA_DIR + "/config1"
-LINEFINDER_CONFIG_DIR = ""
-ERROR_LOG = "err.log"
-STDOUT_LOG = "out.log"
-LINEFINDER_OUTPUT_DIR = ""
-LINEFINDER_SUMMARY_FILE = "results.dat"
-PLATFORM = "setonix.pawsey.org.au"
-RUN_TAG = "FLASH survey 1"
-SBID_COMMENT = ""
-QUALITY = "UNCERTAIN"
-PASSWD = ""
 DBHOST = ""
 DBPORT = ""
+DETECTMODE = "STD"
+ERROR_LOG = "err.log"
+LINEFINDER_CONFIG_DIR = ""
+LINEFINDER_OUTPUT_DIR = ""
+LINEFINDER_SUMMARY_FILE = "results.dat"
+PASSWD = ""
+PLATFORM = "setonix.pawsey.org.au"
+QUALITY = "UNCERTAIN"
+RUN_TAG = "FLASH survey 1"
+RUN_TYPE = ""
+SBIDS = []
+SBID_COMMENT = ""
+SPECTRAL_CONFIG_DIR = DATA_DIR + "/config1"
+STDOUT_LOG = "out.log"
+TMP_TAR_DIR = os.environ["TMPDIR"]
+VERSIONS = []
 
 
 # These are the allowed command line overrides:
@@ -75,7 +76,7 @@ def set_parser():
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default=None,
-            help='Specify run mode: SPECTRAL, DETECTION, INVERTED, COMP_RESULTS, QUALITY, COMMENT , POINTING, ASCII_UPLOAD (default: %(default)s)')
+            help='Specify run mode: SPECTRAL, DETECTION, INVERTED, MASKED, COMP_RESULTS, QUALITY, COMMENT , POINTING, ASCII_UPLOAD (default: %(default)s)')
     parser.add_argument('-q', '--quality',
             default="UNCERTAIN",
             help='Set value - GOOD, BAD, "NOT VALIDATED" or UNCERTAIN (default: %(default)s)')
@@ -131,7 +132,7 @@ def set_mode_and_values(args):
 
     global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT, PASSWD
     global SPECTRAL_CONFIG_DIR,LINEFINDER_CONFIG_DIR,LINEFINDER_OUTPUT_DIR,LINEFINDER_SUMMARY_FILE, QUALITY
-    global DBHOST, DBPORT
+    global DBHOST, DBPORT, DETECTMODE
 
     RUN_TYPE = args.mode.strip().upper()
     if RUN_TYPE == "QUALITY":
@@ -153,7 +154,7 @@ def set_mode_and_values(args):
     l_config_dir = args.config_linefinder.strip()
     if RUN_TYPE in ["SPECTRAL","POINTING"]:
         SPECTRAL_CONFIG_DIR = s_config_dir
-    elif RUN_TYPE == "DETECTION":
+    elif RUN_TYPE in ["DETECTION","INVERTED","MASKED"]:
         LINEFINDER_CONFIG_DIR = l_config_dir
     ERROR_LOG = args.errfile.strip()
     STDOUT_LOG = args.logfile.strip()
@@ -166,6 +167,14 @@ def set_mode_and_values(args):
     PASSWD = args.flashpw
     DBHOST = args.host.strip()
     DBPORT = args.port.strip()
+    if RUN_TYPE == "DETECTION":
+        DETECTMODE = "STD"
+    elif RUN_TYPE == "INVERTED":
+        DETECTMODE = "INVERT"
+    elif RUN_TYPE == "MASKED":
+        DETECTMODE = "MASK"
+    else:
+        DETECTMODE = None
 
     print("CLI overriding defaults")
 
@@ -237,7 +246,7 @@ def createDataDict(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH
         sbidsDict[sbid]["plots_path"] = plots_path
         sbidsDict[sbid]["ascii_path"] = ascii_path
         sbidsDict[sbid]["output_path"] = output_path
-        if RUN_TYPE not in ["DETECTION","INVERTED"]:
+        if RUN_TYPE not in ["DETECTION","INVERTED","MASKED"]:
             # Get the list of various files
             asciis = [f for f in os.listdir(ascii_path) if f.endswith(".dat")]
             components = [f for f in os.listdir(component_path) if f.endswith(".fits")]
@@ -246,7 +255,7 @@ def createDataDict(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH
             components = None
             plots = None
             asciis = None
-        if RUN_TYPE not in ["DETECTION","INVERTED"]:
+        if RUN_TYPE not in ["DETECTION","INVERTED","MASKED"]:
             # Get the name of the SourceSpectra tarball, so we can extract the pointing field value
             sspectraname = [f for f in os.listdir(f'{data_path}/{sbid}') if f.startswith("SourceSpectra-image")][0]
             try:
@@ -435,19 +444,26 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
     return cur
 
 ###############################################
-def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_dir,invertF,versions=None,errlog=None,stdlog=None):
+def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_dir,versions=None,errlog=None,stdlog=None):
 
     cur = get_cursor(conn)
-    if not invertF:
+    invertF = False
+    maskF = False
+    if DETECTMODE == "STD":
         print(f"Adding detection run for sbids {sbids}",flush=True)
-    else:
+    elif DETECTMODE == "INVERT":
         print(f"Adding inverted spectra detection for sbids {sbids}", flush =True)
+        invertF = True
+    elif DETECTMODE == "MASK":
+        print(f"Adding masked detection run for sbids {sbids}", flush =True)
+        maskF = True
     # Check if any of the sbids have been entered before
     repeated_sbids = check_sbids(cur,sbids,versions,table="detect_run")
-    if repeated_sbids and not invertF:
+    if repeated_sbids and DETECTMODE == "STD":
         print(f"*** SKIPPING sbids {repeated_sbids} from list {sbids}!!")
         sbids = list(set(repeated_sbids).symmetric_difference(set(sbids)))
     if not sbids:
+        print("No new sbids to process - skipping")
         return cur
 
     # Add the log files
@@ -468,8 +484,8 @@ def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_di
     detect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
  
     # insert into detect_run table
-    insert_query = "INSERT into detect_run(SBIDS,errlog,stdlog,result_filepath,platform,date,run_tag,invertF) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
-    cur.execute(insert_query,(sbids,errdata,stddata,result_file,platform,detect_date,RUN_TAG,invertF))
+    insert_query = "INSERT into detect_run(SBIDS,errlog,stdlog,result_filepath,platform,date,run_tag,invertF,maskF) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
+    cur.execute(insert_query,(sbids,errdata,stddata,result_file,platform,detect_date,RUN_TAG,invertF,maskF))
     runid = cur.fetchone()[0]
     print(f"Data inserted into table 'detect_run': runid = {runid}",flush=True)
 
@@ -502,37 +518,13 @@ def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_di
         
         # Update the sbid if it exists:
         if sbid_id:
-            update_sbid_detection(cur,sbid=sbid,sbid_id=sbid_id,runid=runid,detectionF=True,dataDict=dataDict[sbid],datapath=output_dir,ver=version,config=config_data,results=results,invertF=invertF)
+            update_sbid_detection(cur,sbid=sbid,sbid_id=sbid_id,runid=runid,dataDict=dataDict[sbid],datapath=output_dir,ver=version,config=config_data,results=results,)
 
         else:
             print(f"ERROR: sbid:version {sbid}:{version} does not exist in database!! Skipping")
 
         # Process the results file against each component
-        sbid_results = results.splitlines()
-        max_ln_mean = 0
-        #last_name = sbid_results[1].split()[0].rsplit("_",1)[0]
-        last_name = ""
-        for line in sbid_results[1:]:
-            vals = line.split()
-            name = vals[0].rsplit("_",1)[0]
-            line_sbid = int(name.split("_")[0][2:])
-            ln_mean = float(vals[17])
-            mode_num = int(vals[1])
-            if line_sbid != int(sbid):
-                continue
-
-            if name != last_name:
-                max_ln_mean = 0
-            if ln_mean > max_ln_mean: # we only store the modenum version with the largest ln_mean in component table
-                if invertF:
-                    update = "update component set invert_mode_num = %s, invert_ln_mean = %s where comp_id like %s and sbid_id = %s;"
-                else:
-                    update = "update component set mode_num = %s, ln_mean = %s where comp_id like %s and sbid_id = %s;"
-                like= '%{}%'.format(name)
-                cur.execute(update,(mode_num,ln_mean,like,sbid_id))
-                max_ln_mean = ln_mean  
- 
-            last_name = name
+        cur = add_component_results(cur,sbid,result_file,output_dir,version)
     return cur
 
 ###############################################
@@ -662,43 +654,46 @@ def add_sbid_pointing(conn,sbid,dataDict,cur=None,ver=None):
     print(f"Pointing field {pointing} added to SB{sbid}")
     return cur
 ###############################################
-def add_component_results(conn,sbids,result_file,output_dir,versions=None):
+def add_component_results(cur,sbid,result_file,output_dir,version=None):
 
-    cur = get_cursor(conn)
-    print("Adding LINEFINDER results to components")
+    print(f"Adding LINEFINDER results to components of {sbid}")
     # Get the results file
+    
     results = ""
     with open(result_file,'r') as f:
         for line in f:
             line = line.replace("\"","'")
             results = results + line.strip() + "\n"
 
-    for i,sbid in enumerate(sbids):
-        version = versions[i]
-        sbid_id = None
-        sbid_id,version = get_max_sbid_version(cur,sbid,version)
-        # Process the results file against each component
-        sbid_results = results.splitlines()
-        max_ln_mean = 0
-        last_name = ""
-        for line in sbid_results[1:]:
-            vals = line.split()
-            name = vals[0].rsplit("_",1)[0]
-            line_sbid = int(name.split("_")[0][2:])
-            ln_mean = float(vals[17])
-            mode_num = int(vals[1])
-            if line_sbid != int(sbid):
-                continue
+    sbid_id = None
+    sbid_id,version = get_max_sbid_version(cur,sbid,version)
+    # Process the results file against each component
+    sbid_results = results.splitlines()
+    max_ln_mean = 0
+    last_name = ""
+    for line in sbid_results[1:]:
+        vals = line.split()
+        name = vals[0].rsplit("_",1)[0]
+        line_sbid = int(name.split("_")[0][2:])
+        ln_mean = float(vals[17])
+        mode_num = int(vals[1])
+        if line_sbid != int(sbid):
+            continue
 
-            if name != last_name:
-                max_ln_mean = 0
-            if ln_mean > max_ln_mean: # we only store the modenum version with the largest ln_mean in component table
+        if name != last_name:
+            max_ln_mean = 0
+        if ln_mean > max_ln_mean: # we only store the modenum version with the largest ln_mean in component table
+            if DETECTMODE == "STD":
                 update = "update component set mode_num = %s, ln_mean = %s where comp_id like %s and sbid_id = %s;"
-                like= '%{}%'.format(name)
-                cur.execute(update,(mode_num,ln_mean,like,sbid_id))
-                max_ln_mean = ln_mean  
- 
-            last_name = name
+            elif DETECTMODE == "INVERT":
+                update = "update component set invert_mode_num = %s, invert_ln_mean = %s where comp_id like %s and sbid_id = %s;"
+            elif DETECTMODE == "MASK":
+                update = "update component set mask_mode_num = %s, mask_ln_mean = %s where comp_id like %s and sbid_id = %s;"
+            like= '%{}%'.format(name)
+            cur.execute(update,(mode_num,ln_mean,like,sbid_id))
+            max_ln_mean = ln_mean  
+
+        last_name = name
     return cur
 
     
@@ -732,7 +727,7 @@ def add_detect_comment(conn,sbid,comment,ver=None):
     return cur
 
 ###############################################
-def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ver,config,results,invertF=False):
+def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,results):
 
     # Create tarball of linefinder output files:
     output_tarball = f"{TMP_TAR_DIR}/{sbid}_linefinder_output.tar.gz"
@@ -750,14 +745,29 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ve
     new_oid = lob.oid
     lob.close()
 
-    if invertF:
+    detectionF = True
+    if DETECTMODE == "INVERT":
         update_query = "UPDATE SBID SET invert_detect_runid = %s, invert_detectionF = %s, invert_detect_results = %s, detect_config_tar = %s, invert_results = %s where id = %s;"
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),psycopg2.Binary(config),results,sbid_id))
-    else:
+    elif DETECTMODE == "STD":
         # We add both 'detect_data' byte array and the lob, for redundancy
         update_query = "UPDATE SBID SET detect_runid = %s, detectionF = %s, detect_results = %s, detect_tar = %s , detect_config_tar = %s, results = %s where id = %s;"
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),new_oid,psycopg2.Binary(config),results,sbid_id))
-    print(f"sbid table updated with detection for sbid = {sbid}, version {ver}")
+    elif DETECTMODE == "MASK":
+        # There is an additional 'mask' file for masked detections, so we need to store its contents
+        maskfile = f"{DATA_DIR}/{sbid}/config/mask.txt"
+        mask_contents = ""
+        with open(maskfile,'r') as f:
+            for line in f:
+                mask_contents = mask_contents + line.strip() + "\n"
+ 
+        update_query = "UPDATE SBID SET mask_detect_runid = %s, mask_detectionF = %s, mask_detect_results = %s, detect_config_tar = %s, mask_results = %s, mask = %s where id = %s;"
+        cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),psycopg2.Binary(config),results,mask_contents,sbid_id))
+
+    else:
+        print(f"{sbid}: ERROR in detection mode - aborting!!")
+        return
+    print(f"sbid table updated with {DETECTMODE} detection for sbid = {sbid}, version {ver}")
 
     # Update the component table with the detection, first find the components (sources) used
     components = []
@@ -766,10 +776,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,detectionF,dataDict,datapath,ve
     for source in sources:
         comp_number = source.split("component_")[1].split("_")[0]
         comp = f"SB{sbid}_component_{comp_number}_opd.dat"
-        if invertF:
-            update_component_detection(cur,comp,sbid_id,processState="inverted_detection")
-        else:
-            update_component_detection(cur,comp,sbid_id,processState="detection")
+        update_component_detection(cur,comp,sbid_id,processState=DETECTMODE)
 
 ###############################################
 def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral",fluxcutoff=None):
@@ -824,11 +831,13 @@ def update_component_detection(cur,comp,sbid_id,processState):
     if not comp.startswith("spec_"):
         comp = "spec_" + comp
     comp.replace(".dat",".fits")
-    if processState == "inverted_detection":
-        update_query = "UPDATE component SET processState = %s, invert_detection_date = %s where comp_id = %s and sbid_id = %s;"
-    else:
-        update_query = "UPDATE component SET processState = %s, detection_date = %s where comp_id = %s and sbid_id = %s;"
-    cur.execute(update_query,(processState,detect_date,comp,sbid_id))
+    if processState == "INVERT":
+        update_query = "UPDATE component SET processState = 'inverted_detection', invert_detection_date = %s where comp_id = %s and sbid_id = %s;"
+    elif processState == "STD":
+        update_query = "UPDATE component SET processState = 'detection', detection_date = %s where comp_id = %s and sbid_id = %s;"
+    elif processState == "MASK":
+        update_query = "UPDATE component SET processState = 'masked_detection, detection_date = %s where comp_id = %s and sbid_id = %s;"
+    cur.execute(update_query,(detect_date,comp,sbid_id))
     print(f"    Detection updated into table 'component': comp_id = {comp}, sbid_id = {sbid_id}")
     return
 
@@ -918,11 +927,9 @@ if __name__ == "__main__":
         conn.commit()
         cur.close()
         conn.close()
-    elif RUN_TYPE == "DETECTION" or RUN_TYPE == "INVERTED":
-        print("Starting DETECTION upload")
+    elif RUN_TYPE == "DETECTION" or RUN_TYPE == "INVERTED" or RUN_TYPE == "MASKED":
+        print(f"Starting {DETECTMODE} DETECTION upload")
         inverted = False
-        if RUN_TYPE == "INVERTED":
-            inverted = True
         # Change to data directory
         if DATA_DIR != "./":
             os.chdir(DATA_DIR)
@@ -935,22 +942,23 @@ if __name__ == "__main__":
                         platform=PLATFORM,
                         result_file=LINEFINDER_SUMMARY_FILE,
                         output_dir=LINEFINDER_OUTPUT_DIR,
-                        invertF = inverted,
                         versions=VERSIONS)
         conn.commit()
         cur.close()
         conn.close()
     elif RUN_TYPE == "COMP_RESULTS":
+        cur = get_cursor(conn)
         # Change to data directory
         if DATA_DIR != "./":
             os.chdir(DATA_DIR)
         print(f'main: DATA_DIR = {DATA_DIR}')
         dataDict = createDataDict(data_path=DATA_DIR)
-        cur = add_component_results(conn,
-                        sbids=SBIDS,
+        for i,sbid in enumerate(SBIDS):
+            cur = add_component_results(cur,
+                        sbid=sbid,
                         result_file=LINEFINDER_SUMMARY_FILE,
                         output_dir=LINEFINDER_OUTPUT_DIR,
-                        versions=VERSIONS)
+                        version=VERSIONS[i])
         conn.commit()
         cur.close()
         conn.close()

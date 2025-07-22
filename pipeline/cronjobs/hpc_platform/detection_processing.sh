@@ -27,14 +27,46 @@ CRONDIR=$HOME/src/cronjobs/
 FLASHPASS=$1
 MODE=$2
 
+USELOGFILE=true
+DETECTLOG="find_detection.log"
+if [ "$MODE" = "INVERT" ]; then
+    DETECTLOG="find_invert_detection.log"
+elif [ "$MODE" = "MASK" ]; then
+    DETECTLOG="find_mask_detection.log"
+fi
+
+# Check if we were passed an sbid to process - if not it is read from the 'find_detection' logfile
+if [ "$#" -gt 2 ]; then
+    USELOGFILE=false
+    SBIDARR=( "$@" )
+    SBIDARRAY=${SBIDARR[@]:2}
+    CHECKDB=false
+    rm $DETECTLOG
+    if [ "$MODE" = "STD" ]; then
+        printf "For std detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
+    elif [ "$MODE" = "INVERT" ]; then
+        printf "For inversion:\nSBIDS that need detection analysis\n[" > $DETECTLOG
+    elif [ "$MODE" = "MASK" ]; then
+        printf "For masked detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
+    fi
+    for SBID1 in ${SBIDARRAY[@]}; do
+        printf "$SBID1, " >> $DETECTLOG
+    done
+    sed -i '$ s/.$//' $DETECTLOG
+    sed -i '$ s/.$/]/' $DETECTLOG
+     
+fi
+
 output=""
-source ~/setonix_set_local_env.sh
+source ~/set_local_flash_env.sh
 # Local directories on setonix:
 DBDIR="/home/$USER/src/database/"
 DETECTDIR="/home/$USER/src/linefinder/"
 if [ "$MODE" = "INVERT" ]; then
     DETECTDIR="/home/$USER/src/inverted_linefinder/"
 fi
+
+# if 
 
 # The parent directory to hold the SBIDS
 PARENT_DIR=$DATA
@@ -43,72 +75,74 @@ PARENT_DIR=$DATA
 BAD_FILES_DIR="$DATA/bad_ascii_files/"
 
 cd $CRONDIR
-# Check logs for new sbids to process
-if [ "$MODE" = "INVERT" ]; then
-    output=$( tail -n 1 find_invert_detection.log)
-else
-    output=$( tail -n 1 find_detection.log)
-fi
-sbids=${output:1: -1}
-if test "$output" == "[]"
-then
-    echo "No sbids to process"
-    exit
+# If sbids were not provided, check logs for new sbids to process
+if [ "$USELOGFILE" = true ]; then
+    output=$( tail -n 1 $DETECTLOG)
+    sbids=${output:1: -1}
+    if test "$output" == "[]"
+    then
+        echo "No sbids to process"
+        exit
+    fi
+    sbids=$(sed "s/ //g" <<< $sbids)
+    SBIDS=$(sed "s/,/ /g" <<< $sbids)
+    echo "SBIDS = $SBIDS"
+    SBIDARR=()
+    read -a SBIDARR <<< "$SBIDS"
+    # Limit size of SBIDARRAY to 10:
+    SBIDARRAY=()
+    SBIDARRAY=${SBIDARR[@]:0:10}
 fi
 
-sbids=$(sed "s/ //g" <<< $sbids)
-SBIDS=$(sed "s/,/ /g" <<< $sbids)
-echo "SBIDS = $SBIDS"
-SBIDARR=()
-read -a SBIDARR <<< "$SBIDS"
-# Limit size of SBIDARRAY to 10:
-SBIDARRAY=()
-SBIDARRAY=${SBIDARR[@]:0:10}
 echo -e "\nprocessing ${SBIDARRAY[@]}"
 
-# Get the data for the sbids from the client and process
-
-# Initialise status file
 cd $DETECTDIR
-echo "for ${SBIDARRAY[@]}:" > $DETECTDIR/jobs_to_sbids.txt
+
+STATUSFILE="jobs_to_sbids.txt"
 
 for SBID1 in ${SBIDARRAY[@]}; do
+    
     # Make required config directories and load with ini files
     PARENT1="$PARENT_DIR/$SBID1"
+    MASKDIR="$DETECTDIR/masks"
     DIR1="$PARENT1/spectra_ascii"
-    mkdir -p "$PARENT1/config"
+    if [ "$MODE" = "MASK" ]; then
+        # Check that the mask file exists
+        if ! ls $MASKDIR/*$SBID1_mask.txt 1> /dev/null 2>&1; then
+            echo "$SBID1 mask file not found!! Skipping"
+            continue
+        fi
+    fi 
+    mkdir "$PARENT1/config"
     mkdir -p "$DIR1"
     # Untar ASCII tarball
     cd $DIR1; tar -zxf $SBID*.tar.gz;rm $SBID*.tar.gz
 
-    # Check for bad (all NaN values) files, move them to bad files directory
-    echo "Checking for bad files"
-    python $FINDER/pre_process.py $BAD_FILES_DIR $DIR1
-
     # Process the files
     cd $DETECTDIR
     cp slurm_linefinder*.ini model.txt $PARENT1/config
-    if [ "$MODE" = "INVERT" ]; then
-        jid2=$(sbatch $FINDER/slurm_run_flashfinder_inverted.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1)
-    else
-        jid2=$(sbatch $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1)
+    jid2=0
+
+    # Create parameter string for sbatch:
+    if [ "$MODE" = "STD" ]; then
+        SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out.log --error $PARENT1/logs/err.log --job-name STD_$SBID1"
+    elif [ "$MODE" = "INVERT" ]; then
+        SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_inverted.log --error $PARENT1/logs/err_inverted.log --job-name INV_$SBID1"
+    elif [ "$MODE" = "MASK" ]; then
+        SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_masked.log --error $PARENT1/logs/err_masked.log --job-name MSK_$SBID1"
     fi
+
+    jid2=$(sbatch $SBATCHARGS $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1 $MODE)
     j2=$(echo $jid2 | awk '{print $4}')
-    echo "Sumbitted detection job $j2"
-    echo "$j2 = sbid $SBID1" >> $DETECTDIR/jobs_to_sbids.txt
+    echo "Sumbitted $MODE detection job $j2"
+    echo "$j2 = sbid $SBID1" >> $DETECTDIR/$STATUSFILE
 
     # Tar up results and send them back to the client for upload to the FLASH db
     cd $CRONDIR
-    if [ "$MODE" = "INVERT" ]; then
-        jid3=$(sbatch --dependency=afterok:$j2 tar_detection_inverted_outputs.sh $SBID)
-        j3=$(echo $jid3 | awk '{print $4}')
-        jid4=$(sbatch --dependency=afterok:$j3 push_detection_inverted_to_oracle.sh $SBID)
 
-    else
-        jid3=$(sbatch --dependency=afterok:$j2 tar_detection_outputs.sh $SBID)
-        j3=$(echo $jid3 | awk '{print $4}')
-        jid4=$(sbatch --dependency=afterok:$j3 push_detection_to_oracle.sh $SBID)
-    fi
+    jid3=$(sbatch --dependency=afterok:$j2 tar_detection_outputs.sh $MODE $SBID1)
+    j3=$(echo $jid3 | awk '{print $4}')
+    jid4=$(sbatch --dependency=afterok:$j3 push_detection_to_oracle.sh $MODE $SBID1)
 
 done
 echo "Processing started for sbids:"

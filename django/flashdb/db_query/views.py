@@ -12,7 +12,7 @@ from .models import MyModel
 
 #######################################################################################
 
-def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
+def connect(db="flashdb",user="flash",host="10.0.2.225",password=None):
 
     if not password:
         password = PASSWD
@@ -20,9 +20,8 @@ def connect(db="flashdb",user="flash",host="146.118.64.208",password=None):
         database = db,
         user = user,
         password = password,
-        #host = host,
+        host = host,
         #port = 2095
-        host = "10.0.2.225",
         port = 5432
     )
     #print(conn.get_dsn_parameters(),"\n")
@@ -108,7 +107,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     if inverted:
         query = "select invert_results from sbid where id = %s;"
     elif masked:
-        query = "select mask_detect_results from sbid where id = %s;"
+        query = "select mask_results from sbid where id = %s;"
     else:
         query = "select results from sbid where id = %s;"
     cur.execute(query,(sid,))
@@ -116,7 +115,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
         result_data = cur.fetchone()[0].split('\n')
     except TypeError:
         print(f"Output data = 0 for sbid {sbid}:{version}!")
-        return 
+        return None,None
 
     # Get the pointing field for the sbid:
     query = "select pointing from sbid where id = %s;"
@@ -439,10 +438,11 @@ def show_csv(request):
 def query_database(request):
     # Build the SQL query using Django's SQL syntax
     password = request.POST.get('pass')
+    host = request.POST.get('host')
     session_id = request.POST.get('session_id')
     # Try a psycopg2 connection with the supplied password. If it fails, return error msg
     try:
-        conn = connect(password=password)
+        conn = connect(password=password, host=host)
         conn.close()
     except:
         return HttpResponse("Password has failed")
@@ -495,20 +495,25 @@ def query_database(request):
                 mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
                 if where_clause:
                     query = query + where_clause
-                    mask_query += where_clause + ";"
+                    mask_query += where_clause
                 query = query + f" order by {order}"
+                mask_query = mask_query + f" order by {order}"
                 if reverse:
                     query += " desc;"
+                    mask_query += " desc;"
                 else:
                     query += ";"
+                    mask_query += ";"
                 cursor.execute(query,)
             else:
                 query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s order by {order}"
-                mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s;"
+                mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s"
                 if reverse:
                     query += " desc;"
+                    mask_query += " desc;"
                 else:
                     query += ";"
+                    mask_query += ";"
                 cursor.execute(query,(sbid_val,))
             rows = cursor.fetchall()
             cursor.execute(mask_query, (sbid_val if sbid_val != "-1" else None,))
@@ -545,25 +550,30 @@ def query_database(request):
                 # See if there are any inverted-spectra linefinder results
                 query = f"SELECT invert_detectionF from sbid where sbid_num = %s"
                 cursor.execute(query,(sbid_val,))
-                inverted = cursor.fetchone()[0]
-                if not inverted:
+                inverted_results = cursor.fetchone()
+                if inverted_results and inverted_results[0]:
+                    inverted = inverted_results[0]
+                else:
                     return HttpResponse(f"No inverted-spectra Linefinder results for sbid {sbid_val}")
             print(f"inverted value = {inverted}")
             if use_masked:
                 # See if there are any masked-spectra linefinder results
                 query = f"SELECT mask_detectionF from sbid where sbid_num = %s"
                 cursor.execute(query,(sbid_val,))
-                masked = cursor.fetchone()[0]
-                if not masked:
+                masked_results = cursor.fetchone()
+                if masked_results and masked_results[0]:
+                    masked = masked_results[0]
+                else:
                     return HttpResponse(f"No masked-spectra Linefinder results for sbid {sbid_val}")
             print(f"masked value = {masked}")
             # The path to Django's static dir for linefinder outputs
             static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
             os.system(f"mkdir -p {static_dir}")
             version = None
-        # Screen outputs:
+            # Screen outputs:
             outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir,inverted,masked)
-            # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
+        # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
+        if outputs:
             conn = connect(password=password)
             name = get_linefinder_tarball(conn,sbid_val,static_dir,version,inverted,masked)
             conn.close()
@@ -575,7 +585,6 @@ def query_database(request):
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_outputs.csv"
             else:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
-        if outputs:
             return render(request, 'linefinder.html', {'session_id': session_id, 'sbid': sbid_val, 'lmean': lmean,\
                 'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), \
                 'tarball': tarball, 'inverted':inverted, 'masked':masked})

@@ -22,7 +22,7 @@ else: # Force environment into python!!
     import shlex
     import subprocess
 
-    command = shlex.split("bash -c 'source ~/set_local_env.sh && env'")
+    command = shlex.split("bash -c 'source ~/set_local_flash_env.sh && env'")
     proc = subprocess.Popen(command, stdout = subprocess.PIPE)
     for line in proc.stdout:
         (key, _, value) = line.decode().partition("=")

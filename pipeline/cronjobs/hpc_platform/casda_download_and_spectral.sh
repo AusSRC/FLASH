@@ -5,7 +5,7 @@
 # Edit these for the specific hpc-platform user:
 CASDA_EMAIL="user@email"
 CASDA_PWD="password_at_CASDA"
-source $HOME/setonix_set_local_env.sh
+source $HOME/set_local_flash_env.sh
 
 # Local directories:
 CRONDIR="/home/$USER/src/cronjobs"
@@ -18,6 +18,8 @@ TMPDIR="/scratch/ja3/$USER/tmp"
 
 IFS=","
 
+SBIDARRAY=()
+
 # Config file to use for all the sbids
 CONFIGFILE="./config.py"
 
@@ -26,21 +28,26 @@ echo "parent = $DATA"
 
 cd $DBDIR
 
-output=$( tail -n 1 $CRONDIR/new_sbids.log)
-sbids=${output:1: -1}
-if test "$output" == "[]"
-then
-    echo "No sbids to process"
-    exit
+# Check if we were passed sbids on the command line:
+if [ "$#" -gt 0 ]; then
+    SBIDARRAY=( "$@" )
+else
+# If not, check the log sent over from the client
+    output=$( tail -n 1 $CRONDIR/new_sbids.log)
+    sbids=${output:1: -1}
+    if test "$output" == "[]"
+    then
+        echo "No sbids to process"
+        exit
+    fi
+
+    sbids=$(sed "s/ //g" <<< $sbids)
+    sbids="${sbids//\'}"
+    SBIDS=$(sed "s/,/ /g" <<< $sbids)
+
+    IFS=" "
+    read -a SBIDARRAY <<< "$SBIDS"
 fi
-
-sbids=$(sed "s/ //g" <<< $sbids)
-sbids="${sbids//\'}"
-SBIDS=$(sed "s/,/ /g" <<< $sbids)
-
-IFS=" "
-SBIDARRAY=()
-read -a SBIDARRAY <<< "$SBIDS"
 
 for i in "${!SBIDARRAY[@]}"; do
     SBID="${SBIDARRAY[$i]}"
