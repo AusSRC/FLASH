@@ -100,6 +100,12 @@
 
 		<div id="dbLINEFINDER" class="desc" style="display: none;">
 			<p>Get linefinder outputs</p>
+			<input type="radio" id="output1" name="output_type" checked="checked" value="detection">
+			<label for="output1">Detection output</label><br>
+			<input type="radio" id="output2" name="output_type" value="inverted">
+			<label for="output2">Inverted output</label><br>
+			<input type="radio" id="output3" name="output_type" value="masked">
+			<label for="output3">Masked output</label><br>
 			<label for="sbid_line">Enter integer for SBID to query:</label><br>
 			<input type="text" id="sbid2" name="sbid_line"><br>
 			<label for="mean">Enter integer for ln_mean cutoff ('-1' for all values):</label><br>
@@ -109,7 +115,6 @@
 			<input type="radio" id="order5" name="lorder" value="comp">
 			<label for="order5">Order by comp_id</label><br>
 			<input type="checkbox" id="reverse2" name="reverse2">Reverse sort order<br>
-			<input type="checkbox" id="inverted" name="inverted">Use results from inverted-spectra run, if available.
 		</div>
 		
 		<div id="dbSOURCE" class="desc" style="display: none;">
