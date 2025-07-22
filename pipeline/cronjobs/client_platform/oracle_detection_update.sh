@@ -103,6 +103,11 @@ if [ "$CHECKDB" = true ]; then
     # Limit size of SBIDARRAY to 6:
     SBIDARRAY=("${SBIDARY[@]:0:6}")
 fi
+
+# Initialise status file on hpc
+STATUSFILE="jobs_to_sbids.txt"
+ssh $USER@$PLATFORM "cd ~/src/linefinder; echo "for ${SBIDARRAY[@]}:" > $STATUSFILE"
+
 echo -e "\nprocessing\n ${SBIDARRAY[@]}"
 # Get the data for the sbids from the FLASHDB 
 cd $TMPDIR

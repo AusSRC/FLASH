@@ -96,9 +96,9 @@ fi
 
 echo -e "\nprocessing ${SBIDARRAY[@]}"
 
-# Initialise status file
 cd $DETECTDIR
-echo "for ${SBIDARRAY[@]}:" > $DETECTDIR/jobs_to_sbids.txt
+
+STATUSFILE="jobs_to_sbids.txt"
 
 for SBID1 in ${SBIDARRAY[@]}; do
     
@@ -135,7 +135,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
     jid2=$(sbatch $SBATCHARGS $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1 $MODE)
     j2=$(echo $jid2 | awk '{print $4}')
     echo "Sumbitted $MODE detection job $j2"
-    echo "$j2 = sbid $SBID1" >> $DETECTDIR/jobs_to_sbids.txt
+    echo "$j2 = sbid $SBID1" >> $DETECTDIR/$STATUSFILE
 
     # Tar up results and send them back to the client for upload to the FLASH db
     cd $CRONDIR
