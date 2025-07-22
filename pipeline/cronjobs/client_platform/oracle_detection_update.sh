@@ -27,7 +27,7 @@
 HOST="10.0.2.225"
 PORT="5432"
 # Client platform details: : edit these as appropiate
-source $HOME/set_local_env.sh
+source $HOME/set_local_flash_env.sh
 
 # For masked detection, provide the directory that holds the mask files
 MASKDIR="$HOME/src/cronjobs/masks"
@@ -55,9 +55,32 @@ fi
 
 # Check if we were passed sbids to process, or we need to check the db
 if [ "$#" -gt 2 ]; then
-    SBIDARR=( "$@" )
-    SBIDARRAY=${SBIDARR[@]:2}
+    SBIDARR=( "${@:3}" )
     CHECKDB=false
+    echo "Got sbids ${SBIDARR[@]}"
+    # For masked detection, only process if there is a matching mask file
+    if [ "$MODE" = "MASK" ]; then
+        MASKFILES=$(printf '%s ' $MASKDIR/SB*.txt)
+        SBIDSTR=($(echo "$MASKFILES" | grep -oE '[0-9]+'))
+        for item1 in "${SBIDSTR[@]}"; do
+            for item2 in "${SBIDARR[@]}"; do
+                if [[ "$item1" == "$item2" ]]; then
+                    SBIDARY+=("$item1")
+                    break
+                fi
+            done
+        done
+        SBIDARR=()
+        SBIDARR=( "${SBIDARY[@]}" )
+        if [ ${#SBIDARR[@]} -eq 0 ]; then
+            echo "No mask file(s) found for processing"
+            exit
+        else
+            echo "sbids with valid masks are: ${SBIDARR[@]}"
+        fi
+    fi
+    SBIDARRAY="${SBIDARR[@]}"
+
     rm $DETECTLOG
     printf "For $MODE detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
     for SBID1 in ${SBIDARRAY[@]}; do
@@ -65,7 +88,6 @@ if [ "$#" -gt 2 ]; then
     done
     sed -i '$ s/.$//' $DETECTLOG
     sed -i '$ s/.$/]/' $DETECTLOG
-     
 fi
 # Query FLASHDB for new sbids
 if [ "$CHECKDB" = true ]; then
