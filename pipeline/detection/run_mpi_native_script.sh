@@ -24,13 +24,14 @@
 ######################################################################################
 ####################### USER EDIT VALUES #############################################
 # The SBIDS to process (if not pass on the command line):
+MODE=$1
 
 if [ $# -eq 0 ]
     then
         rm jobs_to_sbids.txt
         SBIDARRAY=(55247 55398 55460)
 else
-        SBIDARRAY=( "$@" )
+        SBIDARRAY=( "${@:2}" )
 fi
 echo "${SBIDARRAY[@]}"
 
@@ -45,7 +46,7 @@ BAD_FILES_DIR="/scratch/ja3/ger063/data/casda/bad_ascii_files"
 #####################################################################################
 ############### DO NOT EDIT FURTHER #################################################
 
-source /software/projects/ja3/ger063/setonix/FLASH/set_local_env.sh
+source ~/set_local_flash_env.sh
 
 for SBID1 in "${SBIDARRAY[@]}"; do
     PARENT1=$PARENT_DIR/$SBID1
@@ -57,10 +58,18 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     fi
 
      # pass to slurm_run scripts: 
-    jid1=$(/bin/bash $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1)
+    if [ "$MODE" = "STD" ]; then
+        SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out.log --error $PARENT1/logs/err.log --job-name STD_$SBID1"
+    elif [ "$MODE" = "INVERT" ]; then
+        SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_inverted.log --error $PARENT1/logs/err_inverted.log --job-name INV_$SBID1"
+    elif [ "$MODE" = "MASK" ]; then
+        SBATCHARGS="--time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_masked.log --error $PARENT1/logs/err_masked.log --job-name MSK_$SBID1"
+    fi
+
+    jid1=$(sbatch $SBATCHARGS $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1 $MODE)
     # Report
     j1=$(echo $jid1 | awk '{print $4}')
-    echo "Sumbitted job $j1"
+    echo "Sumbitted $MODE job $j1"
     echo "$j1 = sbid $SBID1" >> jobs_to_sbids.txt
 done
 exit 0
