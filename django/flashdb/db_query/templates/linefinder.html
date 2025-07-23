@@ -32,6 +32,7 @@
 	<H1 style="text-align: center;">FLASH Database Linefinder Results</H1>
 	{% load static %}
         {% if inverted == True %} <h2 style="text-align: center;">For INVERTED-spectra detection</h2> {% endif %}
+		{% if masked == True %} <h2 style="text-align: center;">For MASKED-spectra detection</h2> {% endif %}
 	<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
 	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
 	<p style="text-align: center;"> Query for SBID = {{ sbid }}, ln_mean cutoff = {{ lmean }}</p>
@@ -44,6 +45,7 @@
 			<input type="hidden" id="sbid" name="sbid" value={{ sbid }}>
 			<input type="hidden" id="lnmean" name="lnmean" value={{ lmean }}>
 			<input type="hidden" id="invert" name="invert" value={{ inverted }}>
+			<input type="hidden" id="masked" name="masked" value={{ masked }}>
 				OR view in new page <input type="submit" value="Full linefinder results.dat table"/>
 			</form></p>
 	<form action="/db_query/">
