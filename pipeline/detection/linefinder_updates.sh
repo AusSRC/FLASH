@@ -11,7 +11,7 @@ PARENT_DIR="/scratch/ja3/ger063/data/casda/"
 # Directory to move bad data files to:
 BAD_FILES_DIR="/scratch/ja3/ger063/data/casda/bad_ascii_files/"
 
-source ~/setonix_set_local_env.sh
+source ~/set_local_flash_env.sh
 
 # Query FLASHDB for new sbids
 python3.9 $FLASHDB/db_utils.py -m SBIDSTODETECT -pw $FLASHPASS > find_detection.log

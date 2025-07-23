@@ -8,7 +8,7 @@
 ######################################################################################
 ######################################################################################
 # Source the local env script - edit path if required
-source /software/projects/ja3/ger063/setonix/FLASH/set_local_env.sh
+source ~/set_local_flash_env.sh
 
 MODE=$5
 # Log directory:
@@ -24,8 +24,6 @@ module load py-mpi4py/3.1.5-py3.11.6
 module load gcc/12.2.0
 module load py-scipy/1.11.3
 
-## Set the path variables for FLASHFINDER:
-source /software/projects/ja3/ger063/setonix/FLASH/set_local_env.sh
 
 export MPICH_GNI_MALLOC_FALLBACK=enabled
 export MPICH_OFI_STARTUP_CONNECT=1
@@ -43,11 +41,11 @@ if [ "$MODE" = "STD" ]; then
     mkdir -p "$1"/outputs
     srun -K1 python $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/outputs \
 --mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder.ini
-elif [ "$MODE" = "INVERT" ]
+elif [ "$MODE" = "INVERT" ]; then
     mkdir -p "$1"/inverted_outputs
     srun -K1 python $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/inverted_outputs \
 --mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder_inverted.ini
-elif [ "$MODE" = "MASK" ]
+elif [ "$MODE" = "MASK" ]; then
     mkdir -p "$1"/masked_outputs
     srun -K1 python $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/masked_outputs \
 --mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder.ini

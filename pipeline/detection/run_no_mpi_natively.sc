@@ -20,7 +20,7 @@ module load py-scipy/1.7.1
 
 mkdir -p /scratch/ja3/ger063/flashfinder_nompi_test/chains_1000_3/absorption/
 
-source ~/set_local_env.sh
+source ~/set_local_flash_env.sh
 
 srun python3 $FINDERNOMPI/flash_finder_NOMPI.py \
 --inifile /scratch/ja3/ger063/flashfinder_nompi_test/config/linefinder.ini

@@ -12,7 +12,7 @@
 #           script will have no effect on jobs started through the above scripts.
 ######################################################################################
 ######################################################################################
-source ./set_local_env.sh
+source ./set_local_flash_env.sh
 
 # Set path to Matplotlib set up
 #export MATPLOTLIBRC=/home/flash/.local/lib/python3.10/site-packages/matplotlib/
