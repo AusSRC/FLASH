@@ -41,6 +41,9 @@ class Spectrum():
         if os.path.isfile(options.mask_path):
             print("Using mask file ",options.mask_path)
             masks = np.genfromtxt(options.mask_path, comments='#')
+            # Check if only one line of data (if there is, it will be malformed by the numpy call above)
+            if isinstance(masks[0], numbers.Real):
+                masks = [[masks[0],masks[1]]]
             for mask in masks:
                 # This doesn't work
                 #self.y.data[(self.y.data > np.min(mask)) & (self.y.data < np.max(mask))] = 0.
