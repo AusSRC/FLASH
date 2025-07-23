@@ -199,7 +199,7 @@ def check_sbids_in_db(conn):
 
 ###############################################
 
-def check_db_detection_run(conn,mode=MODE)
+def check_db_detection_run(conn,mode=MODE):
     # check the flashdb for any sbids that need to have the LINEFINDER run against them.
     # 
     # This only checks Survey sbids (not pilot) and will check if any sbid with quality not 'BAD', 'REJECTED' or 'NOT_VALIDATED'
