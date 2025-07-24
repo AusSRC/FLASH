@@ -273,8 +273,8 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
         invertF = modes[1]
         maskF = modes[2]
 
-        # Remove the config file
-        config_delete = "UPDATE sbid SET detect_config_tar = NULL where id = %s"
+        # Remove the config and mask files
+        config_delete = "UPDATE sbid SET detect_config_tar = NULL,mask = NULL where id = %s"
         cur.execute(config_delete,(sbid_id,))
 
         # Delete associated large object of detection outputs
@@ -294,7 +294,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
                 sbid_query = "SELECT detect_runid from sbid where id = %s;"
                 cur.execute(sbid_query,(sbid_id,))
                 runflagid = cur.fetchone()[0]
-            # Remove detection flag and oid from the sbid
+            # Remove detection flag and detection data from the sbid
             sbid_update = "UPDATE sbid SET detectionF = %s, detect_tar = NULL, detect_results = NULL, results = NULL, detect_runid = NULL where id = %s;"
             cur.execute(sbid_update,(False,sbid_id))
             
@@ -333,7 +333,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
                 sbid_query = "SELECT invert_detect_runid from sbid where id = %s;"
                 cur.execute(sbid_query,(sbid_id,))
                 runflagid = cur.fetchone()[0]
-            # Remove detection flag and oid from the sbid
+            # Remove detection flag and inverted detection data from the sbid
             sbid_update = "UPDATE sbid SET invert_detectionF = %s, invert_detect_tar = NULL, invert_detect_results = NULL, invert_results = NULL, invert_detect_runid = NULL where id = %s;"
             cur.execute(sbid_update,(False,sbid_id))
             
@@ -371,7 +371,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
                 sbid_query = "SELECT invert_detect_runid from sbid where id = %s;"
                 cur.execute(sbid_query,(sbid_id,))
                 runflagid = cur.fetchone()[0]
-            # Remove detection flag and oid from the sbid
+            # Remove detection flag and masked detection data from the sbid
             sbid_update = "UPDATE sbid SET mask_detectionF = %s, mask_detect_tar = NULL, mask_detect_results = NULL, mask_results = NULL, mask_detect_runid = NULL where id = %s;"
             cur.execute(sbid_update,(False,sbid_id))
             
