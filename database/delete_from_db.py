@@ -59,7 +59,7 @@ def set_parser():
     parser.add_argument('-e', '--email_address',
             default=None,
             help='Specify email address for login to CASDA (default: %(default)s)')
-    parser.add_argument('-h', '--host',
+    parser.add_argument('-ht', '--host',
             default="10.0.2.225",
             help='database host ip (default: %(default)s)')    
     parser.add_argument('-pt', '--port',
@@ -193,8 +193,8 @@ def delete_sbids(conn,sbids,versions=None):
 
     for sbid,version in zip (sbids,versions):
         # Get rid of any associated files on the compute resource
-        os.system(f"rm -Rf {SBIDDIR}/{sbid}")
-        os.system(f"rm -f {CATDIR}/*{sbid}*.xml*") 
+        #os.system(f"rm -Rf {SBIDDIR}/{sbid}")
+        #os.system(f"rm -f {CATDIR}/*{sbid}*.xml*") 
         if not sbid:
             continue
         print(f"For {sbid}:{1 if version == None else version} :")
@@ -257,53 +257,160 @@ def delete_sbids(conn,sbids,versions=None):
 def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
 
     cur = get_cursor(conn)
+    mode = "STD"
     if not versions:
         versions = [None]*len(selected_sbids)
     runflagid = runid
     for sbid,version in zip(selected_sbids,versions):
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
         print(f"{sbid}:{version} - deleting outputs lob ")
-        # Delete associated large object of detection outputs
-        oid_query = "select detect_tar from sbid where id = %s;"
-        cur.execute(oid_query,(sbid_id,))
-        lon = cur.fetchone()
-        oid_delete = "SELECT lo_unlink(%s);"
-        for i in lon:
-            cur.execute(oid_delete,(i,))
-        
-        # Get detection that lists this sbid
-        if not runid:
-            # Need to get detection id 
-            sbid_query = "SELECT detect_runid from sbid where id = %s;"
-            cur.execute(sbid_query,(sbid_id,))
-            runflagid = cur.fetchone()[0]
-        # Remove detection flag and oid from the sbid
-        sbid_update = "UPDATE sbid SET detectionF = %s, detect_tar = NULL, detect_runid = NULL where id = %s;"
-        cur.execute(sbid_update,(False,sbid_id))
 
-        
-        # Remove reference in detect_run
-        print(f"{sbid}:{version} - removing reference in detect_run ")
-        sbid_query = "SELECT SBIDS from detect_run where id = %s;"
-        cur.execute(sbid_query,(runflagid,))
-        print(runflagid,sbid)
-        sbids = None
-        try:
-            sbids = cur.fetchone()[0]
-            sbids.remove(int(sbid))
-        except TypeError or IndexError:
-            print(f"{sbid}:{version} - nothing to remove ")
-        # Check if sbids list now empty, in which case delete whole detection
-        if not sbids:
-            detect_stat = "DELETE from detect_run where id = %s;"
-            cur.execute(detect_stat,(runflagid,))
-            print(f"    -- Deleted detection {runflagid}")
-        else:
-        # Update detection by removing sbid from row
-            detect_stat = "UPDATE detect_run SET SBIDS = %s where id = %s;"
-            cur.execute(detect_stat,(sbids,runflagid))
-            print(f"    -- Updated detection {runflagid}")
+        # Determine what detection modes have been run
+        mode_query = "select detectionF,invert_detectionF,mask_detectionF from sbid where id = %s"
+        cur.execute(mode_query,(sbid_id,))
+        modes = cur.fetchone()
+        stdF = modes[0]
+        invertF = modes[1]
+        maskF = modes[2]
+
+        # Remove the config file
+        config_delete = "UPDATE sbid SET detect_config_tar = NULL where id = %s")
+        cur.execute(config_delete,(sbid_id,))
+
+        # Delete associated large object of detection outputs
+        # STD, INVERT and MASK
+        # 
+        oid = ""
+        if stdF:
+            print(" -- Deleting STD detection data")
+            oid_query = f"select detect_tar from sbid where id = %s;"
+            cur.execute(oid_query,(sbid_id,))
+            lon = cur.fetchone()
+            oid_delete = "SELECT lo_unlink(%s);"
+            for i in lon:
+                cur.execute(oid_delete,(i,))
+            if not runid:
+                # Need to get detection id 
+                sbid_query = "SELECT detect_runid from sbid where id = %s;"
+                cur.execute(sbid_query,(sbid_id,))
+                runflagid = cur.fetchone()[0]
+            # Remove detection flag and oid from the sbid
+            sbid_update = "UPDATE sbid SET detectionF = %s, detect_tar = NULL, detect_results = NULL, results = NULL, detect_runid = NULL where id = %s;"
+            cur.execute(sbid_update,(False,sbid_id))
+            
+            # Remove reference in detect_run
+            print(f"{sbid}:{version} - removing reference in detect_run ")
+            sbid_query = "SELECT SBIDS from detect_run where id = %s;"
+            cur.execute(sbid_query,(runflagid,))
+            print(runflagid,sbid)
+            sbids = None
+            try:
+                sbids = cur.fetchone()[0]
+                sbids.remove(int(sbid))
+            except TypeError or IndexError:
+                print(f"{sbid}:{version} - nothing to remove ")
+            # Check if sbids list now empty, in which case delete whole detection
+            if not sbids:
+                detect_stat = "DELETE from detect_run where id = %s;"
+                cur.execute(detect_stat,(runflagid,))
+                print(f"    -- Deleted detection {runflagid}")
+            else:
+            # Update detection by removing sbid from row
+                detect_stat = "UPDATE detect_run SET SBIDS = %s where id = %s;"
+                cur.execute(detect_stat,(sbids,runflagid))
+                print(f"    -- Updated detection {runflagid}")
+
+        if invertF:
+            print(" -- Deleting INVERT detection data")
+            oid_query = f"select invert_detect_tar from sbid where id = %s;"
+            cur.execute(oid_query,(sbid_id,))
+            lon = cur.fetchone()
+            oid_delete = "SELECT lo_unlink(%s);"
+            for i in lon:
+                cur.execute(oid_delete,(i,))
+            if not runid:
+                # Need to get detection id 
+                sbid_query = "SELECT invert_detect_runid from sbid where id = %s;"
+                cur.execute(sbid_query,(sbid_id,))
+                runflagid = cur.fetchone()[0]
+            # Remove detection flag and oid from the sbid
+            sbid_update = "UPDATE sbid SET invert_detectionF = %s, invert_detect_tar = NULL, invert_detect_results = NULL, invert_results = NULL, invert_detect_runid = NULL where id = %s;"
+            cur.execute(sbid_update,(False,sbid_id))
+            
+            # Remove reference in detect_run
+            print(f"{sbid}:{version} - removing reference in detect_run ")
+            sbid_query = "SELECT SBIDS from detect_run where id = %s;"
+            cur.execute(sbid_query,(runflagid,))
+            print(runflagid,sbid)
+            sbids = None
+            try:
+                sbids = cur.fetchone()[0]
+                sbids.remove(int(sbid))
+            except TypeError or IndexError:
+                print(f"{sbid}:{version} - nothing to remove ")
+            # Check if sbids list now empty, in which case delete whole detection
+            if not sbids:
+                detect_stat = "DELETE from detect_run where id = %s;"
+                cur.execute(detect_stat,(runflagid,))
+                print(f"    -- Deleted detection {runflagid}")
+            else:
+            # Update detection by removing sbid from row
+                detect_stat = "UPDATE detect_run SET SBIDS = %s where id = %s;"
+                cur.execute(detect_stat,(sbids,runflagid))
+                print(f"    -- Updated detection {runflagid}")
+        if maskF:
+            print(" -- Deleting MASK detection data")
+            oid_query = f"select mask_detect_tar from sbid where id = %s;"
+            cur.execute(oid_query,(sbid_id,))
+            lon = cur.fetchone()
+            oid_delete = "SELECT lo_unlink(%s);"
+            for i in lon:
+                cur.execute(oid_delete,(i,))
+            if not runid:
+                # Need to get detection id 
+                sbid_query = "SELECT invert_detect_runid from sbid where id = %s;"
+                cur.execute(sbid_query,(sbid_id,))
+                runflagid = cur.fetchone()[0]
+            # Remove detection flag and oid from the sbid
+            sbid_update = "UPDATE sbid SET mask_detectionF = %s, mask_detect_tar = NULL, mask_detect_results = NULL, mask_results = NULL, mask_detect_runid = NULL where id = %s;"
+            cur.execute(sbid_update,(False,sbid_id))
+            
+            # Remove reference in detect_run
+            print(f"{sbid}:{version} - removing reference in detect_run ")
+            sbid_query = "SELECT SBIDS from detect_run where id = %s;"
+            cur.execute(sbid_query,(runflagid,))
+            print(runflagid,sbid)
+            sbids = None
+            try:
+                sbids = cur.fetchone()[0]
+                sbids.remove(int(sbid))
+            except TypeError or IndexError:
+                print(f"{sbid}:{version} - nothing to remove ")
+            # Check if sbids list now empty, in which case delete whole detection
+            if not sbids:
+                detect_stat = "DELETE from detect_run where id = %s;"
+                cur.execute(detect_stat,(runflagid,))
+                print(f"    -- Deleted detection {runflagid}")
+            else:
+            # Update detection by removing sbid from row
+                detect_stat = "UPDATE detect_run SET SBIDS = %s where id = %s;"
+                cur.execute(detect_stat,(sbids,runflagid))
+                print(f"    -- Updated detection {runflagid}")
     return cur
+
+def remove_detection_from_components(conn,cur,sbids,versions):
+    if not versions:
+        versions = [None]*len(selected_sbids)
+    runflagid = runid
+    for sbid,version in zip(selected_sbids,versions):
+        sbid_id,version = get_max_sbid_version(cur,sbid,version)
+        print(f"{sbid}:{version} - deleting detection from components ")
+        
+        # delete all detection variables from components of this sbid
+        delete_detection = "UPDATE sbid SET processState = 'spectral',mode_num = NULL,invert_mode_num = NULL,mask_mode_num = NULL,ln_mean = NULL, invert_ln_mean = NULL,mask_ln_mean = NULL,detection_date = NULL,invert_detection_date = NULL,mask_detection_date = NULL where sbid_id = %s"
+        cur.execute(delete_detection,(sbid_id,))
+    return cur
+
 
 def remove_sbid_from_spectral(cur,sbid,runid):
     
@@ -386,6 +493,7 @@ if __name__ == "__main__":
         conn.close()
     elif RUN_TYPE == "DELETEDETECTION":
         cur = remove_sbids_from_detection(conn,SBIDS,VERSIONS)
+        cur = remove_detection_from_components(conn,cur,SBIDS,VERSIONS)
         conn.commit()
         cur.close()
         conn.close()
