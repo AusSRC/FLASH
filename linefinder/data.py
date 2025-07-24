@@ -2,6 +2,7 @@ from conversions import *
 from initialize import *
 from scipy import special 
 import numpy as np
+import numbers
 
 # Define source class
 class Source():
