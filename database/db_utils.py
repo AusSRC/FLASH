@@ -201,9 +201,10 @@ def check_sbids_in_db(conn,mode=None):
             query = "select detectionF,invert_detectionF,mask_detectionF from sbid where id = %s"
             cur.execute(query,(sbid_id,))
             modes = cur.fetchone()
-            print(modes[0])
-            print(modes[1])
-            print(modes[2])
+            for i,mode in enumerate(modes):
+                if mode not in (True,False):
+                    mode = False
+                print(mode)
             DETECTFLAGS[sbid]["STD"] = modes[0] 
             DETECTFLAGS[sbid]["INVERT"] = modes[1] 
             DETECTFLAGS[sbid]["MASK"] = modes[2]
