@@ -44,6 +44,7 @@ DUMMY=False # Set to true to only query - don't download or upload anything.
 REJECTED=True # If set, process sbids even if marked as 'REJECTED'.
 CASDA_EMAIL = ""
 PASSWD = ""
+DETECTFLAGS = {"45762":{"STD":False, "INVERT":False, "MASK":False}} # Dictionary holding the detection status flags 
 
 ###############################################################################################################
 ############ - FLASHDB details ################################################################################
@@ -76,8 +77,8 @@ def set_parser():
             default=SBIDDIR,
             help='Specify local directory to use (default: %(default)s)')   
     parser.add_argument('-sm', '--submode',
-            default="STD",
-            help='For SBIDSTODETECT, run as STD, INVERT or MASK (default: %(default)s)')   
+            default="SPECTRAL",
+            help='For SBIDSTODETECT, run as SPECTRAL,STD, INVERT or MASK (default: %(default)s)')   
     parser.add_argument('-c', '--catalogues_only',
             default=False,
             action='store_true',
@@ -125,10 +126,8 @@ def set_mode_and_values(args):
                 VERSIONS.append(None)
     CASDA_EMAIL = args.email_address.strip()
     ONLY_CATS = args.catalogues_only
-    if (RUN_TYPE == "SBIDSTODETECT"):
+    if RUN_TYPE in ("SBIDSTODETECT", "CHECK_SBIDS"):
         MODE = args.submode.strip().upper()
-    INVERT = args.invert
-    MASK = args.mask
     ADD_CAT = args.add_cat
     DUMMY = args.no_action
     REJECTED = args.rejected
@@ -186,16 +185,30 @@ def get_max_sbid_version(cur,sbid_num,version=None):
 
 ###############################################
 
-def check_sbids_in_db(conn):
-
-    # Check if the sbids listed in SBIDS are in the db
+def check_sbids_in_db(conn,mode=None):
 
     cur = get_cursor(conn)
-    for sbid in SBIDS:
-        sbid_id,ver = get_max_sbid_version(cur,sbid)
-        print(f"{sbid}: id = {sbid_id}, version = {ver}")
-
+    if not mode or mode == "SPECTRAL":
+        # Check if the sbids listed in SBIDS are in the db
+        for sbid in SBIDS:
+            sbid_id,ver = get_max_sbid_version(cur,sbid)
+            print(f"{sbid}: id = {sbid_id}, version = {ver}")
+    else:
+        # Check the detection status
+        for sbid in SBIDS: 
+            DETECTFLAGS[sbid] = {}
+            sbid_id,ver = get_max_sbid_version(cur,sbid)
+            query = "select detectionF,invert_detectionF,mask_detectionF from sbid where id = %s"
+            cur.execute(query,(sbid_id,))
+            modes = cur.fetchone()
+            print(modes[0])
+            print(modes[1])
+            print(modes[2])
+            DETECTFLAGS[sbid]["STD"] = modes[0] 
+            DETECTFLAGS[sbid]["INVERT"] = modes[1] 
+            DETECTFLAGS[sbid]["MASK"] = modes[2]
     return cur
+        
 
 ###############################################
 
@@ -568,7 +581,7 @@ if __name__ == "__main__":
         sys.exit()
     elif RUN_TYPE == "CHECK_SBIDS":
         conn = connect()
-        cur = check_sbids_in_db(conn)
+        cur = check_sbids_in_db(conn,MODE)
         conn.commit()
         cur.close()
         conn.close()
