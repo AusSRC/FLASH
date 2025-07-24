@@ -45,6 +45,7 @@ SBIDARR=()
 SBIDARY=()
 SBIDARRAY=()
 SBIDMASKS=""
+STATUSLOG="status.log"
 
 DETECTLOG="find_detection.log"
 if [ "$MODE" = "INVERT" ]; then
@@ -134,6 +135,18 @@ echo -e "\nprocessing\n ${SBIDARRAY[@]}"
 # Get the data for the sbids from the FLASHDB 
 cd $TMPDIR
 for SBID1 in ${SBIDARRAY[@]}; do
+    # Can't run an INVERT or MASK job if STD detection hasn't been done
+    python3 ~/src/FLASH/database/db_utils.py -m CHECK_SBIDS -s $SBID1 -sm INVERT -ht $HOST -pt $PORT -pw $FLASHPASS > $STATUSLOG
+    output=$( head -n 3 $STATUSLOG)
+    flags=( ${output[@]} )
+    stdF=${flags[0]}
+    invertF=${flags[1]}
+    maskF=${flags[2]}
+    if [ "$MODE" != "STD" ] && [ "$stdF" = "False" ]; then
+        echo "Cant do $MODE processing on $SBID1, as STD detection not done! - Skipping"
+        continue
+    fi 
+    
     # Make temp download directory
     mkdir "$SBID1"
     echo "Downloading $SBID1 spectral ascii files from database"
