@@ -274,7 +274,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
         maskF = modes[2]
 
         # Remove the config file
-        config_delete = "UPDATE sbid SET detect_config_tar = NULL where id = %s")
+        config_delete = "UPDATE sbid SET detect_config_tar = NULL where id = %s"
         cur.execute(config_delete,(sbid_id,))
 
         # Delete associated large object of detection outputs
