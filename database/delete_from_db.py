@@ -25,6 +25,7 @@ from casda_download import *
 
 # Note that these are out of date; the required attribs are set via the cmd line - see set_parser() below.
 RUN_TYPE = ""
+SUBMODE = "STD" # For deletion of detections. specify the type to delete: STD (deletes all), INVERT or MASK 
 DOWNLOAD_CAT = True # If the catalogues are not already downloaded, set this to True
 ADD_CAT = True # Don't just download the catalogues - add them to the database too.
 SBIDDIR = "/scratch/ja3/ger063/data/casda"
@@ -50,6 +51,10 @@ def set_parser():
     parser.add_argument('-m', '--mode',
             default="CATALOGUE",
             help='Specify run mode: DELETESBIDS, DELETEDETECTION, CHECK_SBIDS, CHECK_LOCAL_SBIDS (default: %(default)s)')
+    parser.add_argument('-sm', '--submode',
+            default="STD",
+            help='For deletion of detections. specify the type to delete: STD (deletes all), INVERT or MASK (default: %(default)s)')
+
     parser.add_argument('-s', '--sbid_list',
             default=None,
             help='Specify the sbid list eg 11346,11348 (default: %(default)s)')    
@@ -75,9 +80,11 @@ def set_parser():
     return args
 
 def set_mode_and_values(args):
-    global RUN_TYPE, SBIDDIR, DATADIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, PASSWD, DBHOST, DBPORT
+    global RUN_TYPE, SBIDDIR, DATADIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, PASSWD, DBHOST, DBPORT, SUBMODE
 
     RUN_TYPE = args.mode.strip().upper()
+    if RUN_TYPE == "DELETEDETECTION":
+        SUBMODE = args.submode.strip().upper()
     SBIDDIR = args.sbid_dir.strip()
     DATADIR = SBIDDIR
     if args.sbid_list:
@@ -184,6 +191,16 @@ def check_local_processed_sbids(directory):
 
 ##########################################################################################################
 ###################################### DELETING RUNS #####################################################
+def get_detection_flags(cur,sbid_id):
+    mode_query = "select detectionF,invert_detectionF,mask_detectionF from sbid where id = %s"
+    cur.execute(mode_query,(sbid_id,))
+    modes = cur.fetchone()
+    stdF = modes[0]
+    invertF = modes[1]
+    maskF = modes[2]
+
+    return stdF,invertF,maskF,cur
+
 
 def delete_sbids(conn,sbids,versions=None):
 
@@ -254,10 +271,11 @@ def delete_sbids(conn,sbids,versions=None):
 
     return cur
      
-def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
+def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None,mode=None):
 
     cur = get_cursor(conn)
-    mode = "STD"
+    if not mode:
+        mode = "STD"
     if not versions:
         versions = [None]*len(selected_sbids)
     runflagid = runid
@@ -266,12 +284,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
         print(f"{sbid}:{version} - deleting outputs lob ")
 
         # Determine what detection modes have been run
-        mode_query = "select detectionF,invert_detectionF,mask_detectionF from sbid where id = %s"
-        cur.execute(mode_query,(sbid_id,))
-        modes = cur.fetchone()
-        stdF = modes[0]
-        invertF = modes[1]
-        maskF = modes[2]
+        stdF,invertF,maskF,cur = get_detection_flags(cur,sbid_id)
 
         # Remove the config and mask files
         config_delete = "UPDATE sbid SET detect_config_tar = NULL,mask = NULL where id = %s"
@@ -281,7 +294,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
         # STD, INVERT and MASK
         # 
         oid = ""
-        if stdF:
+        if mode == "STD" and stdF:
             print(" -- Deleting STD detection data")
             oid_query = f"select detect_tar from sbid where id = %s;"
             cur.execute(oid_query,(sbid_id,))
@@ -320,7 +333,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
                 cur.execute(detect_stat,(sbids,runflagid))
                 print(f"    -- Updated detection {runflagid}")
 
-        if invertF:
+        if mode in ("STD","INVERT") and invertF:
             print(" -- Deleting INVERT detection data")
             oid_query = f"select invert_detect_tar from sbid where id = %s;"
             cur.execute(oid_query,(sbid_id,))
@@ -358,7 +371,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
                 detect_stat = "UPDATE detect_run SET SBIDS = %s where id = %s;"
                 cur.execute(detect_stat,(sbids,runflagid))
                 print(f"    -- Updated detection {runflagid}")
-        if maskF:
+        if mode in ("STD","MASK") and maskF:
             print(" -- Deleting MASK detection data")
             oid_query = f"select mask_detect_tar from sbid where id = %s;"
             cur.execute(oid_query,(sbid_id,))
@@ -398,17 +411,35 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None):
                 print(f"    -- Updated detection {runflagid}")
     return cur
 
-def remove_detection_from_components(conn,cur,sbids,versions):
+def remove_detection_from_components(conn,cur,sbids,versions,mode=None):
     if not versions:
-        versions = [None]*len(selected_sbids)
-    runflagid = runid
-    for sbid,version in zip(selected_sbids,versions):
+        versions = [None]*len(sbids)
+    if not mode:
+        mode = "STD"
+    for sbid,version in zip(sbids,versions):
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
+        detect_state = "detection"
+        # load the detection flags from the db
+        stdF,invertF,maskF,cur = get_detection_flags(cur,sbid_id)
         print(f"{sbid}:{version} - deleting detection from components ")
-        
-        # delete all detection variables from components of this sbid
-        delete_detection = "UPDATE sbid SET processState = 'spectral',mode_num = NULL,invert_mode_num = NULL,mask_mode_num = NULL,ln_mean = NULL, invert_ln_mean = NULL,mask_ln_mean = NULL,detection_date = NULL,invert_detection_date = NULL,mask_detection_date = NULL where sbid_id = %s"
-        cur.execute(delete_detection,(sbid_id,))
+        if mode == "STD":
+            # delete all detection variables from components of this sbid
+            delete_detection = "UPDATE component SET processState = 'spectral',mode_num = NULL,invert_mode_num = NULL,mask_mode_num = NULL,ln_mean = NULL, invert_ln_mean = NULL,mask_ln_mean = NULL,detection_date = NULL,invert_detection_date = NULL,mask_detection_date = NULL where sbid_id = %s"
+            cur.execute(delete_detection,(sbid_id,))
+        elif mode == "INVERT":
+            # delete all invert detection variables from components of this sbid
+            # Set the detection state correctly
+            if maskF:
+                detect_state = "masked_detection"    
+            delete_detection = "UPDATE component SET processState = %s,invert_mode_num = NULL,invert_ln_mean = NULL,invert_detection_date = NULL where sbid_id = %s"
+            cur.execute(delete_detection,(detect_state,sbid_id))
+        elif mode == "MASK":
+            # delete all mask detection variables from components of this sbid
+            # Set the detection state correctly
+            if invertF:
+                detect_state = "inverted_detection"    
+            delete_detection = "UPDATE component SET processState = %s,mask_mode_num = NULL,mask_ln_mean = NULL,mask_detection_date = NULL where sbid_id = %s"
+            cur.execute(delete_detection,(detect_state,sbid_id))
     return cur
 
 
@@ -492,8 +523,8 @@ if __name__ == "__main__":
         cur.close()
         conn.close()
     elif RUN_TYPE == "DELETEDETECTION":
-        cur = remove_sbids_from_detection(conn,SBIDS,VERSIONS)
-        cur = remove_detection_from_components(conn,cur,SBIDS,VERSIONS)
+        cur = remove_sbids_from_detection(conn,SBIDS,VERSIONS,mode=SUBMODE)
+        cur = remove_detection_from_components(conn,cur,SBIDS,VERSIONS,mode=SUBMODE)
         conn.commit()
         cur.close()
         conn.close()
