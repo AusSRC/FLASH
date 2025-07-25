@@ -665,6 +665,7 @@ def add_component_results(cur,sbid,result_file,output_dir,version=None):
             line = line.replace("\"","'")
             results = results + line.strip() + "\n"
 
+    detect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     sbid_id = None
     sbid_id,version = get_max_sbid_version(cur,sbid,version)
     # Process the results file against each component
@@ -684,13 +685,13 @@ def add_component_results(cur,sbid,result_file,output_dir,version=None):
             max_ln_mean = 0
         if ln_mean > max_ln_mean: # we only store the modenum version with the largest ln_mean in component table
             if DETECTMODE == "STD":
-                update = "update component set mode_num = %s, ln_mean = %s where comp_id like %s and sbid_id = %s;"
+                update = "update component set mode_num = %s, ln_mean = %s, detection_date = %s where comp_id like %s and sbid_id = %s;"
             elif DETECTMODE == "INVERT":
-                update = "update component set invert_mode_num = %s, invert_ln_mean = %s where comp_id like %s and sbid_id = %s;"
+                update = "update component set invert_mode_num = %s, invert_ln_mean = %s, invert_detection_date = %s where comp_id like %s and sbid_id = %s;"
             elif DETECTMODE == "MASK":
-                update = "update component set mask_mode_num = %s, mask_ln_mean = %s where comp_id like %s and sbid_id = %s;"
+                update = "update component set mask_mode_num = %s, mask_ln_mean = %s, mask_detection_date = %s where comp_id like %s and sbid_id = %s;"
             like= '%{}%'.format(name)
-            cur.execute(update,(mode_num,ln_mean,like,sbid_id))
+            cur.execute(update,(mode_num,ln_mean,detect_date,like,sbid_id))
             max_ln_mean = ln_mean  
 
         last_name = name
