@@ -391,12 +391,16 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
     print(f"Adding spectral run for sbids {sbids}",flush=True)
     # Add the log files
     errdata = ""
+    if not errlog:
+        errlog = f"{os.environ['DATA']}/{sbids[0]}/logs/err.log"
     if errlog:
         with open(errlog,'r') as f:
             for line in f:
                 line = line.replace("\"","'")
                 errdata = errdata + line.strip() + "\n"
     stddata = ""
+    if not stdlog:
+        stdlog = f"{os.environ['DATA']}/{sbids[0]}/logs/out.log"
     if stdlog:
         with open(stdlog,'r') as f:
             for line in f:
@@ -880,8 +884,8 @@ if __name__ == "__main__":
         dataDict = createDataDict()
         cur = add_spect_run(conn,sbids=SBIDS,
                         config_dir=SPECTRAL_CONFIG_DIR,
-                        errlog=ERROR_LOG,
-                        stdlog=STDOUT_LOG,
+                        errlog=None,
+                        stdlog=None,
                         dataDict=dataDict,
                         platform=PLATFORM)
         conn.commit()
