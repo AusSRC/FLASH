@@ -25,7 +25,7 @@ for SBID in "${SBIDARRAY[@]}"; do
      
     echo "Uploading $SBID spectral plot results via Oracle to database"
 
-    ssh -i ~/.ssh/oracle_flash_vm.key flash@$CLIENT "cd $PARENTDIR; rm -R $SBID/spectra_ascii* $SBID/spectra_plots* $TMPDIR/$SBID* $SBID/logs; mkdir -p $SBID/config $SBID/spectra_plots $SBID/spectra_ascii $SBID/SourceSpectra $SBID/logs;"
+    ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR; rm -R $SBID/spectra_ascii* $SBID/spectra_plots* $TMPDIR/$SBID* $SBID/logs; mkdir -p $SBID/config $SBID/spectra_plots $SBID/spectra_ascii $SBID/SourceSpectra $SBID/logs;"
     scp -i $ORACLE_KEY $DATA/$SBID/*ascii_tarball.tar.gz flash@$CLIENT:$TMPDIR
     scp -i $ORACLE_KEY $DATA/$SBID/*plots_tarball.tar.gz flash@$CLIENT:$PARENTDIR/$SBID/spectra_plots/
     scp -i $ORACLE_KEY $DATA/$SBID/config/* flash@$CLIENT:$PARENTDIR/$SBID/config/
@@ -35,8 +35,8 @@ for SBID in "${SBIDARRAY[@]}"; do
     scp -i $ORACLE_KEY $DATA/$SBID/*Spectra-image*.tar flash@$CLIENT:$PARENTDIR/$SBID/
     scp -i $ORACLE_KEY $DATA/$SBID/*sources_tarball.tar.gz flash@$CLIENT:$PARENTDIR/$SBID/SourceSpectra/
     ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID/spectra_plots; tar -zxvf *plots_tarball.tar.gz; rm *plots_tarball.tar.gz"
-    ssh -i ~/.ssh/$ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID/SourceSpectra; tar -zxvf *sources_tarball.tar.gz; rm *sources_tarball.tar.gz"
-    ssh -i ~/.ssh/$ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh; cd ~/src/FLASH/database; python3 db_upload.py -m SPECTRAL -q $QUALITY -s $SBID -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -C 'CASDA_upload'"
+    ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID/SourceSpectra; tar -zxvf *sources_tarball.tar.gz; rm *sources_tarball.tar.gz"
+    ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh; cd ~/src/FLASH/database; python3 db_upload.py -m SPECTRAL -q $QUALITY -s $SBID -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -C 'CASDA_upload'"
 
 done
 
