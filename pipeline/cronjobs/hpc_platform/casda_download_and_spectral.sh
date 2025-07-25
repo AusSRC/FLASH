@@ -56,6 +56,7 @@ readarray -td '' sorted_array < <(printf '%s\0' "${SBIDARR[@]}" | sort -z -n)
 # Limit size of SBIDARRAY to 10:
 SBIDARRAY=( "${sorted_array[@]:0:10}" )
 
+echo "To download: ${SBIDARRAY[@]} from CASDA"
 for i in "${!SBIDARRAY[@]}"; do
     SBID="${SBIDARRAY[$i]}"
     python3.9 $FLASHDB/db_utils.py -m CATALOGUE -s $SBID -e $CASDA_EMAIL -p $CASDA_PWD -r -d $DATA
