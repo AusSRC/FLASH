@@ -18,6 +18,7 @@ TMPDIR="/scratch/ja3/$USER/tmp"
 
 IFS=","
 
+SBIDARR=()
 SBIDARRAY=()
 
 # Config file to use for all the sbids
@@ -46,14 +47,20 @@ else
     SBIDS=$(sed "s/,/ /g" <<< $sbids)
 
     IFS=" "
-    read -a SBIDARRAY <<< "$SBIDS"
+    read -a SBIDARR <<< "$SBIDS"
 fi
+
+# Sort the array in ascending numerical order:
+readarray -td '' sorted_array < <(printf '%s\0' "${SBIDARR[@]}" | sort -z -n)
+
+# Limit size of SBIDARRAY to 10:
+SBIDARRAY=( "${sorted_array[@]:0:10}" )
 
 for i in "${!SBIDARRAY[@]}"; do
     SBID="${SBIDARRAY[$i]}"
     python3.9 $FLASHDB/db_utils.py -m CATALOGUE -s $SBID -e $CASDA_EMAIL -p $CASDA_PWD -r -d $DATA
 done
-echo "downloaded: $SBIDS from CASDA"
+echo "downloaded: ${SBIDARRAY[@]} from CASDA"
 
 
 # Process the sbids

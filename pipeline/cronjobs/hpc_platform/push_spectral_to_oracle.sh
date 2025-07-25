@@ -19,10 +19,12 @@ fi
  
 echo "Uploading $1 spectral plot results via Oracle to database"
 
-ssh -i ~/.ssh/oracle_flash_vm.key flash@152.67.97.254 "cd $PARENTDIR; rm -R $1/spectra_ascii* $1/spectra_plots* $TMPDIR/$1*; mkdir -p $1/config $1/spectra_plots $1/spectra_ascii $1/SourceSpectra;"
+ssh -i ~/.ssh/oracle_flash_vm.key flash@152.67.97.254 "cd $PARENTDIR; rm -R $1/spectra_ascii* $1/spectra_plots* $TMPDIR/$1* $1/logs; mkdir -p $1/config $1/spectra_plots $1/spectra_ascii $1/SourceSpectra $1/logs;"
 scp -i ~/.ssh/oracle_flash_vm.key $DATA/$1/*ascii_tarball.tar.gz flash@152.67.97.254:$TMPDIR
 scp -i ~/.ssh/oracle_flash_vm.key $DATA/$1/*plots_tarball.tar.gz flash@152.67.97.254:$PARENTDIR/$1/spectra_plots/
 scp -i ~/.ssh/oracle_flash_vm.key $DATA/$1/config/* flash@152.67.97.254:$PARENTDIR/$1/config/
+scp -i ~/.ssh/oracle_flash_vm.key $DATA/$1/logs/plot_err*.log flash@152.67.97.254:$PARENTDIR/$1/logs/err.log
+scp -i ~/.ssh/oracle_flash_vm.key $DATA/$1/logs/plot_out*.log flash@152.67.97.254:$PARENTDIR/$1/logs/out.log
 scp -i ~/.ssh/oracle_flash_vm.key $DATA/catalogues/*$1*.xml flash@152.67.97.254:$PARENTDIR/catalogues/
 scp -i ~/.ssh/oracle_flash_vm.key $DATA/$1/*Spectra-image*.tar flash@152.67.97.254:$PARENTDIR/$1/
 scp -i ~/.ssh/oracle_flash_vm.key $DATA/$1/*sources_tarball.tar.gz flash@152.67.97.254:$PARENTDIR/$1/SourceSpectra/
