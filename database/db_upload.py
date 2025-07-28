@@ -393,6 +393,8 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
     errdata = ""
     if not errlog:
         errlog = f"{os.environ['DATA']}/{sbids[0]}/logs/err.log"
+        if not os.path.exists(errlog):
+            errlog = None
     if errlog:
         with open(errlog,'r') as f:
             for line in f:
@@ -401,6 +403,8 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
     stddata = ""
     if not stdlog:
         stdlog = f"{os.environ['DATA']}/{sbids[0]}/logs/out.log"
+        if not os.path.exists(stdlog):
+            stdlog = None
     if stdlog:
         with open(stdlog,'r') as f:
             for line in f:
