@@ -17,7 +17,7 @@ ORACLE_KEY=$CLIENTKEY
 MODE=$1
 # rest of $@ is the sbid(s) to process
 SBIDARR=( "$@" )
-SBIDARRAY=${SBIDARR[@]:1}
+SBIDARRAY=( ${SBIDARR[@]:1} )
 
 echo "Processing ${SBIDARRAY[@]}"
 
@@ -33,7 +33,7 @@ for SBID1 in "${SBIDARRAY[@]}"; do
         scp -i $ORACLE_KEY $DATA/$SBID1/logs/* flash@$CLIENT:$PARENTDIR/$SBID1/logs/
         ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID1/outputs; tar -zxvf linefinder.tar.gz; rm linefinder.tar.gz"
         # Start a db_upload session at Oracle
-        ssh -i $ORACLE_KEY flash@$CLIENT "cd ~/src/FLASH/database; python3 db_upload.py -m DETECTION -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -C 'Linefinder_run'"
+        ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh;cd ~/src/FLASH/database; python3 db_upload.py -m DETECTION -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -C 'Linefinder_run'"
     elif [ "$MODE" = "INVERT" ]; then
         echo "Uploading $SBID1 inverted linefinder results via Oracle to database"
 
