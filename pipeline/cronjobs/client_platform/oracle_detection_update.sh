@@ -17,28 +17,19 @@
 # processing them and pushing the results back to the client and initiating a 
 # database upload. This is done (on the HPC platform) by "detection_processing.sh"
 #
-# This script is run with two required arguments: $1 = flashdb password, $2 = MODE 
-# (one of DETECT, INVERT or MASK)
+# This script is run with one required argument: $1 = MODE (one of DETECT, INVERT or MASK)
 #
 # If further args are given, they are assumed to be sbid numbers (space separated). If this is the
 # case, the database is not checked for sbids to process.
 ################################################################################################
-# Database connection details: edit these as appropiate
-HOST="10.0.2.225"
-PORT="5432"
 # Client platform details: : edit these as appropiate
 source $HOME/set_local_flash_env.sh
 
 # For masked detection, provide the directory that holds the mask files
 MASKDIR="$HOME/src/cronjobs/masks"
 
-# HPC platform details: edit these as appropiate
-PLATFORM="setonix.pawsey.org.au"
-USER="ger063"
-HPC_DATA="/scratch/ja3/$USER/data/casda"
 ###############################################################################################
-FLASHPASS=$1
-MODE=$2
+MODE=$1
 CHECKDB=true
 
 SBIDARR=()
@@ -142,7 +133,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
     stdF=${flags[0]}
     invertF=${flags[1]}
     maskF=${flags[2]}
-    if [ "$MODE" != "STD" ] && [ "$stdF" = "False" ]; then
+    if [ "$MODE" != "DETECT" ] && [ "$stdF" = "False" ]; then
         echo "Cant do $MODE processing on $SBID1, as STD detection not done! - Skipping"
         continue
     fi 

@@ -15,17 +15,17 @@
 # upload the outputs to the FLASH database (via ssh).
 
 #######################################################################################################
+source ~/set_local_flash_env.sh
 # Edit these for the specific hpc-platform user:
-ORACLE_KEY="~/.ssh/oracle_flash_vm.key"
+ORACLE_KEY=$CLIENTKEY
+CLIENT=$CLIENTIP
+TMP_ON_CLIENT=$CLIENTTMP
 ORACLE_DB="TRUE"
-CLIENT="152.67.97.254"
-TMP_ON_CLIENT=/mnt/tmp
 
 CRONDIR=$HOME/src/cronjobs/
 #######################################################################################################
 
-FLASHPASS=$1
-MODE=$2
+MODE=$1
 
 USELOGFILE=true
 DETECTLOG="find_detection.log"
@@ -36,10 +36,10 @@ elif [ "$MODE" = "MASK" ]; then
 fi
 
 # Check if we were passed an sbid to process - if not it is read from the 'find_detection' logfile
-if [ "$#" -gt 2 ]; then
+if [ "$#" -gt 1 ]; then
     USELOGFILE=false
     SBIDARR=( "$@" )
-    SBIDARRAY=${SBIDARR[@]:2}
+    SBIDARRAY=${SBIDARR[@]:1}
     CHECKDB=false
     rm $DETECTLOG
     if [ "$MODE" = "STD" ]; then

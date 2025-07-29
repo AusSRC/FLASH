@@ -2,9 +2,6 @@
 #!/bin/bash
 
 #######################################################################################################
-# Edit these for the specific hpc-platform user:
-CASDA_EMAIL="user@email"
-CASDA_PWD="password_at_CASDA"
 source $HOME/set_local_flash_env.sh
 
 # Local directories:

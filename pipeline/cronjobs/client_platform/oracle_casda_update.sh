@@ -2,16 +2,7 @@
 
 
 #######################################################################################################
-# Edit these for the specific client-platform user:
-CASDA_EMAIL="user@email"
-CASDA_PWD="password_at_CASDA"
-
-# Edit these for the specific hpc-platform user:
-HPC_PLATFORM="setonix.pawsey.org.au"
-HPC_USER="user_at_hpc"
-HPC_SCRATCH="/scratch/ja3/$HPC_USER/data/casda"
-#######################################################################################################
-source $HOME/set_local_env.sh
+source $HOME/set_local_flash_env.sh
 
 IFS=","
 FLASHPASS=$1

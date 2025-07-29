@@ -5,12 +5,12 @@
 # database. WARNING - it will delete any previous data for this 
 # SBID.
 #########################################################
+source ~/set_local_flash_env.sh
 # Set the client platform details:
-TMPDIR=/mnt/tmp
-PARENTDIR=/mnt/casda
-CLIENT="152.67.97.254"
-ORACLE_KEY="~/.ssh/oracle_flash_vm.key"
-FLASHPASS="aussrc"
+TMPDIR=$CLIENTTMP
+PARENTDIR=$CLIENTDATA
+CLIENT=$CLIENTIP
+ORACLE_KEY=$CLIENTKEY
 #########################################################
 # $@ is the sbid(s) to process
 SBIDARRAY=( "$@" )
