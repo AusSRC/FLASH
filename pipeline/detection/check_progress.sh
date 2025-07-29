@@ -6,18 +6,22 @@
 #       Script to check progress of multiple linefinder jobs running on SLURM
 #       GWHG @ CSIRO, May 2024
 #       
-#       eg: ./check_progress /scratch/ja3/ger/my_parent_dir 100 55247 55328 55394 55398
+#       eg: ./check_progress /scratch/ja3/ger/my_parent_dir out.log 55247 55328 55394 55398
 #
-# Args  $1 = number of processes in mpi call (usually 100)
-#       $2 ~ end = SBIDS to examine (logfile is assumed to be in SBID/logs/out.log - if not, edit DEFAULTLOG)
+# Args  $1 = name of logfile (not path) eg 'out.log'
+#       $2 = 'v' or 's' = verbose or shortform
+#       $3 ~ end = SBIDS to examine 
 #
-DEFAULTLOG="logs/out.log"
-LONGFORM=true # Set to 'true' to get current components being worked on for each process
+range=100 # The number of mpi connections in the sbatch call
 
 ##########################################################################################
 SBIDARRAY=(${@:3})
-PARENTDIR=$1
-range=$2
+DEFAULTLOG="logs/$1"
+LONGFORM=true # Set to 'true' to get current components being worked on for each process
+if [ "$2" = "s" ]; then
+    LONGFORM=false
+fi
+PARENTDIR=$DATA
 minr=0
 maxr=$((range-1))
 not_started=()
