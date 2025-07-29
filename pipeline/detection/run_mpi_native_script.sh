@@ -37,10 +37,10 @@ echo "${SBIDARRAY[@]}"
 
 
 # The parent directory holding the SBIDS
-PARENT_DIR="/scratch/ja3/ger063/data/casda"
+PARENT_DIR=$DATA
 
 # Directory to move bad data files to:
-BAD_FILES_DIR="/scratch/ja3/ger063/data/casda/bad_ascii_files"
+BAD_FILES_DIR="$DATA/bad_ascii_files"
 
 
 #####################################################################################
