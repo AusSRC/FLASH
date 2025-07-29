@@ -6,7 +6,7 @@
 MODE=$1
 # rest of $@ is the sbid(s) to process
 SBIDARR=( "$@" )
-SBIDARRAY=${SBIDARR[@]:1}
+SBIDARRAY=( ${SBIDARR[@]:1} )
 
 for SBID1 in "${SBIDARRAY[@]}"; do
     if [ "$MODE" = "STD" ];then
