@@ -47,7 +47,7 @@ fi
 
 # Check if we were passed sbids to process, or we need to check the db
 if [ "$#" -gt 2 ]; then
-    SBIDARR=( "${@:3}" )
+    SBIDARR=( "${@:2}" )
     CHECKDB=false
     echo "Got sbids ${SBIDARR[@]}"
     # For masked detection, only process if there is a matching mask file
@@ -120,7 +120,7 @@ fi
 
 # Initialise status file on hpc
 STATUSFILE="jobs_to_sbids.txt"
-ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/linefinder; echo "for ${SBIDARRAY[@]}:" > $STATUSFILE"
+ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/linefinder; echo ${SBIDARRAY[@]} > $STATUSFILE"
 
 echo -e "\nprocessing\n ${SBIDARRAY[@]}"
 # Get the data for the sbids from the FLASHDB 
@@ -144,18 +144,18 @@ for SBID1 in ${SBIDARRAY[@]}; do
     cd $SBID1
     python3 ~/src/FLASH/database/db_download.py -m ASCII -s $SBID1 -ht $HOST -pt $PORT -d $TMPDIR/$SBID1 -pw $FLASHPASS
     echo "Sending $SBID1 ASCII tarball to $HPC_PLATFORM"
-    ssh $HPC_USER@$HPC_PLATFORM "mkdir -p $HPC_DATA/$SBID1/spectra_ascii; mkdir -p $HPC_DATA/$SBID1/config; rm $HPC_DATA/$SBID1/spectra_ascii/* $HPC_DATA/$SBID1/config/*;"
-    scp $TMPDIR/$SBID1/*$SBID1*.tar.gz $HPC_USER@$HPC_PLATFORM:$HPC_DATA/$SBID1/spectra_ascii
+    ssh $HPC_USER@$HPC_PLATFORM "mkdir -p $HPC_SCRATCH/$SBID1/spectra_ascii; mkdir -p $HPC_SCRATCH/$SBID1/config; rm $HPC_SCRATCH/$SBID1/spectra_ascii/* $HPC_SCRATCH/$SBID1/config/*;"
+    scp $TMPDIR/$SBID1/*$SBID1*.tar.gz $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/spectra_ascii
 
     # If masking, we need to transfer the mask file to the HPC:
     if [ "$MODE" = "MASK" ]; then
-        scp ~/src/cronjobs/masks/*"$SBID1"_mask.txt $HPC_USER@$HPC_PLATFORM:$HPC_DATA/$SBID1/config/mask.txt
+        scp ~/src/cronjobs/masks/*"$SBID1"_mask.txt $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/config/mask.txt
         echo "Sent mask file to HPC platform $HPC_PLATFORM"
     fi
     
     #scp ~/src/cronjobs/$DETECTLOG $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/
     echo "triggering detection_processing.sh on $HPC_PLATFORM"
-    ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $FLASHPASS $MODE $SBID1 &> detection_$SBID1.log"
+    ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $MODE $SBID1 &> detection_$SBID1.log"
     scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/detection_$SBID1.log /home/flash/src/cronjobs/
     ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; rm detection_$SBID1.log"
 
