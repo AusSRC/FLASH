@@ -1,32 +1,31 @@
 #!/bin/bash
 
 # Set path to FLASH code
-FLASHHOME=/home/flash/src/FLASH
+FLASHHOME=/software/projects/ja3/ger063/setonix/FLASH
+#FLASHHOME=/home/flash/src/FLASH
 export FLASHHOME
 
 # Set path to FLASH FINDER
-FINDER=$FLASHHOME/linefinder
+FINDER=$FLASHHOME/flash_finder/flash_finder
+#FINDER=$FLASHHOME/linefinder
 export FINDER
+
+# Set path to pymultinest
+PYMULTINEST=$FLASHHOME/pymultinest/20180215/
+export PYMULTINEST
+#export PYMULTINEST=$FLASHHOME/PyMultiNest
+
+# Set path to MULTINEST
+export MULTINEST=$FLASHHOME/multinest
+#export MULTINEST=$PYMULTINEST/MultiNest
 
 # Set path to database scripts
 FLASHDB=$FLASHHOME/database
 export FLASHDB
 
 # Set path to cron scripts
-CRONDIR=/home/flash/src/cronjobs
+CRONDIR=$HOME/src/cronjobs
 export CRONDIR
-
-# Set data dir
-DATA=/mnt/db/data/casda
-export DATA
-
-# Tmp dir
-TMPDIR=/mnt/db/data/tmp
-export TMPDIR
-
-# Blacklisted SBIDS directory
-BLACKLIST_DIRS=$DATA/blacklist_sbids
-export BLACKLIST_DIRS
 
 # User's CASDA creds
 CASDA_EMAIL="user@email"
@@ -57,3 +56,21 @@ HPC_USER="user_at_hpc"
 export HPC_USER
 HPC_SCRATCH="/scratch/ja3/$HPC_USER/data/casda"
 export HPC_SCRATCH
+
+# Set data dir for this machine
+DATA=/mnt/db/data/casda
+export DATA
+
+# Tmp dir for this machine
+TMPDIR=/mnt/db/data/tmp
+export TMPDIR
+
+# Blacklisted SBIDS directory
+BLACKLIST_DIRS=$DATA/blacklist_sbids
+export BLACKLIST_DIRS
+
+# Add MultiNest library to dynamic library path
+export DYLD_LIBRARY_PATH=$MULTINEST/lib:${DYLD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=$MULTINEST/lib:${LD_LIBRARY_PATH}
+
+
