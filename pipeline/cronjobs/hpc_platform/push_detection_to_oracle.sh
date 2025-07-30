@@ -33,7 +33,7 @@ for SBID1 in "${SBIDARRAY[@]}"; do
         scp -i $ORACLE_KEY $DATA/$SBID1/logs/* flash@$CLIENT:$PARENTDIR/$SBID1/logs/
         ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID1/outputs; tar -zxvf linefinder.tar.gz; rm linefinder.tar.gz"
         # Start a db_upload session at Oracle
-        ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh;cd ~/src/FLASH/database; python3 db_upload.py -m DETECTION -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -C 'Linefinder_run'"
+        ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh;cd ~/src/FLASH/database; python3 db_upload.py -m DETECTION -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -C 'Linefinder_run' >> $PARENTDIR/$SBID1/'$SBID1'_std_detection_db.log 2>&1"
     elif [ "$MODE" = "INVERT" ]; then
         echo "Uploading $SBID1 inverted linefinder results via Oracle to database"
 
@@ -45,7 +45,7 @@ for SBID1 in "${SBIDARRAY[@]}"; do
         scp -i $ORACLE_KEY $DATA/$SBID1/logs/* flash@$CLIENT:$PARENTDIR/$SBID1/logs/
         # Start a db_upload session at Oracle
         ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID1/inverted_outputs; tar -zxvf inverted_linefinder.tar.gz; rm inverted_linefinder.tar.gz"
-        ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh;cd ~/src/FLASH/database; python3 db_upload.py -m INVERTED -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -l out_inverted.log -e err_inverted.log -o inverted_outputs -C 'Inverted_linefinder_run'"
+        ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh;cd ~/src/FLASH/database; python3 db_upload.py -m INVERTED -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -l out_inverted.log -e err_inverted.log -o inverted_outputs -C 'Inverted_linefinder_run' >> $PARENTDIR/$SBID1/'$SBID1'_invert_detection_db.log 2>&1"
     elif [ "$MODE" = "MASK" ]; then
         echo "Uploading $SBID1 masked linefinder results via Oracle to database"
 
@@ -57,7 +57,7 @@ for SBID1 in "${SBIDARRAY[@]}"; do
         scp -i $ORACLE_KEY $DATA/$SBID1/logs/* flash@$CLIENT:$PARENTDIR/$SBID1/logs/
         # Start a db_upload session at Oracle
         ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID1/masked_outputs; tar -zxvf masked_linefinder.tar.gz; rm masked_linefinder.tar.gz"
-        ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh;cd ~/src/FLASH/database; python3 db_upload.py -m MASKED -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -l out_masked.log -e err_masked.log -o masked_outputs -C 'masked_linefinder_run' >> $PARENTDIR/$SBID1/'$SBID1'_detection_db.log 2>&1"
+        ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh;cd ~/src/FLASH/database; python3 db_upload.py -m MASKED -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -l out_masked.log -e err_masked.log -o masked_outputs -C 'masked_linefinder_run' >> $PARENTDIR/$SBID1/'$SBID1'_mask_detection_db.log 2>&1"
 
     fi
 
