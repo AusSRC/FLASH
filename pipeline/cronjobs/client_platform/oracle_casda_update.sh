@@ -3,9 +3,12 @@
 
 #######################################################################################################
 source $HOME/set_local_flash_env.sh
+TESTING=$1
+SBIDARR=()
+SBIDARY=()
+SBIDARRAY=()
 
 IFS=","
-FLASHPASS=$1
 
 echo "Querying CASDA"
 # Query CASDA for new sbids, but don't download anything
@@ -20,8 +23,10 @@ else
     echo "Starting spectral processing of new SBIDS at $HPC_PLATFORM"
 fi
 
-scp $CRONDIR/new_sbids.log $HPC_USER@$HPC_PLATFORM:~/src/cronjobs
+if [ "$TESTING" != "-t" ]; then
+    scp $CRONDIR/new_sbids.log $HPC_USER@$HPC_PLATFORM:~/src/cronjobs
 
-# Trigger spectral processing on HPC
-ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; ./casda_download_and_spectral.sh &> spectral.log;" 
-scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/spectral.log /home/flash/src/cronjobs/
+    # Trigger spectral processing on HPC
+    ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; ./casda_download_and_spectral.sh &> spectral.log;" 
+    scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/spectral.log /home/flash/src/cronjobs/
+fi

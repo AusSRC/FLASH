@@ -43,6 +43,8 @@ if [ "$MODE" = "INVERT" ]; then
     DETECTLOG="find_invert_detection.log"
 elif [ "$MODE" = "MASK" ]; then
     DETECTLOG="find_mask_detection.log"
+elif [ "$MODE" = "TEST" ]; then
+    DETECTLOG="test_detection.log"
 fi
 
 # Check if we were passed sbids to process, or we need to check the db
@@ -120,7 +122,9 @@ fi
 
 # Initialise status file on hpc
 STATUSFILE="jobs_to_sbids.txt"
-ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/linefinder; echo ${SBIDARRAY[@]} > $STATUSFILE"
+if [ "$MODE" != "TEST" ]; then
+    ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/linefinder; echo ${SBIDARRAY[@]} > $STATUSFILE"
+fi
 
 echo -e "\nprocessing\n ${SBIDARRAY[@]}"
 # Get the data for the sbids from the FLASHDB 
@@ -133,7 +137,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
     stdF=${flags[0]}
     invertF=${flags[1]}
     maskF=${flags[2]}
-    if [ "$MODE" != "STD" ] && [ "$stdF" = "False" ]; then
+    if [ "$MODE" != "STD" ] && [ "$MODE" != "TEST" ] && [ "$stdF" = "False" ]; then
         echo "Cant do $MODE processing on $SBID1, as STD detection not done! - Skipping"
         continue
     fi 
@@ -143,22 +147,23 @@ for SBID1 in ${SBIDARRAY[@]}; do
     echo "Downloading $SBID1 spectral ascii files from database"
     cd $SBID1
     python3 ~/src/FLASH/database/db_download.py -m ASCII -s $SBID1 -ht $HOST -pt $PORT -d $TMPDIR/$SBID1 -pw $FLASHPASS
-    echo "Sending $SBID1 ASCII tarball to $HPC_PLATFORM"
-    ssh $HPC_USER@$HPC_PLATFORM "mkdir -p $HPC_SCRATCH/$SBID1/spectra_ascii; mkdir -p $HPC_SCRATCH/$SBID1/config; rm $HPC_SCRATCH/$SBID1/spectra_ascii/* $HPC_SCRATCH/$SBID1/config/*;"
-    scp $TMPDIR/$SBID1/*$SBID1*.tar.gz $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/spectra_ascii
+    if [ "$MODE" != "TEST" ]; then
+        echo "Sending $SBID1 ASCII tarball to $HPC_PLATFORM"
+        ssh $HPC_USER@$HPC_PLATFORM "mkdir -p $HPC_SCRATCH/$SBID1/spectra_ascii; mkdir -p $HPC_SCRATCH/$SBID1/config; rm $HPC_SCRATCH/$SBID1/spectra_ascii/* $HPC_SCRATCH/$SBID1/config/*;"
+        scp $TMPDIR/$SBID1/*$SBID1*.tar.gz $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/spectra_ascii
 
-    # If masking, we need to transfer the mask file to the HPC:
-    if [ "$MODE" = "MASK" ]; then
-        scp ~/src/cronjobs/masks/*"$SBID1"_mask.txt $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/config/mask.txt
-        echo "Sent mask file to HPC platform $HPC_PLATFORM"
-    fi
+        # If masking, we need to transfer the mask file to the HPC:
+        if [ "$MODE" = "MASK" ]; then
+            scp ~/src/cronjobs/masks/*"$SBID1"_mask.txt $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/config/mask.txt
+            echo "Sent mask file to HPC platform $HPC_PLATFORM"
+        fi
     
-    #scp ~/src/cronjobs/$DETECTLOG $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/
-    echo "triggering detection_processing.sh on $HPC_PLATFORM"
-    ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $MODE $SBID1 &> detection_$SBID1.log"
-    scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/detection_$SBID1.log /home/flash/src/cronjobs/
-    ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; rm detection_$SBID1.log"
-
+        #scp ~/src/cronjobs/$DETECTLOG $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/
+        echo "triggering detection_processing.sh on $HPC_PLATFORM"
+        ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $MODE $SBID1 &> detection_$SBID1.log"
+        scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/detection_$SBID1.log /home/flash/src/cronjobs/
+        ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; rm detection_$SBID1.log"
+    fi
     cd ../
 done
 echo "Done!"
