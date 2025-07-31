@@ -12,7 +12,7 @@ PLOTDIR="/home/$USER/src/spectral_plot"
 # Tmp directory for tarring etc - needs to be large capacity
 TMPDIR="/scratch/ja3/$USER/tmp"
 #######################################################################################################
-
+source /software/projects/ja3/ger063/setonix/python/bin/activate
 IFS=","
 
 SBIDARR=()
@@ -28,7 +28,7 @@ cd $DBDIR
 
 # Check if we were passed sbids on the command line:
 if [ "$#" -gt 0 ]; then
-    SBIDARRAY=( "$@" )
+    SBIDARR=( "$@" )
 else
 # If not, check the log sent over from the client
     output=$( tail -n 1 $CRONDIR/new_sbids.log)
