@@ -48,7 +48,7 @@ elif [ "$MODE" = "TEST" ]; then
 fi
 
 # Check if we were passed sbids to process, or we need to check the db
-if [ "$#" -gt 2 ]; then
+if [ "$#" -gt 1 ]; then
     SBIDARR=( "${@:2}" )
     CHECKDB=false
     echo "Got sbids ${SBIDARR[@]}"
