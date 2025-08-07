@@ -33,6 +33,7 @@ minr=0
 maxr=$((range-1))
 not_started=()
 started=()
+sbids_started=()
 finished=()
 error=()
 cwd=$PWD
@@ -73,6 +74,7 @@ for SBID1 in "${SBIDARRAY[@]}"; do
         
         echo "    $running of $range processes still not finished"
         started+=(" $SBID1: $running of $range processes still not finished\n")
+        sbids_started+=($SBID1)
     else
         not_started+=($SBID1)
     fi
@@ -105,23 +107,29 @@ for SBID1 in "${SBIDARRAY[@]}"; do
 done
 
 i=1
-echo -e "\nNOT FINISHED:\n"
+echo -e "\nRUNNING:"
 for j in ${!started[@]}; do
-    echo "$i: ${started[$j]}"
-    i=$((i+1))
+    sbid=${sbids_started[$j]}
+    sque="$(squeue -u $USER | grep nid | grep $sbid)"
+    if [ ! -z "$sque" ]; then
+        echo "$i: ${started[$j]}"
+        i=$((i+1))
+    else
+        failed+=($sbid)
+    fi
 done
 running=$((i-1))
 
 echo
 i=1
-echo -e "Finished:\n"
+echo -e "Finished:"
 for j in ${!finished[@]}; do
     echo "$i: ${finished[$j]}"
     i=$((i+1))
 done
 
 i=1
-echo -e "\nNOT STARTED:\n"
+echo -e "\nNOT STARTED:"
 for j in ${!not_started[@]}; do
     if [ ! -z ${not_started[$j]} ]
     then
@@ -131,7 +139,7 @@ for j in ${!not_started[@]}; do
 done
 
 i=1
-echo -e "\nMPI ERRORED:\n"
+echo -e "\nMPI ERRORED:"
 for j in ${!error[@]}; do
     if [ ! -z ${error[$j]} ]
     then
@@ -140,13 +148,20 @@ for j in ${!error[@]}; do
     fi
 done
 
+i=1
+echo -e "\nJobs Failed to finish:"
+for j in ${!failed[@]}; do
+    echo "$i: ${failed[$j]}"
+    i=$((i+1))
+done
+
 echo
-if [ -z $running ] && [ -z "$not_started" ] && [ -z "$error" ]
+if [ -z "$running" ] && [ -z "$not_started" ] && [ -z "$error" ] && [ -z "$failed" ]
 then
         echo "All jobs finished!!"
 elif [ -z "$not_started" ] && [ -z "$error" ]
 then
-        echo "All jobs started"
+        echo "All jobs were started"
 else
         echo "Some jobs errored or not started"
 fi
