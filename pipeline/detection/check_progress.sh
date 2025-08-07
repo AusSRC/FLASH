@@ -8,7 +8,7 @@
 #       
 #       eg: ./check_progress /scratch/ja3/ger/my_parent_dir out.log 55247 55328 55394 55398
 #
-# Args  $1 = name of logfile (not path) eg 'out.log'
+# Args  $1 = mode - one of STD, INVERT or MASK
 #       $2 = 'v' or 's' = verbose or shortform
 #       $3 ~ end = SBIDS to examine 
 #
@@ -16,7 +16,14 @@ range=100 # The number of mpi connections in the sbatch call
 
 ##########################################################################################
 SBIDARRAY=(${@:3})
-DEFAULTLOG="logs/$1"
+DEFAULTLOG="logs/out.log"
+if [ "$1" = "INVERT" ]; then
+    DEFAULTLOG="logs/out_inverted.log"
+elif [ "$1" = "MASK" ]; then
+    DEFAULTLOG="logs/out_masked.log"
+fi
+
+DEFAULTERR="${DEFAULTLOG/out/err}"
 LONGFORM=true # Set to 'true' to get current components being worked on for each process
 if [ "$2" = "s" ]; then
     LONGFORM=false
@@ -27,17 +34,19 @@ maxr=$((range-1))
 not_started=()
 started=()
 finished=()
+error=()
 cwd=$PWD
 cd $PARENTDIR
 
 echo
 for SBID1 in "${SBIDARRAY[@]}"; do
     echo "$SBID1: "
-    LOGDIR=$SBID1/$DEFAULTLOG
+    OUTLOG=$SBID1/$DEFAULTLOG
+    ERRLOG=$SBID1/$DEFAULTERR
     running=0
     prelim=0
 
-    var="$(grep -F 'End of CPU' $LOGDIR | awk '{print $4}')" 
+    var="$(grep -F 'End of CPU' $OUTLOG | awk '{print $4}')" 
 
     for (( i=$minr; i<=$maxr; i++ ))
     do
@@ -45,7 +54,7 @@ for SBID1 in "${SBIDARRAY[@]}"; do
             :
         else
             str1="CPU $i: Working on Source"
-            var2="$(grep -A 1 "$str1" $LOGDIR | tail -1)"
+            var2="$(grep -A 1 "$str1" $OUTLOG | tail -1)"
             if [ -z "${var2}" ]
             then
                 prelim=$((prelim+1))
@@ -62,14 +71,15 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     if [ ! $running == 0 ]
     then
         
-        echo "    $running of $range processes still running"
-        started+=(" $SBID1: $running of $range processes still running\n")
+        echo "    $running of $range processes still not finished"
+        started+=(" $SBID1: $running of $range processes still not finished\n")
     else
         not_started+=($SBID1)
     fi
 
-    var3="$(grep -F 'Linefinder took' $LOGDIR)"
-    var4="$(grep -F 'MPICH Slingshot Network Summary: 0' $LOGDIR)"
+    var3="$(grep -F 'Linefinder took' $OUTLOG)"
+    var4="$(grep -F 'MPICH Slingshot Network Summary: 0' $OUTLOG)"
+    var5="$(grep -F 'Error configuring interconnect' $ERRLOG)"
     if [ ! -z "$var4" ] 
     then
         if [ $running == 0 ]
@@ -88,14 +98,20 @@ for SBID1 in "${SBIDARRAY[@]}"; do
         not_started=("${not_started[@]/$SBID1}" )
         finished+=($SBID1)
     fi
+    if [ ! -z "$var5" ]
+    then
+        error+=($SBID1)
+    fi
 done
 
 i=1
-echo -e "\nRUNNING:\n"
+echo -e "\nNOT FINISHED:\n"
 for j in ${!started[@]}; do
     echo "$i: ${started[$j]}"
     i=$((i+1))
 done
+running=$((i-1))
+
 echo
 i=1
 echo -e "Finished:\n"
@@ -114,11 +130,25 @@ for j in ${!not_started[@]}; do
     fi
 done
 
-if [ $running == 0 ] && [ $not_started == 0 ]
+i=1
+echo -e "\nMPI ERRORED:\n"
+for j in ${!error[@]}; do
+    if [ ! -z ${error[$j]} ]
+    then
+        echo "$i: ${error[$j]}"
+        i=$((i+1))
+    fi
+done
+
+echo
+if [ -z $running ] && [ -z "$not_started" ] && [ -z "$error" ]
 then
         echo "All jobs finished!!"
+elif [ -z "$not_started" ] && [ -z "$error" ]
+then
+        echo "All jobs started"
 else
-        echo "Some jobs not finished (or not started)"
+        echo "Some jobs errored or not started"
 fi
 
 
