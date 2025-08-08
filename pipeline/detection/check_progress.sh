@@ -130,12 +130,12 @@ done
 
 if [ -z "$running" ] && [ -z "$not_started" ] && [ -z "$error" ] && [ -z "$failed" ]
 then
-        echo "\nAll jobs finished!!"
+        echo -e "\nAll jobs finished!!"
 elif [ -z "$not_started" ] && [ -z "$error" ]
 then
-        echo "\nAll jobs were started"
+        echo -e "\nAll jobs were started"
 else
-        echo "\nSome jobs errored or not started"
+        echo -e "\nSome jobs errored or not started"
 fi
 
 i=1
