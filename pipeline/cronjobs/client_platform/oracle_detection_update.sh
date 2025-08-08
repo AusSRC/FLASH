@@ -117,7 +117,7 @@ if [ "$CHECKDB" = true ]; then
         SBIDARR="${SBIDARY[@]}"
     fi
     # Limit size of SBIDARRAY to 6:
-    SBIDARRAY=("${SBIDARY[@]:0:6}")
+    SBIDARRAY=("${SBIDARR[@]:0:6}")
 fi
 
 # Initialise status file on hpc
@@ -158,11 +158,10 @@ for SBID1 in ${SBIDARRAY[@]}; do
             echo "Sent mask file to HPC platform $HPC_PLATFORM"
         fi
     
-        #scp ~/src/cronjobs/$DETECTLOG $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/
         echo "triggering detection_processing.sh on $HPC_PLATFORM"
-        ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $MODE $SBID1 &> $MODE_detection_$SBID1.log"
-        scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/$MODE_detection_$SBID1.log /home/flash/src/cronjobs/
-        ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; rm $MODE_detection_$SBID1.log"
+        ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $MODE $SBID1 > ~/src/cronjobs/'$MODE'_detection_$SBID1.log"
+        scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/${MODE}_detection_${SBID1}.log /home/flash/src/cronjobs/
+        ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; rm ${MODE}_detection_${SBID1}.log"
     fi
     cd ../
 done
