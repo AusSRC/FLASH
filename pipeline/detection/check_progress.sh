@@ -128,6 +128,16 @@ for j in ${!finished[@]}; do
     i=$((i+1))
 done
 
+if [ -z "$running" ] && [ -z "$not_started" ] && [ -z "$error" ] && [ -z "$failed" ]
+then
+        echo "\nAll jobs finished!!"
+elif [ -z "$not_started" ] && [ -z "$error" ]
+then
+        echo "\nAll jobs were started"
+else
+        echo "\nSome jobs errored or not started"
+fi
+
 i=1
 echo -e "\nNOT STARTED:"
 for j in ${!not_started[@]}; do
@@ -147,25 +157,20 @@ for j in ${!error[@]}; do
         i=$((i+1))
     fi
 done
-
+if [ ! -z "$error" ]; then
+    echo "${error[@]}" >> $HOME/src/linefinder/error_mpi_sbids.txt
+fi
 i=1
-echo -e "\nJobs Failed to finish:"
+echo -e "\nTIMED OUT (or removed from SLURM):"
 for j in ${!failed[@]}; do
     echo "$i: ${failed[$j]}"
     i=$((i+1))
 done
-
-echo
-if [ -z "$running" ] && [ -z "$not_started" ] && [ -z "$error" ] && [ -z "$failed" ]
-then
-        echo "All jobs finished!!"
-elif [ -z "$not_started" ] && [ -z "$error" ]
-then
-        echo "All jobs were started"
-else
-        echo "Some jobs errored or not started"
+if [ ! -z "$failed" ]; then
+    echo ${failed[@]} >> $HOME/src/linefinder/failed_sbids.txt
 fi
 
+echo
 
 
 cd $cwd
