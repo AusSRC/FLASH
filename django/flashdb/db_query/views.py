@@ -608,6 +608,9 @@ def query_database(request):
                 comps = []
                 comp_vals = comp.split(',')
                 for val in comp_vals:
+                    val = val.strip()
+                    if not val:
+                        continue
                     comp = f"spec_SB{sbid_val}_component_{val}.fits"
                     comps.append(comp)
             # The path to Django's static dir for plots
