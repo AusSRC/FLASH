@@ -845,7 +845,7 @@ def update_component_detection(cur,comp,sbid_id,processState):
     elif processState == "STD":
         update_query = "UPDATE component SET processState = 'detection', detection_date = %s where comp_id = %s and sbid_id = %s;"
     elif processState == "MASK":
-        update_query = "UPDATE component SET processState = 'masked_detection, detection_date = %s where comp_id = %s and sbid_id = %s;"
+        update_query = "UPDATE component SET processState = 'masked_detection', detection_date = %s where comp_id = %s and sbid_id = %s;"
     cur.execute(update_query,(detect_date,comp,sbid_id))
     print(f"    Detection updated into table 'component': comp_id = {comp}, sbid_id = {sbid_id}")
     return
