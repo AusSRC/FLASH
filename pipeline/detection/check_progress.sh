@@ -15,11 +15,13 @@
 range=100 # The number of mpi connections in the sbatch call
 
 ##########################################################################################
+source $HOME/set_local_flash_env.sh
 SBIDARRAY=(${@:3})
 DEFAULTLOG="logs/out.log"
-if [ "$1" = "INVERT" ]; then
+MODE=$1
+if [ "$MODE" = "INVERT" ]; then
     DEFAULTLOG="logs/out_inverted.log"
-elif [ "$1" = "MASK" ]; then
+elif [ "$MODE" = "MASK" ]; then
     DEFAULTLOG="logs/out_masked.log"
 fi
 
@@ -158,7 +160,8 @@ for j in ${!error[@]}; do
     fi
 done
 if [ ! -z "$error" ]; then
-    echo "${error[@]}" >> $HOME/src/linefinder/error_mpi_sbids.txt
+    declare -p error > "$HOME/src/linefinder/${MODE}_error_mpi_sbids.sh"
+    #echo "${error[@]}" > $HOME/src/linefinder/${MODE}_error_mpi_sbids.txt
 fi
 i=1
 echo -e "\nTIMED OUT (or removed from SLURM):"
@@ -167,7 +170,8 @@ for j in ${!failed[@]}; do
     i=$((i+1))
 done
 if [ ! -z "$failed" ]; then
-    echo ${failed[@]} >> $HOME/src/linefinder/failed_sbids.txt
+    declare -p failed > "$HOME/src/linefinder/${MODE}_failed_mpi_sbids.sh"
+    #echo ${failed[@]} > $HOME/src/linefinder/${MODE}_failed_sbids.txt
 fi
 
 echo
