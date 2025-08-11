@@ -170,7 +170,7 @@ for j in ${!failed[@]}; do
     i=$((i+1))
 done
 if [ ! -z "$failed" ]; then
-    declare -p failed > "$HOME/src/linefinder/${MODE}_failed_mpi_sbids.sh"
+    declare -p failed > "$HOME/src/linefinder/${MODE}_failed_sbids.sh"
     #echo ${failed[@]} > $HOME/src/linefinder/${MODE}_failed_sbids.txt
 fi
 
