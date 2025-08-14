@@ -30,6 +30,7 @@ MASKDIR="$HOME/src/cronjobs/masks"
 
 ###############################################################################################
 MODE=$1
+LIMIT=6
 CHECKDB=true
 
 SBIDARR=()
@@ -51,7 +52,7 @@ fi
 if [ "$#" -gt 1 ]; then
     SBIDARR=( "${@:2}" )
     CHECKDB=false
-    echo "Got sbids ${SBIDARR[@]}"
+    echo "Got cmd line sbids ${SBIDARR[@]}"
     # For masked detection, only process if there is a matching mask file
     if [ "$MODE" = "MASK" ]; then
         MASKFILES=$(printf '%s ' $MASKDIR/SB*.txt)
@@ -73,15 +74,8 @@ if [ "$#" -gt 1 ]; then
             echo "sbids with valid masks are: ${SBIDARR[@]}"
         fi
     fi
-    SBIDARRAY="${SBIDARR[@]}"
+    SBIDARRAY="${SBIDARR[@]:0:$LIMIT}"
 
-    rm $DETECTLOG
-    printf "For $MODE detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
-    for SBID1 in ${SBIDARRAY[@]}; do
-        printf "$SBID1, " >> $DETECTLOG
-    done
-    sed -i '$ s/.$//' $DETECTLOG
-    sed -i '$ s/.$/]/' $DETECTLOG
 fi
 # Query FLASHDB for new sbids
 if [ "$CHECKDB" = true ]; then
@@ -97,7 +91,7 @@ if [ "$CHECKDB" = true ]; then
     fi
     sbids=$(sed "s/ //g" <<< $sbids)
     SBIDS=$(sed "s/,/ /g" <<< $sbids)
-    echo "SBIDS = $SBIDS"
+    echo "$MODE not processed for database SBIDS = $SBIDS"
     SBIDARR=()
     read -a SBIDARR <<< "$SBIDS"
 
@@ -114,11 +108,22 @@ if [ "$CHECKDB" = true ]; then
             done
         done
         SBIDARR=()
-        SBIDARR="${SBIDARY[@]}"
+        SBIDARR=("${SBIDARY[@]}")
     fi
-    # Limit size of SBIDARRAY to 6:
-    SBIDARRAY=("${SBIDARR[@]:0:6}")
+    # Limit size of SBIDARRAY to LIMIT:
+    echo -e "\nLimiting array to $LIMIT"
+    SBIDARRAY=${SBIDARR[@]:0:$LIMIT}
+    echo "${SBIDARRAY[@]}"
+    
 fi
+
+rm $DETECTLOG
+printf "For $MODE detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
+for SBID1 in ${SBIDARRAY[@]}; do
+    printf "$SBID1, " >> $DETECTLOG
+done
+sed -i '$ s/.$//' $DETECTLOG
+sed -i '$ s/.$/]/' $DETECTLOG
 
 # Initialise status file on hpc
 STATUSFILE="jobs_to_sbids.txt"
