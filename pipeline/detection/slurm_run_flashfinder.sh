@@ -28,12 +28,6 @@ module load gcc/12.2.0
 module load py-scipy/1.11.3 
 module load py-numpy/1.24.4 
 
-#module load gcc-native/12.3
-#module load python/3.9.15
-#module load py-numpy/1.26.4
-#module load py-scipy/1.13.0
-#module load py-matplotlib/3.9.2
-
 #module load python/3.11.6
 #module load py-numpy/1.25.2
 #module load py-scipy/1.14.1
@@ -41,8 +35,8 @@ module load py-numpy/1.24.4
 #module load py-astropy/5.1
 #module load py-mpi4py/3.1.5-py3.11.6
 
-module load py-astropy/5.1
-module load py-mpi4py/3.1.5-py3.11.6
+#module load py-astropy/5.1
+#module load py-mpi4py/3.1.5-py3.11.6
 
 
 
