@@ -126,11 +126,11 @@ for SBID1 in ${SBIDARRAY[@]}; do
 
     # Create parameter string for sbatch:
     if [ "$MODE" = "STD" ]; then
-        SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out.log --error $PARENT1/logs/err.log --job-name STD_$SBID1"
+        SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 08:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out.log --error $PARENT1/logs/err.log --job-name STD_$SBID1"
     elif [ "$MODE" = "INVERT" ]; then
-        SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_inverted.log --error $PARENT1/logs/err_inverted.log --job-name INV_$SBID1"
+        SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 08:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_inverted.log --error $PARENT1/logs/err_inverted.log --job-name INV_$SBID1"
     elif [ "$MODE" = "MASK" ]; then
-        SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_masked.log --error $PARENT1/logs/err_masked.log --job-name MSK_$SBID1"
+        SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 08:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_masked.log --error $PARENT1/logs/err_masked.log --job-name MSK_$SBID1"
     fi
 
     jid2=$(sbatch $SBATCHARGS $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1 $MODE)
