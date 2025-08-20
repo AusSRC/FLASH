@@ -23,10 +23,6 @@
         left: 0;
         right: 0;
     }
-    .container {
-        display: flex; /* Makes the container a flex container */
-        gap: 20px; /* Adds space between the columns */
-    }
     .column {
         flex: 1; /* Allows columns to grow and shrink equally */
         /* You can add other styling here, e.g., background-color, padding */
@@ -54,13 +50,10 @@
 <body style="background-color:#ABB2B9;">
   {{ sbids|json_script:"sbids-data" }}  
   <div class="container-fluid" style="background-color:aquamarine;">
-    <div class="image-container">
-        <H1 style="text-align: center;">FLASH Survey Progress</H1>
-        {% load static %}
-        <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
-        <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">    
-    </div>  
-    <div class="container">
+    <H1 style="text-align: center;">FLASH Survey Progress</H1>
+    {% load static %}
+    <div class="container" style="display:flex; gap:20px; border:none;">
+      <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="top:20px; right:30px;" width="200" height="100">          
       <!-- Create a legend for the type of detections -->  
       <div class="column" id="myLegendContainer">
         <ul class="legend-list">
@@ -72,6 +65,7 @@
       </div>      
       <div class='column' id='run_summary'></div>
       <div class='column' id='status_summary'></div>
+      <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="top:20px; left:30px;" width="180" height="100">
     </div>   
     <p id='total_sbids' style="text-align: center;"></p>   
     <form action="/db_query/">
@@ -137,11 +131,11 @@
           shape.fillColor = 'grey';
           notDetected++;
         }    
-        if (sbid.status === 'UNCERTAIN') {
+        if (sbid[5] === 'UNCERTAIN') {
           uncertain++;
-        } else if (sbid.status === 'GOOD') {
+        } else if (sbid[5] === 'GOOD') {
           good++;
-        } else if (sbid.status === 'REJECTED') {
+        } else if (sbid[5] === 'REJECTED') {
           rejected++;
         } else {
           notValidated++;
