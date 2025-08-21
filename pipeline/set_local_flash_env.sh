@@ -1,29 +1,34 @@
 #!/bin/bash
 
-# Set path to FLASH code
+# Set HPC path to FLASH code
 FLASHHOME=/software/projects/ja3/ger063/setonix/FLASH
 #FLASHHOME=/home/flash/src/FLASH
 export FLASHHOME
 
-# Set path to FLASH FINDER
-FINDER=$FLASHHOME/flash_finder/flash_finder
-#FINDER=$FLASHHOME/linefinder
+# Set HPC path to spectral plotting software and container
+SPECTRAL=$FLASHHOME/spectral_plot
+export SPECTRAL
+
+# Set HPC path to FLASH FINDER
+#FINDER=$FLASHHOME/flash_finder/flash_finder
+FINDER=$FLASHHOME/linefinder
 export FINDER
 
-# Set path to pymultinest
-PYMULTINEST=$FLASHHOME/pymultinest/20180215/
+# Set HPC path to pymultinest
+#PYMULTINEST=$FLASHHOME/pymultinest/20180215/
+PYMULTINEST=$FLASHHOME/PyMultiNest/pymultinest
 export PYMULTINEST
 #export PYMULTINEST=$FLASHHOME/PyMultiNest
 
-# Set path to MULTINEST
-export MULTINEST=$FLASHHOME/multinest
+# Set HPC path to MULTINEST
+export MULTINEST=$FLASHHOME/PyMultiNest/MultiNest
 #export MULTINEST=$PYMULTINEST/MultiNest
 
-# Set path to database scripts
+# Set HPC path to database scripts
 FLASHDB=$FLASHHOME/database
 export FLASHDB
 
-# Set path to cron scripts
+# Set HPC path to cron scripts
 CRONDIR=$HOME/src/cronjobs
 export CRONDIR
 
@@ -49,7 +54,7 @@ export FLASHPASS
 HOST="10.0.2.225"
 PORT="5432"
 
-# HPC machine paths (eg setonix)
+# Other HPC machine paths (eg setonix)
 HPC_PLATFORM="setonix.pawsey.org.au"
 export HPC_PLATFORM
 HPC_USER="user_at_hpc"
