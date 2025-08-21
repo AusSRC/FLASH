@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FLASHDB</title>
+  <style>
+  div {
+    border: 2px solid black;
+    padding: 4px;
+  }
+  table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+    padding: 15px;
+  }
+  .source_ids {
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-all; /* Allows line breaks in source IDs */
+  }
+  </style>
+</head>
+<body style="background-color:#ABB2B9;">
+  <div class="container-fluid" style="background-color:aquamarine;">
+    <H1 style="text-align: center;">FLASH Bad ASCII Source Files</H1>
+    {% load static %}
+    <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
+    <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
+    <p  style="text-align: center;"> Total number of bad files: <strong> {{ num_sbids }} </strong> </p>
+    <form action="/db_query/">
+        <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>
+        <input type="submit" value="Return to Main page"/>
+    </form>
+  </div>   
+  <div class="container-fluid">   
+    <table style="background-color:white">
+      <thead>
+        <tr>
+          <th>SBID</th>
+          <th style="width:200px;">Source Numbers</th>
+          <th>Issue Category</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.0 }}</td>
+            <td class="source_ids">{{ row.1 }}</td>
+            <td style="text-align: center;">{{ row.2 }}</td>
+            <td>{{ row.3 }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
