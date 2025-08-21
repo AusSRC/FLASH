@@ -47,7 +47,7 @@ export FI_CXI_DEFAULT_VNI="$(od -vAn -N4 -tu < /dev/urandom)"
 export SLURM_EXPORT_ENV=ALL
 
 echo "Checking for bad files"
-python3 $FINDER/pre_process.py $3 $1/$2
+python3 $FLASHHOME/pipeline/detection/pre_process.py $3 $1/$2
 
 
 echo "Starting with $1/$2"

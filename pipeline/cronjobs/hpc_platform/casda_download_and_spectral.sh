@@ -88,7 +88,7 @@ for i in "${!SBIDARRAY[@]}"; do
         #   3) plot_spectral config directory (holds config.py)
         mkdir -p $DATA/$SBID/$CONFIG
         cp $CONFIGFILE $DATA/$SBID/$CONFIG
-        jid1=$(/bin/bash $SPECTRAL/run_container_spectral.sh $DATA "$SBID" $DATA/$SBID/$CONFIG)
+        jid1=$(/bin/bash $FLASHHOME/pipeline/spectral/run_container_spectral.sh $DATA "$SBID" $DATA/$SBID/$CONFIG)
         j1=$(echo $jid1 | awk '{print $4}')
         echo "Sumbitted job $j1"
         echo "$j1 = sbid $SBID" >> jobs_to_sbids.txt

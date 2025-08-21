@@ -2,7 +2,7 @@
 ######################################################################################
 ######################################################################################
 #   NOTE:   The script calling order is:
-#               1) "run_slurm_spectral.sh", which calls:
+#               1) "run_slurm_spectral.sh", or casda_download_and_spectral.sh, which calls:
 #                   2) "run_container_spectral.sh", which calls:
 #                       3) a singularity container running "run_spectrals.sh"
 #
