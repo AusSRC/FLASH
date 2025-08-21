@@ -453,6 +453,27 @@ def show_sbids_aladin(request):
             + ' GROUP BY comp.sbid_id, t.sbid_num, t.pointing, t.quality, t.detectionf, t.invert_detectionf, t.mask_detectionf'
         cursor.execute(query)
         sbids = cursor.fetchall()
+        # Count the number of SBIDs in each quality category
+        query = "SELECT t.quality, COUNT(*) AS count" \
+            + " FROM sbid t" \
+            + " INNER JOIN component comp ON comp.sbid_id = t.id" \
+            + " GROUP BY t.quality"
+        print(query)
+        cursor.execute(query)
+        good = 0
+        uncertain = 0
+        rejected = 0
+        not_validated = 0
+        for row in cursor.fetchall():
+            print(row)
+            if row[0] == 'GOOD':
+                good = row[1]
+            elif row[0] == 'UNCERTAIN':
+                uncertain = row[1]
+            elif row[0] == 'REJECTED':
+                rejected = row[1]
+            elif row[0] == 'NOT_VALIDATED':
+                not_validated = row[1]
         conn.close()
         return render(request, 'sbids_aladin.html', {'sbids': sbids})
 

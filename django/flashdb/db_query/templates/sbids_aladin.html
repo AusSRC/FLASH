@@ -64,10 +64,15 @@
         </ul>      
       </div>      
       <div class='column' id='run_summary'></div>
-      <div class='column' id='status_summary'></div>
+      <div class='column' id='status_summary'>
+        <br>GOOD observations = {{ num_good }}
+        <br>UNCERTAIN observations = {{ num_uncertain }}
+        <br>REJECTED observations = {{ num_rejected }}
+        <br>NOT VALIDATED = {{ num_not_validated }}
+      </div>	  
       <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="top:20px; left:30px;" width="180" height="100">
     </div>   
-    <p id='total_sbids' style="text-align: center;"></p>   
+    <p id='total_sbids' style="text-align: center;">Total number of SBIDs = {{num_sbids}}</p>   
     <form action="/db_query/">
       <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>
       <input type="submit" value="Return to Main page"/>
@@ -131,24 +136,10 @@
           shape.fillColor = 'grey';
           notDetected++;
         }    
-        if (sbid[5] === 'UNCERTAIN') {
-          uncertain++;
-        } else if (sbid[5] === 'GOOD') {
-          good++;
-        } else if (sbid[5] === 'REJECTED') {
-          rejected++;
-        } else {
-          notValidated++;
-        }
-
         band1Layer.addFootprints([shape])
-      });
-           
-      document.getElementById('status_summary').innerHTML = "GOOD observations = "+ good +"<br>UNCERTAIN observations = " + uncertain 
-              + "<br>REJECTED observations = " + rejected + "<br>NOT VALIDATED = " + notValidated + "<br>";
-      document.getElementById('run_summary').innerHTML = "MASKED DETECTION runs  = "+ mask +"<br>INVERTED DETECTION  runs = " + invert 
+      });          
+      document.getElementById('run_summary').innerHTML = "<br>MASKED DETECTION runs  = "+ mask +"<br>INVERTED DETECTION  runs = " + invert 
               + "<br>STANDARD DETECTION runs = " + detection + "<br>NO DETECTION = " + notDetected + "<br>";
-      document.getElementById('total_sbids').innerHTML = "Total number of SBIDs = "+tiles.length+"<br>";    
     });
   </script>
 </body>
