@@ -481,7 +481,6 @@ def show_sbids_aladin(request):
         return render(request, 'sbids_aladin.html', {'session_id': session_id, \
                 'sbids': sbids, 'num_sbids': len(sbids), 'num_good': good, 'num_uncertain': uncertain,\
                 'num_rejected': rejected, 'num_not_validated': not_validated})
-        return render(request, 'sbids_aladin.html', , 'sbids': sbids})
 
 def get_bad_file_description(name):
     category_dict = [ \
