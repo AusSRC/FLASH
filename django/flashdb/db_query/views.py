@@ -475,7 +475,9 @@ def show_sbids_aladin(request):
             elif row[0] == 'NOT_VALIDATED':
                 not_validated = row[1]
         conn.close()
-        return render(request, 'sbids_aladin.html', {'sbids': sbids})
+        return render(request, 'sbids_aladin.html', \
+                      {'sbids': sbids, 'num_sbids': len(sbids), 'num_good': good, 'num_uncertain': uncertain,\
+                       'num_rejected': rejected, 'num_not_validated': not_validated})
 
 def query_database(request):
     # Build the SQL query using Django's SQL syntax
