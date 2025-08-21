@@ -436,6 +436,47 @@ def show_csv(request):
     invert = request.POST.get('invert')
     return render(request, 'csv_parse.html', {'csv_file': csv_file, 'sbid': sbid_val, 'lnmean': lnmean, 'inverted': invert})
 
+def show_sbids_aladin(request):
+    # Show the aladin view with all SBIDs
+    password = request.POST.get('pass')
+    host = request.POST.get('host')
+    try:
+        conn = connect(password=password, host=host)
+    except:
+        return HttpResponse("Password has failed")
+    with conn.cursor() as cursor:
+        query = 'SELECT t.sbid_num, t.pointing, comp.sbid_id, AVG(comp.ra_deg_cont::NUMERIC) AS ra,'\
+            + ' AVG(comp.dec_deg_cont::NUMERIC) AS dec, t.quality AS status,'\
+            + ' t.detectionf, t.invert_detectionf, t.mask_detectionf'\
+            + ' FROM component comp'\
+            + ' INNER JOIN sbid t ON comp.sbid_id = t.id'\
+            + ' GROUP BY comp.sbid_id, t.sbid_num, t.pointing, t.quality, t.detectionf, t.invert_detectionf, t.mask_detectionf'
+        cursor.execute(query)
+        sbids = cursor.fetchall()
+        # Count the number of SBIDs in each quality category
+        query = "SELECT t.quality, COUNT(*) AS count" \
+            + " FROM sbid t" \
+            + " INNER JOIN component comp ON comp.sbid_id = t.id" \
+            + " GROUP BY t.quality"
+        print(query)
+        cursor.execute(query)
+        good = 0
+        uncertain = 0
+        rejected = 0
+        not_validated = 0
+        for row in cursor.fetchall():
+            print(row)
+            if row[0] == 'GOOD':
+                good = row[1]
+            elif row[0] == 'UNCERTAIN':
+                uncertain = row[1]
+            elif row[0] == 'REJECTED':
+                rejected = row[1]
+            elif row[0] == 'NOT_VALIDATED':
+                not_validated = row[1]
+        conn.close()
+        return render(request, 'sbids_aladin.html', {'sbids': sbids})
+
 def query_database(request):
     # Build the SQL query using Django's SQL syntax
     password = request.POST.get('pass')
