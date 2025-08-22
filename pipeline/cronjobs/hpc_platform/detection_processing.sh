@@ -133,7 +133,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
         SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 08:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_masked.log --error $PARENT1/logs/err_masked.log --job-name MSK_$SBID1"
     fi
 
-    jid2=$(sbatch $SBATCHARGS $FLASHHOME/pipeline/detection/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1 $MODE)
+    jid2=$(sbatch $SBATCHARGS $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1 $MODE)
     j2=$(echo $jid2 | awk '{print $4}')
     echo "Sumbitted $MODE detection job $j2"
     echo "$j2 = sbid $SBID1" >> $DETECTDIR/$STATUSFILE

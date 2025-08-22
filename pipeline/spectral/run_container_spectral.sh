@@ -2,7 +2,7 @@
 ######################################################################################
 ######################################################################################
 #   NOTE:   The script calling order is:
-#               1) "run_slurm_spectral.sh", or casda_download_and_spectral.sh, which calls:
+#               1) "run_slurm_spectral.sh", which calls:
 #                   2) "run_container_spectral.sh", which calls:
 #                       3) a singularity container running "run_spectrals.sh"
 #
@@ -13,8 +13,8 @@ mkdir -p $1/$2/logs
 sbatch <<EOT
 #!/bin/bash
 #SBATCH --job-name=spectral_plot
-#SBATCH --output="$1"/"$2"/logs/plot_out_%j.log
-#SBATCH --error="$1"/"$2"/logs/plot_err_%j.log
+#SBATCH --output="$1"/"$2"/logs/plot_out.log
+#SBATCH --error="$1"/"$2"/logs/plot_err.log
 #SBATCH --time=02:00:00
 #SBATCH -N 1 # nodes
 #SBATCH -n 1 # tasks

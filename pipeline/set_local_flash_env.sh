@@ -10,19 +10,15 @@ SPECTRAL=$FLASHHOME/spectral_plot
 export SPECTRAL
 
 # Set HPC path to FLASH FINDER
-#FINDER=$FLASHHOME/flash_finder/flash_finder
-FINDER=$FLASHHOME/linefinder
+FINDER=$FLASHHOME/flash_finder/flash_finder
 export FINDER
 
 # Set HPC path to pymultinest
-#PYMULTINEST=$FLASHHOME/pymultinest/20180215/
-PYMULTINEST=$FLASHHOME/PyMultiNest/pymultinest
+PYMULTINEST=$FLASHHOME/pymultinest/20180215/
 export PYMULTINEST
-#export PYMULTINEST=$FLASHHOME/PyMultiNest
 
 # Set HPC path to MULTINEST
-export MULTINEST=$FLASHHOME/PyMultiNest/MultiNest
-#export MULTINEST=$PYMULTINEST/MultiNest
+export MULTINEST=$FLASHHOME/multinest
 
 # Set HPC path to database scripts
 FLASHDB=$FLASHHOME/database
