@@ -484,7 +484,7 @@ def show_sbids_aladin(request):
 
 def get_bad_file_description(name):
     category_dict = [ \
-        {"name":"flux", "description": "There are too many NaN in the noise values"},\
+        {"name":"flux", "description": "There are too many NaN in the flux values"},\
         {"name":"noise", "description": "There are too many NaN in the noise values."},\
         {"name":"malformed", "description": "The files are missing values."},\
         {"name":"stalled", "description": "Linefinder repeatedly stopped on these files for unknown reason."}]
