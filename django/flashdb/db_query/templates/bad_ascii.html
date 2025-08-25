@@ -12,11 +12,6 @@
     border-collapse: collapse;
     padding: 15px;
   }
-  .source_ids {
-    white-space: normal;
-    word-wrap: break-word;
-    word-break: break-all; /* Allows line breaks in source IDs */
-  }
   </style>
 </head>
 <body style="background-color:#ABB2B9;">
@@ -45,7 +40,10 @@
         {% for row in rows %}
           <tr style="background-color:{{row.4}};">
             <td>{{ row.0 }}</td>
-            <td class="source_ids">{{ row.1 }}</td>
+            <td>{% for source in row.1 %}
+                    {{ source }}<br>
+                {% endfor %}
+            </td>
             <td style="text-align: center;">{{ row.2 }}</td>
             <td>{{ row.3 }}</td>
           </tr>

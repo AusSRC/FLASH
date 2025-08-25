@@ -516,7 +516,7 @@ def bad_ascii_view(request):
                     if sbid not in sbid_source_dict:
                         sbid_source_dict[sbid] = []
                     sbid_source_dict[sbid].append(
-                            [','.join(sources), category, description])
+                            [sources, category, description])
             f.close()
     else:
         return HttpResponse(f"{bad_json_file} is not found! Please run the cronjob to generate it.")
