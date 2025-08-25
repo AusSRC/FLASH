@@ -20,7 +20,7 @@
     {% load static %}
     <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
     <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
-    <p  style="text-align: center;"> Total number of bad files: <strong> {{ num_sbids }} </strong> </p>
+    <p  style="text-align: center;"> Total number of SBIDs with bad files: <strong> {{ num_sbids }} </strong> </p>
     <form action="/db_query/">
         <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>
         <input type="submit" value="Return to Main page"/>
