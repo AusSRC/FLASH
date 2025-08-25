@@ -493,7 +493,7 @@ def get_bad_file_description(name):
             return category["description"]
     return None
 
-def bad_ascii_view(request):    
+def bad_ascii_view(request):
     session_id = request.POST.get('session_id')
     password = request.POST.get('pass')
     host = request.POST.get('host')
@@ -516,15 +516,20 @@ def bad_ascii_view(request):
                     if sbid not in sbid_source_dict:
                         sbid_source_dict[sbid] = []
                     sbid_source_dict[sbid].append(
-                        [','.join(sources), category, description])
+                            [','.join(sources), category, description])
             f.close()
     else:
         return HttpResponse(f"{bad_json_file} is not found! Please run the cronjob to generate it.")
-    #Flatten into rows
+    #Flatten into rows, sorted by sbid
     rows = []
+    last_bg = "white"
+    sbid_source_dict = dict(sorted(sbid_source_dict.items()))
     for sbid, source_infos in sbid_source_dict.items():
+        # Alternate color every sbid
+        bg_color = "lightgrey" if last_bg == "white" else "white"
         for source_info in source_infos:
-            rows.append([sbid,source_info[0],source_info[1],source_info[2]])
+            rows.append([sbid,source_info[0],source_info[1],source_info[2],bg_color])
+        last_bg = bg_color
 
     return render(request, "bad_ascii.html", {"session_id": session_id, "rows": rows, "num_sbids": len(sbid_source_dict)})
 
