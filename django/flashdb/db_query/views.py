@@ -22,7 +22,7 @@ def connect(db="flashdb",user="flash",host="10.0.2.225",password=None):
         database = db,
         user = user,
         password = password,
-        host = host,
+        #host = host,
         #port = 2095
         host = "10.0.2.225",
         port = 5432
