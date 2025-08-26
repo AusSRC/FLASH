@@ -24,7 +24,7 @@ def connect(db="flashdb",user="flash",host="10.0.2.225",password=None):
         password = password,
         host = host,
         #port = 2095
-        #host = "10.0.2.225",
+        host = "10.0.2.225",
         port = 5432
     )
     #print(conn.get_dsn_parameters(),"\n")
