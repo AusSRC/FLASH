@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import re
@@ -5,6 +6,7 @@ import psycopg2
 import random
 import string
 
+from django.conf import settings
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.db import connection
@@ -440,6 +442,7 @@ def show_sbids_aladin(request):
     # Show the aladin view with all SBIDs
     password = request.POST.get('pass')
     host = request.POST.get('host')
+    session_id = request.POST.get('session_id')
     try:
         conn = connect(password=password, host=host)
     except:
@@ -475,9 +478,60 @@ def show_sbids_aladin(request):
             elif row[0] == 'NOT_VALIDATED':
                 not_validated = row[1]
         conn.close()
-        return render(request, 'sbids_aladin.html', \
-                      {'sbids': sbids, 'num_sbids': len(sbids), 'num_good': good, 'num_uncertain': uncertain,\
-                       'num_rejected': rejected, 'num_not_validated': not_validated})
+        return render(request, 'sbids_aladin.html', {'session_id': session_id, \
+                'sbids': sbids, 'num_sbids': len(sbids), 'num_good': good, 'num_uncertain': uncertain,\
+                'num_rejected': rejected, 'num_not_validated': not_validated})
+
+def get_bad_file_description(name):
+    category_dict = [ \
+        {"name":"flux", "description": "File contains more than 40% NaN values for flux."},\
+        {"name":"noise", "description": "File contains more than 40% NaN values for noise."},\
+        {"name":"malformed", "description": "The files are missing values."},\
+        {"name":"stalled", "description": "Linefinder repeatedly stopped on these files for unknown reason."}]
+    for category in category_dict:
+        if category["name"] == name:
+            return category["description"]
+    return None
+
+def bad_ascii_view(request):
+    session_id = request.POST.get('session_id')
+    password = request.POST.get('pass')
+    host = request.POST.get('host')
+    try:
+        conn = connect(password=password, host=host)
+        conn.close()
+    except:
+        return HttpResponse("Password has failed")
+
+    # Load the bad_files.json file
+    bad_json_file = settings.BASE_DIR/"../../../cronjobs/bad_files/bad_files.json"
+    sbid_source_dict = {}
+    if os.path.exists(bad_json_file):
+        with open(bad_json_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            for category in ['flux', 'noise', 'malformed', 'stalled']:
+                category_data = data[category]
+                description = get_bad_file_description(category)
+                for sbid,sources in category_data.items():
+                    if sbid not in sbid_source_dict:
+                        sbid_source_dict[sbid] = []
+                    sbid_source_dict[sbid].append(
+                            [sources, category, description])
+            f.close()
+    else:
+        return HttpResponse(f"{bad_json_file} is not found! Please run the cronjob to generate it.")
+    #Flatten into rows, sorted by sbid
+    rows = []
+    last_bg = "white"
+    sbid_source_dict = dict(sorted(sbid_source_dict.items()))
+    for sbid, source_infos in sbid_source_dict.items():
+        # Alternate color every sbid
+        bg_color = "lightgrey" if last_bg == "white" else "white"
+        for source_info in source_infos:
+            rows.append([sbid,source_info[0],source_info[1],source_info[2],bg_color])
+        last_bg = bg_color
+
+    return render(request, "bad_ascii.html", {"session_id": session_id, "rows": rows, "num_sbids": len(sbid_source_dict)})
 
 def query_database(request):
     # Build the SQL query using Django's SQL syntax
