@@ -22,9 +22,9 @@ def connect(db="flashdb",user="flash",host="10.0.2.225",password=None):
         database = db,
         user = user,
         password = password,
-        #host = host,
+        host = host,
         #port = 2095
-        host = "10.0.2.225",
+        #host = "10.0.2.225",
         port = 5432
     )
     #print(conn.get_dsn_parameters(),"\n")
@@ -459,7 +459,6 @@ def show_sbids_aladin(request):
         # Count the number of SBIDs in each quality category
         query = "SELECT t.quality, COUNT(*) AS count" \
             + " FROM sbid t" \
-            + " INNER JOIN component comp ON comp.sbid_id = t.id" \
             + " GROUP BY t.quality"
         print(query)
         cursor.execute(query)
