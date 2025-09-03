@@ -80,17 +80,20 @@
     <p style="text-align: center;">Pilot 2 sbids in DB = {{ pilot2 }} ({{ apilot2 }} validated)</p>
     <p style="text-align: center;">Survey sbids in DB = {{ survey }} ({{ asurvey }} validated)</p>
     </div>
-    <div class="container-fluid">
-    <form action=/db_query/query_database/ method="post">
-        {% csrf_token %}
-
+    <div class="container-fluid">        
+      <form action=/db_query/query_database/ method="post">
+        {% csrf_token %}                        
         <label for="pass" class="form-label">Enter DB password:</label>
         <div class="password-wrapper mb-3">
-            <input type="password" placeholder="Password" class="form-control w-25" id="pass" name="pass" required>
-            <span class="password-toggle-icon" onclick="showpass()">
-                <i class="bi bi-eye-slash"></i>
-            </span>
-        </div>
+          <input type="password" placeholder="Password" class="form-control w-25" id="pass" name="pass" required>
+          <span class="password-toggle-icon" onclick="showpass()">
+            <i class="bi bi-eye-slash"></i>
+          </span>
+        </div>    
+        <div class="mb-3">
+            <p><input type="submit" value="Observation Fields Viewer" class="btn btn-primary" formaction="/show_sbids_aladin/"></p>
+            <p><input type="submit" value="Bad ASCII Files Viewer" class="btn btn-primary" formaction="/show_bad_ascii/"></p>
+        </div>	          
         <div class="mb-3">
             <label class="form-label">Select query type:</label>
             <div class="form-check">
@@ -215,7 +218,6 @@
 
         <input type="hidden" id="session_id" name="session_id" value={{ session_id }}>
         <input type="submit" id="submit" value="Submit" onClick="return empty()" class="btn btn-primary"/>
-        <i>(The last three may take some time to process)</i>
     </form>
     </div>
     <div class="dark-image">

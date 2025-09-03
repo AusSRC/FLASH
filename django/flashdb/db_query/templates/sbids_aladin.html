@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FLASHDB</title>
+    <style>
+    div {
+        border: 2px solid black;
+        padding: 4px;
+    }
+    .column {
+        flex: 1; /* Allows columns to grow and shrink equally */
+        /* You can add other styling here, e.g., background-color, padding */
+    }
+    .legend-list {
+        list-style-type: none;
+        padding: 0;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    .legend-color-box {
+        width: 20px;
+        height: 20px;
+        margin-right: 10px;
+    }
+    </style>
+    <!-- our code needs jQuery library -->
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.9.1.min.js" charset="utf-8"></script>
+    <!-- Aladin Lite JS code -->
+    <script type="text/javascript" src="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js" charset="utf-8"></script>
+</head>
+<body style="background-color:#ABB2B9;">
+  {{ sbids|json_script:"sbids-data" }}  
+  <div class="container-fluid" style="background-color:aquamarine;">
+    <H1 style="text-align: center;">FLASH Survey Progress</H1>
+    {% load static %}
+    <div class="container" style="display:flex; gap:20px; border:none;">
+      <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="top:20px; right:30px;" width="200" height="100">          
+      <!-- Create a legend for the type of detections -->  
+      <div class="column" id="myLegendContainer">
+        <ul class="legend-list">
+          <li class="legend-item"><span class="legend-color-box" style="background-color: green;"></span>MASKED DETECTION</li>
+          <li class="legend-item"><span class="legend-color-box" style="background-color: yellow;"></span>INVERTED DETECTION</li>
+          <li class="legend-item"><span class="legend-color-box" style="background-color: blue;"></span>STANDARD DETECTION</li>
+          <li class="legend-item"><span class="legend-color-box" style="background-color: grey;"></span>NO DETECTION</li>            
+        </ul>      
+      </div>      
+      <div class='column' id='run_summary'></div>
+      <div class='column' id='status_summary'>
+        <br>GOOD observations = {{ num_good }}
+        <br>UNCERTAIN observations = {{ num_uncertain }}
+        <br>REJECTED observations = {{ num_rejected }}
+        <br>NOT VALIDATED = {{ num_not_validated }}
+      </div>	  
+      <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="top:20px; left:30px;" width="180" height="100">
+    </div>   
+    <p id='total_sbids' style="text-align: center;">Total number of SBIDs shown = {{num_sbids}}</p>   
+    <form action="/db_query/">
+      <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>
+      <input type="submit" value="Return to Main page"/>
+    </form>
+  </div>
+  <div class="container-fluid">
+     <!-- Aladin Lite container at requested dimensions -->
+     <div id="aladin-lite-div" style="width:1000px;height:700px;"></div>
+  </div>
+  <!-- Creation of Aladin Lite instance with initial parameters -->
+  <script type="text/javascript"> 
+    let aladin;
+    let tiles = JSON.parse(document.getElementById('sbids-data').textContent);
+    A.init.then(() => {
+      // set up aladin
+      aladin = A.aladin('#aladin-lite-div', {survey: "P/DSS2/color", fov: 1.5, target: "trifid nebula"});
+
+      // create layers
+      var band1MarkerLayer = A.catalog();
+      aladin.addCatalog(band1MarkerLayer);
+      var band1Layer = A.graphicOverlay({color: 'grey', opacity: 0.5, lineWidth: 1});
+      aladin.addOverlay(band1Layer);
+
+      var good = 0;			
+      var uncertain = 0;
+      var rejected = 0;
+      var notValidated = 0;
+      var detection = 0;
+      var invert = 0;
+      var mask = 0;
+      var notDetected = 0;
+      tiles.forEach(sbid => {
+        console.log(sbid);
+        var ra = parseFloat(sbid[3]);
+        var dec = parseFloat(sbid[4]);
+
+        // Create marker
+        var marker = A.marker(ra, dec, 
+                  {popupTitle: 'SBID: '+sbid[0], popupDesc: 'FIELD: '+sbid[1] + '\nSTATUS: '+sbid[5]});
+        band1MarkerLayer.addSources([marker]);
+        d_ra_upper = 3.0 / Math.cos((dec + 3.0) * Math.PI / 180.0);
+        d_ra_lower = 3.0 / Math.cos((dec - 3.0)* Math.PI / 180.0);
+        shape = A.polygon([
+                    [ra + d_ra_lower, dec - 3.0],
+                    [ra - d_ra_lower, dec - 3.0],
+                    [ra - d_ra_upper, dec + 3.0],
+                    [ra + d_ra_upper, dec + 3.0]
+        ]);
+        shape.fill = true;
+        shape.opacity = 0.5;
+        if (sbid[8] === true) {
+          shape.fillColor = 'green';
+          mask++;
+        } else if (sbid[7] === true) {
+          shape.fillColor = 'yellow';
+          invert++;
+        } else if (sbid[6] === true) {
+          shape.fillColor = 'blue';
+          detection++;
+        } else {
+          shape.fillColor = 'grey';
+          notDetected++;
+        }    
+        band1Layer.addFootprints([shape])
+      });          
+      document.getElementById('run_summary').innerHTML = "<br>MASKED DETECTION runs  = "+ mask +"<br>INVERTED DETECTION  runs = " + invert 
+              + "<br>STANDARD DETECTION runs = " + detection + "<br>NO DETECTION = " + notDetected + "<br>";
+    });
+  </script>
+</body>
