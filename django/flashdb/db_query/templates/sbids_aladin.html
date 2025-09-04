@@ -3,7 +3,7 @@
 <head>
     <title>FLASHDB</title>
     <style>
-    div {
+    .border {
         border: 2px solid black;
         padding: 4px;
     }
@@ -33,13 +33,13 @@
 </head>
 <body style="background-color:#ABB2B9;">
   {{ sbids|json_script:"sbids-data" }}  
-  <div class="container-fluid" style="background-color:aquamarine;">
+  <div class="container-fluid border" style="background-color:aquamarine;">
     <H1 style="text-align: center;">FLASH Survey Progress</H1>
     {% load static %}
-    <div class="container" style="display:flex; gap:20px; border:none;">
+    <div class="container border" style="display:flex; gap:20px; border:none;">
       <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="top:20px; right:30px;" width="200" height="100">          
       <!-- Create a legend for the type of detections -->  
-      <div class="column" id="myLegendContainer">
+      <div class="column border" id="myLegendContainer">
         <ul class="legend-list">
           <li class="legend-item"><span class="legend-color-box" style="background-color: green;"></span>MASKED DETECTION</li>
           <li class="legend-item"><span class="legend-color-box" style="background-color: yellow;"></span>INVERTED DETECTION</li>
@@ -47,8 +47,8 @@
           <li class="legend-item"><span class="legend-color-box" style="background-color: grey;"></span>NO DETECTION</li>            
         </ul>      
       </div>      
-      <div class='column' id='run_summary'></div>
-      <div class='column' id='status_summary'>
+      <div class='column border' id='run_summary'></div>
+      <div class='column border' id='status_summary'>
         <br>GOOD observations = {{ num_good }}
         <br>UNCERTAIN observations = {{ num_uncertain }}
         <br>REJECTED observations = {{ num_rejected }}
@@ -56,13 +56,13 @@
       </div>	  
       <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="top:20px; left:30px;" width="180" height="100">
     </div>   
-    <p id='total_sbids' style="text-align: center;">Total number of SBIDs shown = {{num_sbids}}</p>   
+    <p id='total_sbids' style="text-align: center;">Total number of SBIDs shown = {{num_sbids}}</p> 
     <form action="/db_query/">
       <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>
       <input type="submit" value="Return to Main page"/>
     </form>
   </div>
-  <div class="container-fluid">
+  <div class="container-fluid border">
      <!-- Aladin Lite container at requested dimensions -->
      <div id="aladin-lite-div" style="width:1000px;height:700px;"></div>
   </div>
@@ -74,29 +74,52 @@
       // set up aladin
       aladin = A.aladin('#aladin-lite-div', {survey: "P/DSS2/color", fov: 1.5, target: "trifid nebula"});
 
-      // create layers
-      var band1MarkerLayer = A.catalog();
-      aladin.addCatalog(band1MarkerLayer);
-      var band1Layer = A.graphicOverlay({color: 'grey', opacity: 0.5, lineWidth: 1});
-      aladin.addOverlay(band1Layer);
-
-      var good = 0;			
-      var uncertain = 0;
-      var rejected = 0;
-      var notValidated = 0;
+      // create catalogs for status
+      var goodCat = A.catalog({name: 'Good Observations', shape: 'circle', color: 'cyan', onClick: 'showPopup'});
+      aladin.addCatalog(goodCat);
+      var uncertainCat = A.catalog({name: 'Uncertain Observations', shape: 'square', color: 'white', onClick: 'showPopup'});
+      aladin.addCatalog(uncertainCat);
+      var rejectedCat = A.catalog({name: 'Rejected Observations', shape: 'cross', color: 'red', onClick: 'showPopup'});
+      aladin.addCatalog(rejectedCat);      
+      var notValidatedCat = A.catalog({name: 'Not Validated', shape: 'triangle', color: 'pink', onClick: 'showPopup'});
+      aladin.addCatalog(notValidatedCat);
+      // create layers based on detection runs 
+      var maskedLayer = A.graphicOverlay({name:'Masked Detections', color: 'grey', opacity: 0.5, lineWidth: 1});
+      aladin.addOverlay(maskedLayer);
+      var invertedLayer = A.graphicOverlay({name:'Inverted Detections', color: 'grey', opacity: 0.5, lineWidth: 1});
+      aladin.addOverlay(invertedLayer);
+      var standardLayer = A.graphicOverlay({name:'Standard Detections', color: 'grey', opacity: 0.5, lineWidth: 1});
+      aladin.addOverlay(standardLayer);
+      var noDetectLayer = A.graphicOverlay({name:'No Detections', color: 'grey', opacity: 0.5, lineWidth: 1});
+      aladin.addOverlay(noDetectLayer); 
+      
       var detection = 0;
       var invert = 0;
       var mask = 0;
-      var notDetected = 0;
+      var notDetected = 0;  
       tiles.forEach(sbid => {
-        console.log(sbid);
         var ra = parseFloat(sbid[3]);
         var dec = parseFloat(sbid[4]);
 
-        // Create marker
-        var marker = A.marker(ra, dec, 
-                  {popupTitle: 'SBID: '+sbid[0], popupDesc: 'FIELD: '+sbid[1] + '\nSTATUS: '+sbid[5]});
-        band1MarkerLayer.addSources([marker]);
+        // Create catalog sources
+        var marker = A.source(ra, dec,
+                  {SBID: sbid[0], FIELD: sbid[1], STATUS: sbid[5]});
+        switch(sbid[5]) {
+            case "GOOD":
+                goodCat.addSources([marker]);
+                break;
+            case "UNCERTAIN":
+                uncertainCat.addSources([marker]);
+                break;
+            case "REJECTED":
+                rejectedCat.addSources([marker]);
+                break;
+            default:
+                notValidatedCat.addSources([marker]);
+                break;
+        }
+                  
+        // detection shapes
         d_ra_upper = 3.0 / Math.cos((dec + 3.0) * Math.PI / 180.0);
         d_ra_lower = 3.0 / Math.cos((dec - 3.0)* Math.PI / 180.0);
         shape = A.polygon([
@@ -106,22 +129,25 @@
                     [ra + d_ra_upper, dec + 3.0]
         ]);
         shape.fill = true;
-        shape.opacity = 0.5;
+        shape.opacity = 0.3;
         if (sbid[8] === true) {
           shape.fillColor = 'green';
+          maskedLayer.addFootprints([shape]);
           mask++;
         } else if (sbid[7] === true) {
           shape.fillColor = 'yellow';
+          invertedLayer.addFootprints([shape]);
           invert++;
         } else if (sbid[6] === true) {
           shape.fillColor = 'blue';
+          standardLayer.addFootprints([shape]);
           detection++;
         } else {
           shape.fillColor = 'grey';
+          noDetectLayer.addFootprints([shape]);
           notDetected++;
-        }    
-        band1Layer.addFootprints([shape])
-      });          
+        }               
+      });
       document.getElementById('run_summary').innerHTML = "<br>MASKED DETECTION runs  = "+ mask +"<br>INVERTED DETECTION  runs = " + invert 
               + "<br>STANDARD DETECTION runs = " + detection + "<br>NO DETECTION = " + notDetected + "<br>";
     });
