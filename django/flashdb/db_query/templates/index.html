@@ -7,7 +7,9 @@
         border: 1px solid black;
         border-collapse: collapse;
     }
-
+    .column {
+        flex: 1; /* Allows columns to grow and shrink equally */
+    }
     .container-fluid {
         border: 2px solid black;
         padding: 4px;
@@ -71,15 +73,20 @@
 </head>
 <body style="background-color:#ABB2B9;">
     <div class="container-fluid" style="background-color:aquamarine;">
-    <H1 style="text-align: center;">Welcome to the FLASH database at AusSRC</H1>
-    {% load static %}
-    <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
-    <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
-    <p style="text-align: center;">Total number of sbids in DB = {{ records }}</p>
-    <p style="text-align: center;">Pilot 1 sbids in DB = {{ pilot1 }} ({{ apilot1 }} validated)</p>
-    <p style="text-align: center;">Pilot 2 sbids in DB = {{ pilot2 }} ({{ apilot2 }} validated)</p>
-    <p style="text-align: center;">Survey sbids in DB = {{ survey }} ({{ asurvey }} validated)</p>
-    </div>
+      <H1 style="text-align: center;">Welcome to the FLASH database at AusSRC</H1>
+      {% load static %}
+      <div class="container" style="display:flex; gap:20px; border:none;">
+        <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="top:20px; right:30px;" width="200" height="100">
+        
+      <div class="column">
+        <p style="text-align: center;">Total number of sbids in DB = {{ records }}</p>
+        <p style="text-align: center;">Pilot 1 sbids in DB = {{ pilot1 }} ({{ apilot1 }} validated)</p>
+        <p style="text-align: center;">Pilot 2 sbids in DB = {{ pilot2 }} ({{ apilot2 }} validated)</p>
+        <p style="text-align: center;">Survey sbids in DB = {{ survey }} ({{ asurvey }} validated)</p>
+      </div>
+        <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="top:20px; left:30px;" width="180" height="100">
+      </div>
+    </div>    
     <div class="container-fluid">        
       <form action=/db_query/query_database/ method="post">
         {% csrf_token %}                        
@@ -91,7 +98,10 @@
           </span>
         </div>    
         <div class="mb-3">
-            <p><input type="submit" value="Observation Fields Viewer" class="btn btn-primary" formaction="/show_sbids_aladin/"></p>
+            <p>
+                <input type="hidden" id="view_by" name="view_by" value="DETECTION"/>
+                <input type="submit" value="Observation Fields Viewer" class="btn btn-primary" formaction="/show_sbids_aladin/">
+            </p>
             <p><input type="submit" value="Bad ASCII Files Viewer" class="btn btn-primary" formaction="/show_bad_ascii/"></p>
         </div>	          
         <div class="mb-3">
@@ -118,7 +128,7 @@
             <h5 class="card-title text-center">QUERY the database</h5>
             <p class="card-text text-center">This will display metadata on an sbid</p>
             <div class="form-group mb-3">
-                <label class="form-label" for="sbid_query">Enter integer for SBID to query ('-1' for all sbids):</label><br>
+                <label class="form-label" for="sbid1">Enter integer for SBID to query ('-1' for all sbids):</label><br>
                 <input type="text" id="sbid1" name="sbid_query" class="form-control w-25">
             </div>
             <div class="form-check">
@@ -164,7 +174,7 @@
                 <label for="output3" class="form-check-label">Masked output</label>
             </div>
             <div class="form-group mb-3">
-                <label for="sbid_line">Enter integer for SBID to query:</label>
+                <label for="sbid2">Enter integer for SBID to query:</label>
                 <input type="text" id="sbid2" name="sbid_line" class="form-control w-25">                
             </div>
             <div class="form-group mb-3">
@@ -196,14 +206,14 @@
                 <label for="tarball" class="form-check-label">Get tarball of sources, but don't view in page</label>
             </div>
             <div class="form-group mb-3">
-                <label for="sbid_source">Enter integer for SBID to query:</label><br>
+                <label for="sbid3">Enter integer for SBID to query:</label><br>
                 <input type="text" id="sbid3" name="sbid_source" class="form-control w-25"><br>
             </div>
             <div class="form-group mb-3">
                 <label for="comp">Enter source number (eg: <i>25a</i> or <i>1a,2b,25a</i>):</label>
                 <input type="text" id="comp" name="comp" class="form-control w-25 mb-3">
                 <strong>OR</strong><br>
-                <label for="comp1" class="mt-3">Enter number of bright components to show (eg: <i>10</i> to show 10 brightest sources):</label>
+                <label for="bright" class="mt-3">Enter number of bright components to show (eg: <i>10</i> to show 10 brightest sources):</label>
                 <input type="text" id="bright" name="bright" class="form-control w-25">
             </div>
         </div>
