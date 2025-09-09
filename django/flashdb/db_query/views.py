@@ -443,6 +443,7 @@ def show_sbids_aladin(request):
     password = request.POST.get('pass')
     host = request.POST.get('host')
     session_id = request.POST.get('session_id')
+    current_view = request.POST.get('view_by')
     try:
         conn = connect(password=password, host=host)
     except:
@@ -450,36 +451,16 @@ def show_sbids_aladin(request):
     with conn.cursor() as cursor:
         query = 'SELECT t.sbid_num, t.pointing, comp.sbid_id, AVG(comp.ra_deg_cont::NUMERIC) AS ra,'\
             + ' AVG(comp.dec_deg_cont::NUMERIC) AS dec, t.quality AS status,'\
-            + ' t.detectionf, t.invert_detectionf, t.mask_detectionf'\
-            + ' FROM component comp'\
-            + ' INNER JOIN sbid t ON comp.sbid_id = t.id'\
-            + ' GROUP BY comp.sbid_id, t.sbid_num, t.pointing, t.quality, t.detectionf, t.invert_detectionf, t.mask_detectionf'
+            + ' t.detectionf, t.invert_detectionf, t.mask_detectionf, run.run_tag'\
+            + ' FROM sbid t'\
+            + ' INNER JOIN component comp ON comp.sbid_id = t.id'\
+            + ' LEFT JOIN spect_run run ON t.spect_runid = run.id'\
+            + ' GROUP BY comp.sbid_id, t.sbid_num, t.pointing, t.quality, t.detectionf, t.invert_detectionf, t.mask_detectionf, run.run_tag'
         cursor.execute(query)
         sbids = cursor.fetchall()
-        # Count the number of SBIDs in each quality category
-        query = "SELECT t.quality, COUNT(*) AS count" \
-            + " FROM sbid t" \
-            + " GROUP BY t.quality"
-        print(query)
-        cursor.execute(query)
-        good = 0
-        uncertain = 0
-        rejected = 0
-        not_validated = 0
-        for row in cursor.fetchall():
-            print(row)
-            if row[0] == 'GOOD':
-                good = row[1]
-            elif row[0] == 'UNCERTAIN':
-                uncertain = row[1]
-            elif row[0] == 'REJECTED':
-                rejected = row[1]
-            elif row[0] == 'NOT_VALIDATED':
-                not_validated = row[1]
         conn.close()
-        return render(request, 'sbids_aladin.html', {'session_id': session_id, \
-                'sbids': sbids, 'num_sbids': len(sbids), 'num_good': good, 'num_uncertain': uncertain,\
-                'num_rejected': rejected, 'num_not_validated': not_validated})
+        return render(request, 'sbids_aladin.html', {'session_id': session_id, 'view_by': current_view,\
+                'sbids': sbids, 'num_sbids': len(sbids)})
 
 def get_bad_file_description(name):
     category_dict = [ \
