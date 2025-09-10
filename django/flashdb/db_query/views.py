@@ -443,7 +443,6 @@ def show_sbids_aladin(request):
     password = request.POST.get('pass')
     host = request.POST.get('host')
     session_id = request.POST.get('session_id')
-    current_view = request.POST.get('view_by')
     try:
         conn = connect(password=password, host=host)
     except:
@@ -459,8 +458,7 @@ def show_sbids_aladin(request):
         cursor.execute(query)
         sbids = cursor.fetchall()
         conn.close()
-        return render(request, 'sbids_aladin.html', {'session_id': session_id, 'view_by': current_view,\
-                'sbids': sbids})
+        return render(request, 'sbids_aladin.html', {'session_id': session_id, 'sbids': sbids})
 
 def get_bad_file_description(name):
     category_dict = [ \
