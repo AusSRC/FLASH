@@ -189,93 +189,94 @@
       updateTotalSBIDs();     
     });
   
-  hideAndShowBasedOnStatus();
+    hideAndShowBasedOnStatus();
 
-  hideAndShowBasedOnTagSelection();
+    hideAndShowBasedOnTagSelection();
   
-  function showOrHide(source, show) {
-    const detection = sourceToDetectionMap.get(source);
-    if (show && isTagSelected(source)) {
-      source.show();
-      detection.show();
-    } else {
-      source.hide();
-      detection.hide();
+    function showOrHide(source, show) {
+      const detection = sourceToDetectionMap.get(source);
+      if (show && isTagSelected(source)) {
+        source.show();
+        detection.show();
+      } else {
+        source.hide();
+        detection.hide();
+      }
     }
-  }
   
-  function hideAndShowBasedOnStatus() {
-    const filters = [
-      { checkboxId: 'hideRejected', status: 'REJECTED', catalog: rejectedCat },
-      { checkboxId: 'hideUncertain', status: 'UNCERTAIN', catalog: uncertainCat },
-      { checkboxId: 'hideNotValidated', status: 'NOT VALIDATED', catalog: notValidatedCat }
-    ];
-    filters.forEach(({ checkboxId, status, catalog }) => {
-      document.getElementById(checkboxId).addEventListener('change', function () {
-        const show = !this.checked;
-        // Show/hide the catalog
-        catalog[show ? 'show' : 'hide']();
-        // Show/hide source and corresponding detections
-        catalog.sources.forEach(source => showOrHide(source, show));
-        updateTotalSBIDs();
-      });     
-    });
-  }
-  
-  function hideAndShowBasedOnTagSelection() {
-    // Manage tag selection  
-    const tagLabel = document.getElementById('selectedTag');
-    document.querySelectorAll('.dropdown-item').forEach(item => {
-      item.addEventListener('click', function (e) {
-        e.preventDefault();
-        // Update the label in the button
-        tagLabel.textContent = this.textContent;
-        // Highlight selected
-        document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
-        this.classList.add('active');
-        // tag-based filtering logic here
-        const catalogs = [goodCat, uncertainCat, rejectedCat, notValidatedCat];
-        catalogs.forEach(cat => {
-          cat.sources.forEach(source => showOrHide(source, cat.isShowing));          
-        }); 
-        updateTotalSBIDs();
+    function hideAndShowBasedOnStatus() {
+      // manage check boxes changes
+      const filters = [
+        { checkboxId: 'hideRejected', status: 'REJECTED', catalog: rejectedCat },
+        { checkboxId: 'hideUncertain', status: 'UNCERTAIN', catalog: uncertainCat },
+        { checkboxId: 'hideNotValidated', status: 'NOT VALIDATED', catalog: notValidatedCat }
+      ];
+      filters.forEach(({ checkboxId, status, catalog }) => {
+        document.getElementById(checkboxId).addEventListener('change', function () {
+          const show = !this.checked;
+          // Show/hide the catalog
+          catalog[show ? 'show' : 'hide']();
+          // Show/hide source and corresponding detections
+          catalog.sources.forEach(source => showOrHide(source, show));
+          updateTotalSBIDs();
+        });     
       });
-    });
-  }
-  function isTagSelected(source) {
-    if (document.getElementById('selectedTag').textContent === 'All' || 
+    }
+  
+    function hideAndShowBasedOnTagSelection() {
+      // Manage tag selection  
+      const tagLabel = document.getElementById('selectedTag');
+      document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.addEventListener('click', function (e) {
+          e.preventDefault();
+          // Update the label in the button
+          tagLabel.textContent = this.textContent;
+          // Highlight selected
+          document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+          this.classList.add('active');
+          // tag-based filtering logic here
+          const catalogs = [goodCat, uncertainCat, rejectedCat, notValidatedCat];
+          catalogs.forEach(cat => {
+            cat.sources.forEach(source => showOrHide(source, cat.isShowing));          
+          }); 
+          updateTotalSBIDs();
+        });
+      });
+    }
+    function isTagSelected(source) {
+      if (document.getElementById('selectedTag').textContent === 'All' || 
         (source.data['TAG'] &&
           source.data['TAG'].toUpperCase() === document.getElementById('selectedTag').textContent.toUpperCase()
-        )) {
-            return true;
+        )){
+           return true;
+      }
+      return false;
     }
-    return false;
-  }
-  function isMaskDetection(source) {
-    const detection = sourceToDetectionMap.get(source);
-    return detection && detection.fillColor === 'green';
-  }
-  function isInvertedDetection(source) {
-    const detection = sourceToDetectionMap.get(source);
-    return detection && detection.fillColor === 'yellow';
-  }
-  function isStandardDetection(source) {
-    const detection = sourceToDetectionMap.get(source);
-    return detection && detection.fillColor === 'blue';
-  }
-  function isNoDetection(source) {
-    const detection = sourceToDetectionMap.get(source);
-    return detection && detection.fillColor === 'grey';
-  }
-  function updateTotalSBIDs() {
-    let count = 0;
-    let countPerStatus = [0,0,0,0]; // good, uncertain, rejected, not validated
-    let maskedCount = 0;
-    let invertedCount = 0;
-    let standardCount = 0;
-    let noDetectCount = 0;
-    let idx = 0;
-    [goodCat, uncertainCat, rejectedCat, notValidatedCat].forEach(cat => {
+    function isMaskDetection(source) {
+      const detection = sourceToDetectionMap.get(source);
+      return detection && detection.fillColor === 'green';
+    }
+    function isInvertedDetection(source) {
+      const detection = sourceToDetectionMap.get(source);
+      return detection && detection.fillColor === 'yellow';
+    }
+    function isStandardDetection(source) {
+      const detection = sourceToDetectionMap.get(source);
+      return detection && detection.fillColor === 'blue';
+    }
+    function isNoDetection(source) {
+      const detection = sourceToDetectionMap.get(source);
+      return detection && detection.fillColor === 'grey';
+    }
+    function updateTotalSBIDs() {
+      let count = 0;
+      let countPerStatus = [0,0,0,0]; // good, uncertain, rejected, not validated
+      let maskedCount = 0;
+      let invertedCount = 0;
+      let standardCount = 0;
+      let noDetectCount = 0;
+      let idx = 0;
+      [goodCat, uncertainCat, rejectedCat, notValidatedCat].forEach(cat => {
         if (cat.isShowing) {
             countPerStatus[idx] = cat.sources.filter(source => source.isShowing).length;
             count += countPerStatus[idx];
@@ -285,16 +286,16 @@
             standardCount += cat.sources.filter(source => source.isShowing && isStandardDetection(source)).length;
             noDetectCount += cat.sources.filter(source => source.isShowing && isNoDetection(source)).length;
         }
-    });    
-    document.getElementById('maskedCount').innerHTML = `MASKED DETECTION runs  =  ${maskedCount}`;
-    document.getElementById('invertedCount').innerHTML = `INVERTED DETECTION runs = ${invertedCount}`;
-    document.getElementById('standardCount').innerHTML = `STANDARD DETECTION runs = ${standardCount}`;
-    document.getElementById('noDetectCount').textContent = `NO DETECTION = ${noDetectCount}`;       
-    document.getElementById('goodCount').textContent = `GOOD observations  = ${countPerStatus[0]}`;
-    document.getElementById('uncertainCount').textContent = `UNCERTAIN observations = ${countPerStatus[1]}`;
-    document.getElementById('rejectedCount').textContent = `REJECTED observations = ${countPerStatus[2]}`;
-    document.getElementById('notValidatedCount').textContent = `NOT VALIDATED = ${countPerStatus[3]}`;
-    document.getElementById('total_sbids').textContent = `Total number of SBIDs shown = ${count}`;
-  }
+      });    
+      document.getElementById('maskedCount').innerHTML = `MASKED DETECTION runs  =  ${maskedCount}`;
+      document.getElementById('invertedCount').innerHTML = `INVERTED DETECTION runs = ${invertedCount}`;
+      document.getElementById('standardCount').innerHTML = `STANDARD DETECTION runs = ${standardCount}`;
+      document.getElementById('noDetectCount').textContent = `NO DETECTION = ${noDetectCount}`;       
+      document.getElementById('goodCount').textContent = `GOOD observations  = ${countPerStatus[0]}`;
+      document.getElementById('uncertainCount').textContent = `UNCERTAIN observations = ${countPerStatus[1]}`;
+      document.getElementById('rejectedCount').textContent = `REJECTED observations = ${countPerStatus[2]}`;
+      document.getElementById('notValidatedCount').textContent = `NOT VALIDATED = ${countPerStatus[3]}`;
+      document.getElementById('total_sbids').textContent = `Total number of SBIDs shown = ${count}`;
+    }
   </script>
 </body>
