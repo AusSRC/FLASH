@@ -77,13 +77,12 @@
       {% load static %}
       <div class="container" style="display:flex; gap:20px; border:none;">
         <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="top:20px; right:30px;" width="200" height="100">
-        
-      <div class="column">
-        <p style="text-align: center;">Total number of sbids in DB = {{ records }}</p>
-        <p style="text-align: center;">Pilot 1 sbids in DB = {{ pilot1 }} ({{ apilot1 }} validated)</p>
-        <p style="text-align: center;">Pilot 2 sbids in DB = {{ pilot2 }} ({{ apilot2 }} validated)</p>
-        <p style="text-align: center;">Survey sbids in DB = {{ survey }} ({{ asurvey }} validated)</p>
-      </div>
+        <div class="column">
+          <p style="text-align: center;">Total number of sbids in DB = {{ records }}</p>
+          <p style="text-align: center;">Pilot 1 sbids in DB = {{ pilot1 }} ({{ apilot1 }} validated)</p>
+          <p style="text-align: center;">Pilot 2 sbids in DB = {{ pilot2 }} ({{ apilot2 }} validated)</p>
+          <p style="text-align: center;">Survey sbids in DB = {{ survey }} ({{ asurvey }} validated)</p>
+        </div>
         <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="top:20px; left:30px;" width="180" height="100">
       </div>
     </div>    
