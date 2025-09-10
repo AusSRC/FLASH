@@ -45,7 +45,7 @@
 </head>
 <body style="background-color:#ABB2B9;">
   {{ sbids|json_script:"sbids-data" }}  
-  <div class="container-fluid blackborder" style="background-color:aquamarine;">
+  <div class="container-fluid black-border" style="background-color:aquamarine;">
     <H1 style="text-align: center;">FLASH Survey Progress</H1>
     {% load static %}
     <div class="container black-border" style="display:flex; gap:20px; border:none;">
@@ -95,7 +95,7 @@
     </div>   
     <p id='total_sbids' style="text-align: center;"></p> 
     <form action="/db_query/">
-      <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>                
+      <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>
       <input type="submit" value="Return to Main page"/>
       <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" style="margin:5px;">
         View By Tag: <span id="selectedTag">All</span>
@@ -111,7 +111,7 @@
       <input type="checkbox" id="hideNotValidated" unchecked> Hide Not Validated      
     </form>
   </div>
-  <div class="container-fluid border">
+  <div class="container-fluid black-border">
      <!-- Aladin Lite container at requested dimensions -->
      <div id="aladin-lite-div" style="width:1000px;height:700px;"></div>
   </div>
@@ -193,38 +193,30 @@
 
   hideAndShowBasedOnTagSelection();
   
+  function showOrHide(source, show) {
+    const detection = sourceToDetectionMap.get(source);
+    if (show && isTagSelected(source)) {
+      source.show();
+      detection.show();
+    } else {
+      source.hide();
+      detection.hide();
+    }
+  }
+  
   function hideAndShowBasedOnStatus() {
-    const filters = [{
-      checkboxId: 'hideRejected',
-      status: 'REJECTED',
-      catalog: rejectedCat
-    }, {
-     checkboxId: 'hideUncertain',
-     status: 'UNCERTAIN',
-     catalog: uncertainCat
-    }, {
-     checkboxId: 'hideNotValidated',
-     status: 'NOT VALIDATED',
-     catalog: notValidatedCat
-    }];
+    const filters = [
+      { checkboxId: 'hideRejected', status: 'REJECTED', catalog: rejectedCat },
+      { checkboxId: 'hideUncertain', status: 'UNCERTAIN', catalog: uncertainCat },
+      { checkboxId: 'hideNotValidated', status: 'NOT VALIDATED', catalog: notValidatedCat }
+    ];
     filters.forEach(({ checkboxId, status, catalog }) => {
       document.getElementById(checkboxId).addEventListener('change', function () {
         const show = !this.checked;
         // Show/hide the catalog
         catalog[show ? 'show' : 'hide']();
-        // Show/hide corresponding detections
-        sourceToDetectionMap.forEach((detection, source) => {
-          if (source.data['STATUS'] === status) {
-            // also check the tag 
-            if (show && isTagSelected(source)) {
-                source.show();
-                detection.show();
-            } else {
-                source.hide();
-                detection.hide();
-            }
-          }
-        });
+        // Show/hide source and corresponding detections
+        catalog.sources.forEach(source => showOrHide(source, show));
         updateTotalSBIDs();
       });     
     });
@@ -244,16 +236,7 @@
         // tag-based filtering logic here
         const catalogs = [goodCat, uncertainCat, rejectedCat, notValidatedCat];
         catalogs.forEach(cat => {
-          cat.sources.forEach(source => {
-            const detection = sourceToDetectionMap.get(source);
-              if (isTagSelected(source) && cat.isShowing) {
-                source.show();
-                detection.show();
-              } else {
-                source.hide();
-                detection.hide();
-              }
-          });
+          cat.sources.forEach(source => showOrHide(source, cat.isShowing));          
         }); 
         updateTotalSBIDs();
       });
