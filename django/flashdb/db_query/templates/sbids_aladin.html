@@ -25,6 +25,14 @@
         height: 20px;
         margin-right: 10px;
     }
+    .legend-circle {
+       display: inline-block; 
+       width: 20px;         
+       height: 20px;
+       border-radius: 50%;
+       margin-right: 10px;   
+       vertical-align: middle;
+    }   
     </style>
     <!--Include bootstrap things-->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">    
@@ -43,23 +51,53 @@
     <div class="container black-border" style="display:flex; gap:20px; border:none;">
       <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="top:20px; right:30px;" width="200" height="100">          
       <!-- Create a legend for the type of detections -->  
-      <div class="column black-border" id="myLegendContainer">
+      <div class="column black-border" id="detectionLegendContainer">
         <ul class="legend-list">
-          <li class="legend-item"><span class="legend-color-box" style="background-color: green;"></span>MASKED DETECTION</li>
-          <li class="legend-item"><span class="legend-color-box" style="background-color: yellow;"></span>INVERTED DETECTION</li>
-          <li class="legend-item"><span class="legend-color-box" style="background-color: blue;"></span>STANDARD DETECTION</li>
-          <li class="legend-item"><span class="legend-color-box" style="background-color: grey;"></span>NO DETECTION</li>            
+          <li class="legend-item">
+            <span class="legend-color-box" style="background-color: green;"></span>
+            <span id="maskedCount"></span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-color-box" style="background-color: yellow;"></span>
+            <span id="invertedCount"></span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-color-box" style="background-color: blue;"></span>
+            <span id="standardCount"></span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-color-box" style="background-color: grey;"></span>
+            <span id="noDetectCount"></span>
+          </li>            
         </ul>      
       </div>      
-      <div class='column black-border' id='run_summary'></div>
-      <div class='column black-border' id='status_summary'></div>	  
+      <div class="column black-border" id="statusLegendContainer">
+        <ul class="legend-list">
+          <li class="legend-item">
+            <span class="legend-circle" style="background-color: fuchsia;"></span>
+            <span id="goodCount"></span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-circle" style="background-color: orange"></span>
+            <span id="uncertainCount"></span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-circle" style="background-color: red;"></span>
+            <span id="rejectedCount"></span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-circle" style="background-color: grey;"></span>
+            <span id="notValidatedCount"></span>
+          </li>            
+        </ul>      
+      </div>  
       <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="top:20px; left:30px;" width="180" height="100">
     </div>   
-    <p id='total_sbids' style="text-align: center;">Total number of SBIDs shown = {{num_sbids}}</p> 
+    <p id='total_sbids' style="text-align: center;"></p> 
     <form action="/db_query/">
       <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>                
       <input type="submit" value="Return to Main page"/>
-      <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+      <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" style="margin:5px;">
         View By Tag: <span id="selectedTag">All</span>
       </button>
       <ul class="dropdown-menu">
@@ -84,12 +122,12 @@
     // link sources to overlays so we can hide overlays when sources are hidden
     const sourceToDetectionMap = new Map();
     // create catalogs for status
-    var goodCat = A.catalog({name: 'Good Observations', shape: 'circle', color: 'blue', onClick: 'showPopup'});
-    var uncertainCat = A.catalog({name: 'Uncertain Observations', shape: 'square', color: 'grey', onClick: 'showPopup'});
-    var rejectedCat = A.catalog({name: 'Rejected Observations', shape: 'cross', color: 'red', onClick: 'showPopup'});
-    var notValidatedCat = A.catalog({name: 'Not Validated', shape: 'triangle', color: 'white', onClick: 'showPopup'});
+    var goodCat = A.catalog({name: 'Good Observations', shape: 'circle', color: 'fuchsia', onClick: 'showPopup'});
+    var uncertainCat = A.catalog({name: 'Uncertain Observations', shape: 'circle', color: 'orange', onClick: 'showPopup'});
+    var rejectedCat = A.catalog({name: 'Rejected Observations', shape: 'circle', color: 'red', onClick: 'showPopup'});
+    var notValidatedCat = A.catalog({name: 'Not Validated', shape: 'circle', color: 'grey', onClick: 'showPopup'});
     // create layers based on detection runs 
-    var detectLayer = A.graphicOverlay({name:'Detections', color: 'green', opacity: 0.5, lineWidth: 1});
+    var detectLayer = A.graphicOverlay({name:'Detections', color: 'grey', opacity: 0.5, lineWidth: 1});
      
     A.init.then(() => {
       // set up aladin
@@ -265,14 +303,14 @@
             noDetectCount += cat.sources.filter(source => source.isShowing && isNoDetection(source)).length;
         }
     });    
-    document.getElementById('run_summary').innerHTML = "<br>MASKED DETECTION runs  = "+ maskedCount
-              +"<br>INVERTED DETECTION  runs = " + invertedCount
-              + "<br>STANDARD DETECTION runs = " + standardCount
-              + "<br>NO DETECTION = " + noDetectCount + "<br>";
-    document.getElementById('status_summary').innerHTML = "<br>GOOD observations  = "+ countPerStatus[0]
-              + "<br>UNCERTAIN observations = " + countPerStatus[1]
-              + "<br>REJECTED observations = " + countPerStatus[2]
-              + "<br>NOT VALIDATED = " + countPerStatus[3] + "<br>";
+    document.getElementById('maskedCount').innerHTML = `MASKED DETECTION runs  =  ${maskedCount}`;
+    document.getElementById('invertedCount').innerHTML = `INVERTED DETECTION runs = ${invertedCount}`;
+    document.getElementById('standardCount').innerHTML = `STANDARD DETECTION runs = ${standardCount}`;
+    document.getElementById('noDetectCount').textContent = `NO DETECTION = ${noDetectCount}`;       
+    document.getElementById('goodCount').textContent = `GOOD observations  = ${countPerStatus[0]}`;
+    document.getElementById('uncertainCount').textContent = `UNCERTAIN observations = ${countPerStatus[1]}`;
+    document.getElementById('rejectedCount').textContent = `REJECTED observations = ${countPerStatus[2]}`;
+    document.getElementById('notValidatedCount').textContent = `NOT VALIDATED = ${countPerStatus[3]}`;
     document.getElementById('total_sbids').textContent = `Total number of SBIDs shown = ${count}`;
   }
   </script>

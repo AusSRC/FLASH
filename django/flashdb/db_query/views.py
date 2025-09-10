@@ -460,7 +460,7 @@ def show_sbids_aladin(request):
         sbids = cursor.fetchall()
         conn.close()
         return render(request, 'sbids_aladin.html', {'session_id': session_id, 'view_by': current_view,\
-                'sbids': sbids, 'num_sbids': len(sbids)})
+                'sbids': sbids})
 
 def get_bad_file_description(name):
     category_dict = [ \
