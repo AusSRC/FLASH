@@ -96,5 +96,7 @@ for i in "${!SBIDARRAY[@]}"; do
 	jid2=$(sbatch --dependency=afterok:$j1 tar_spectral_outputs.sh $SBID)
         j2=$(echo $jid2 | awk '{print $4}')
 	jid3=$(sbatch --dependency=afterok:$j2 push_spectral_to_oracle.sh $SBID)
+    else
+        echo "No data found for sbid $SBID. Ignoring"
     fi
 done
