@@ -280,12 +280,12 @@
         if (cat.isShowing) {
             countPerStatus[idx] = cat.sources.filter(source => source.isShowing).length;
             count += countPerStatus[idx];
-            idx+=1;
             maskedCount += cat.sources.filter(source => source.isShowing && isMaskDetection(source)).length;
             invertedCount += cat.sources.filter(source => source.isShowing && isInvertedDetection(source)).length;
             standardCount += cat.sources.filter(source => source.isShowing && isStandardDetection(source)).length;
             noDetectCount += cat.sources.filter(source => source.isShowing && isNoDetection(source)).length;
         }
+        idx++;            
       });    
       document.getElementById('maskedCount').innerHTML = `MASKED DETECTION runs  =  ${maskedCount}`;
       document.getElementById('invertedCount').innerHTML = `INVERTED DETECTION runs = ${invertedCount}`;
