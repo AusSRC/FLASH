@@ -3,7 +3,7 @@
 <head>
     <title>FLASHDB</title>
     <style>
-    div {
+    .black-border {
         border: 2px solid black;
         padding: 4px;
     }
@@ -25,7 +25,19 @@
         height: 20px;
         margin-right: 10px;
     }
+    .legend-circle {
+       display: inline-block; 
+       width: 20px;         
+       height: 20px;
+       border-radius: 50%;
+       margin-right: 10px;   
+       vertical-align: middle;
+    }   
     </style>
+    <!--Include bootstrap things-->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- our code needs jQuery library -->
     <script type="text/javascript" src="http://code.jquery.com/jquery-1.9.1.min.js" charset="utf-8"></script>
     <!-- Aladin Lite JS code -->
@@ -33,36 +45,73 @@
 </head>
 <body style="background-color:#ABB2B9;">
   {{ sbids|json_script:"sbids-data" }}  
-  <div class="container-fluid" style="background-color:aquamarine;">
+  <div class="container-fluid black-border" style="background-color:aquamarine;">
     <H1 style="text-align: center;">FLASH Survey Progress</H1>
     {% load static %}
-    <div class="container" style="display:flex; gap:20px; border:none;">
+    <div class="container black-border" style="display:flex; gap:20px; border:none;">
       <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="top:20px; right:30px;" width="200" height="100">          
       <!-- Create a legend for the type of detections -->  
-      <div class="column" id="myLegendContainer">
+      <div class="column black-border" id="detectionLegendContainer">
         <ul class="legend-list">
-          <li class="legend-item"><span class="legend-color-box" style="background-color: green;"></span>MASKED DETECTION</li>
-          <li class="legend-item"><span class="legend-color-box" style="background-color: yellow;"></span>INVERTED DETECTION</li>
-          <li class="legend-item"><span class="legend-color-box" style="background-color: blue;"></span>STANDARD DETECTION</li>
-          <li class="legend-item"><span class="legend-color-box" style="background-color: grey;"></span>NO DETECTION</li>            
+          <li class="legend-item">
+            <span class="legend-color-box" style="background-color: green;"></span>
+            <span id="maskedCount"></span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-color-box" style="background-color: yellow;"></span>
+            <span id="invertedCount"></span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-color-box" style="background-color: blue;"></span>
+            <span id="standardCount"></span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-color-box" style="background-color: grey;"></span>
+            <span id="noDetectCount"></span>
+          </li>            
         </ul>      
       </div>      
-      <div class='column' id='run_summary'></div>
-      <div class='column' id='status_summary'>
-        <br>GOOD observations = {{ num_good }}
-        <br>UNCERTAIN observations = {{ num_uncertain }}
-        <br>REJECTED observations = {{ num_rejected }}
-        <br>NOT VALIDATED = {{ num_not_validated }}
-      </div>	  
+      <div class="column black-border" id="statusLegendContainer">
+        <ul class="legend-list">
+          <li class="legend-item">
+            <span class="legend-circle" style="background-color: fuchsia;"></span>
+            <span id="goodCount"></span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-circle" style="background-color: orange"></span>
+            <span id="uncertainCount"></span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-circle" style="background-color: red;"></span>
+            <span id="rejectedCount"></span>
+          </li>
+          <li class="legend-item">
+            <span class="legend-circle" style="background-color: grey;"></span>
+            <span id="notValidatedCount"></span>
+          </li>            
+        </ul>      
+      </div>  
       <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="top:20px; left:30px;" width="180" height="100">
     </div>   
-    <p id='total_sbids' style="text-align: center;">Total number of SBIDs shown = {{num_sbids}}</p>   
+    <p id='total_sbids' style="text-align: center;"></p> 
     <form action="/db_query/">
       <input type="hidden" id="session_id" name="session_id" value={{ session_id }}/>
       <input type="submit" value="Return to Main page"/>
+      <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" style="margin:5px;">
+        View By Tag: <span id="selectedTag">All</span>
+      </button>
+      <ul class="dropdown-menu">
+        <li><a class="dropdown-item active" href="#">All</a></li>
+        <li><a class="dropdown-item" href="#">Flash Pilot 1</a></li>
+        <li><a class="dropdown-item" href="#">Flash Pilot 2</a></li>
+        <li><a class="dropdown-item" href="#">Flash Survey 1</a></li>
+      </ul>        
+      <input type="checkbox" id="hideRejected" unchecked> Hide Rejected Observations
+      <input type="checkbox" id="hideUncertain" unchecked> Hide Uncertain Observations
+      <input type="checkbox" id="hideNotValidated" unchecked> Hide Not Validated      
     </form>
   </div>
-  <div class="container-fluid">
+  <div class="container-fluid black-border">
      <!-- Aladin Lite container at requested dimensions -->
      <div id="aladin-lite-div" style="width:1000px;height:700px;"></div>
   </div>
@@ -70,33 +119,51 @@
   <script type="text/javascript"> 
     let aladin;
     let tiles = JSON.parse(document.getElementById('sbids-data').textContent);
+    // link sources to overlays so we can hide overlays when sources are hidden
+    const sourceToDetectionMap = new Map();
+    // create catalogs for status
+    var goodCat = A.catalog({name: 'Good Observations', shape: 'circle', color: 'fuchsia', onClick: 'showPopup'});
+    var uncertainCat = A.catalog({name: 'Uncertain Observations', shape: 'circle', color: 'orange', onClick: 'showPopup'});
+    var rejectedCat = A.catalog({name: 'Rejected Observations', shape: 'circle', color: 'red', onClick: 'showPopup'});
+    var notValidatedCat = A.catalog({name: 'Not Validated', shape: 'circle', color: 'grey', onClick: 'showPopup'});
+    // create layers based on detection runs 
+    var detectLayer = A.graphicOverlay({name:'Detections', color: 'grey', opacity: 0.5, lineWidth: 1});
+     
     A.init.then(() => {
       // set up aladin
       aladin = A.aladin('#aladin-lite-div', {survey: "P/DSS2/color", fov: 1.5, target: "trifid nebula"});
 
-      // create layers
-      var band1MarkerLayer = A.catalog();
-      aladin.addCatalog(band1MarkerLayer);
-      var band1Layer = A.graphicOverlay({color: 'grey', opacity: 0.5, lineWidth: 1});
-      aladin.addOverlay(band1Layer);
-
-      var good = 0;			
-      var uncertain = 0;
-      var rejected = 0;
-      var notValidated = 0;
-      var detection = 0;
-      var invert = 0;
-      var mask = 0;
-      var notDetected = 0;
+      // add catalogs for status
+      aladin.addCatalog(goodCat);
+      aladin.addCatalog(uncertainCat);
+      aladin.addCatalog(rejectedCat);
+      aladin.addCatalog(notValidatedCat);
+      // add layers based on detection runs 
+      aladin.addOverlay(detectLayer);
+      
       tiles.forEach(sbid => {
-        console.log(sbid);
         var ra = parseFloat(sbid[3]);
         var dec = parseFloat(sbid[4]);
 
-        // Create marker
-        var marker = A.marker(ra, dec, 
-                  {popupTitle: 'SBID: '+sbid[0], popupDesc: 'FIELD: '+sbid[1] + '\nSTATUS: '+sbid[5]});
-        band1MarkerLayer.addSources([marker]);
+        // Create catalog sources
+        var marker = A.source(ra, dec,
+                  {SBID: sbid[0], FIELD: sbid[1], STATUS: sbid[5], TAG: sbid[9]});
+        switch(sbid[5]) {
+            case "GOOD":
+                goodCat.addSources([marker]);
+                break;
+            case "UNCERTAIN":
+                uncertainCat.addSources([marker]);
+                break;
+            case "REJECTED":
+                rejectedCat.addSources([marker]);
+                break;
+            default:
+                notValidatedCat.addSources([marker]);
+                break;
+        }
+                  
+        // detection shapes
         d_ra_upper = 3.0 / Math.cos((dec + 3.0) * Math.PI / 180.0);
         d_ra_lower = 3.0 / Math.cos((dec - 3.0)* Math.PI / 180.0);
         shape = A.polygon([
@@ -106,24 +173,129 @@
                     [ra + d_ra_upper, dec + 3.0]
         ]);
         shape.fill = true;
-        shape.opacity = 0.5;
+        shape.opacity = 0.3;
+        sourceToDetectionMap.set(marker, shape); // link source to detection shape
         if (sbid[8] === true) {
           shape.fillColor = 'green';
-          mask++;
         } else if (sbid[7] === true) {
           shape.fillColor = 'yellow';
-          invert++;
         } else if (sbid[6] === true) {
           shape.fillColor = 'blue';
-          detection++;
         } else {
           shape.fillColor = 'grey';
-          notDetected++;
-        }    
-        band1Layer.addFootprints([shape])
-      });          
-      document.getElementById('run_summary').innerHTML = "<br>MASKED DETECTION runs  = "+ mask +"<br>INVERTED DETECTION  runs = " + invert 
-              + "<br>STANDARD DETECTION runs = " + detection + "<br>NO DETECTION = " + notDetected + "<br>";
+        }               
+        detectLayer.addFootprints([shape]);
+      });
+      updateTotalSBIDs();     
     });
+  
+    hideAndShowBasedOnStatus();
+
+    hideAndShowBasedOnTagSelection();
+  
+    function showOrHide(source, show) {
+      const detection = sourceToDetectionMap.get(source);
+      if (show && isTagSelected(source)) {
+        source.show();
+        detection.show();
+      } else {
+        source.hide();
+        detection.hide();
+      }
+    }
+  
+    function hideAndShowBasedOnStatus() {
+      // manage check boxes changes
+      const filters = [
+        { checkboxId: 'hideRejected', status: 'REJECTED', catalog: rejectedCat },
+        { checkboxId: 'hideUncertain', status: 'UNCERTAIN', catalog: uncertainCat },
+        { checkboxId: 'hideNotValidated', status: 'NOT VALIDATED', catalog: notValidatedCat }
+      ];
+      filters.forEach(({ checkboxId, status, catalog }) => {
+        document.getElementById(checkboxId).addEventListener('change', function () {
+          const show = !this.checked;
+          // Show/hide the catalog
+          catalog[show ? 'show' : 'hide']();
+          // Show/hide source and corresponding detections
+          catalog.sources.forEach(source => showOrHide(source, show));
+          updateTotalSBIDs();
+        });     
+      });
+    }
+  
+    function hideAndShowBasedOnTagSelection() {
+      // Manage tag selection  
+      const tagLabel = document.getElementById('selectedTag');
+      document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.addEventListener('click', function (e) {
+          e.preventDefault();
+          // Update the label in the button
+          tagLabel.textContent = this.textContent;
+          // Highlight selected
+          document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+          this.classList.add('active');
+          // tag-based filtering logic here
+          const catalogs = [goodCat, uncertainCat, rejectedCat, notValidatedCat];
+          catalogs.forEach(cat => {
+            cat.sources.forEach(source => showOrHide(source, cat.isShowing));          
+          }); 
+          updateTotalSBIDs();
+        });
+      });
+    }
+    function isTagSelected(source) {
+      if (document.getElementById('selectedTag').textContent === 'All' || 
+        (source.data['TAG'] &&
+          source.data['TAG'].toUpperCase() === document.getElementById('selectedTag').textContent.toUpperCase()
+        )){
+           return true;
+      }
+      return false;
+    }
+    function isMaskDetection(source) {
+      const detection = sourceToDetectionMap.get(source);
+      return detection && detection.fillColor === 'green';
+    }
+    function isInvertedDetection(source) {
+      const detection = sourceToDetectionMap.get(source);
+      return detection && detection.fillColor === 'yellow';
+    }
+    function isStandardDetection(source) {
+      const detection = sourceToDetectionMap.get(source);
+      return detection && detection.fillColor === 'blue';
+    }
+    function isNoDetection(source) {
+      const detection = sourceToDetectionMap.get(source);
+      return detection && detection.fillColor === 'grey';
+    }
+    function updateTotalSBIDs() {
+      let count = 0;
+      let countPerStatus = [0,0,0,0]; // good, uncertain, rejected, not validated
+      let maskedCount = 0;
+      let invertedCount = 0;
+      let standardCount = 0;
+      let noDetectCount = 0;
+      let idx = 0;
+      [goodCat, uncertainCat, rejectedCat, notValidatedCat].forEach(cat => {
+        if (cat.isShowing) {
+            countPerStatus[idx] = cat.sources.filter(source => source.isShowing).length;
+            count += countPerStatus[idx];
+            maskedCount += cat.sources.filter(source => source.isShowing && isMaskDetection(source)).length;
+            invertedCount += cat.sources.filter(source => source.isShowing && isInvertedDetection(source)).length;
+            standardCount += cat.sources.filter(source => source.isShowing && isStandardDetection(source)).length;
+            noDetectCount += cat.sources.filter(source => source.isShowing && isNoDetection(source)).length;
+        }
+        idx++;            
+      });    
+      document.getElementById('maskedCount').innerHTML = `MASKED DETECTION runs  =  ${maskedCount}`;
+      document.getElementById('invertedCount').innerHTML = `INVERTED DETECTION runs = ${invertedCount}`;
+      document.getElementById('standardCount').innerHTML = `STANDARD DETECTION runs = ${standardCount}`;
+      document.getElementById('noDetectCount').textContent = `NO DETECTION = ${noDetectCount}`;       
+      document.getElementById('goodCount').textContent = `GOOD observations  = ${countPerStatus[0]}`;
+      document.getElementById('uncertainCount').textContent = `UNCERTAIN observations = ${countPerStatus[1]}`;
+      document.getElementById('rejectedCount').textContent = `REJECTED observations = ${countPerStatus[2]}`;
+      document.getElementById('notValidatedCount').textContent = `NOT VALIDATED = ${countPerStatus[3]}`;
+      document.getElementById('total_sbids').textContent = `Total number of SBIDs shown = ${count}`;
+    }
   </script>
 </body>
