@@ -14,7 +14,7 @@ TMPDIR="/scratch/ja3/$USER/tmp"
 #######################################################################################################
 source /software/projects/ja3/ger063/setonix/python/bin/activate
 IFS=","
-
+LIMIT=10
 SBIDARR=()
 SBIDARRAY=()
 
@@ -50,8 +50,8 @@ fi
 # Sort the array in ascending numerical order:
 readarray -td '' sorted_array < <(printf '%s\0' "${SBIDARR[@]}" | sort -z -n)
 
-# Limit size of SBIDARRAY to 10:
-SBIDARRAY=( "${sorted_array[@]:0:10}" )
+# Limit size of SBIDARRAY to LIMIT:
+SBIDARRAY=( "${sorted_array[@]:0:$LIMIT}" )
 
 echo "To download: ${SBIDARRAY[@]} from CASDA"
 for i in "${!SBIDARRAY[@]}"; do
