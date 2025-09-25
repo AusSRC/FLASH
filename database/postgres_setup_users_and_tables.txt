@@ -1,8 +1,8 @@
-# flashdb is hosted on 146.118.64.208
+# flashdb is hosted on 152.67.97.254
 #
 # Check that the port is remotely accessible by running (on the remote machine) one of these:
-nc -vz 146.118.64.208 5432
-telnet 146.118.64.208 5432
+nc -vz 152.67.97.254 5432
+telnet 152.67.97.254 5432
 #
 # Tried to reset 'postgres' passwd to 'teapottery' but failed?
 # Survey sbids start after SB 43426
