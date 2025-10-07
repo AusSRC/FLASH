@@ -97,8 +97,8 @@ if __name__ == "__main__":
             #vals.append(f"{sbid}: {source}")
         # sort dict
         vals[sub] = dict(sorted(vals[sub].items()))
-        for key in vals[sub].items():
-            print(f"{key}")
+        #for key in vals[sub].items():
+        #    print(f"{key}")
     
     print("Got new data")
 
