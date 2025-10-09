@@ -29,8 +29,9 @@ for SBID in "${SBIDARRAY[@]}"; do
     scp -i $ORACLE_KEY $DATA/$SBID/*ascii_tarball.tar.gz flash@$CLIENT:$TMPDIR
     scp -i $ORACLE_KEY $DATA/$SBID/*plots_tarball.tar.gz flash@$CLIENT:$PARENTDIR/$SBID/spectra_plots/
     scp -i $ORACLE_KEY $DATA/$SBID/config/* flash@$CLIENT:$PARENTDIR/$SBID/config/
-    scp -i $ORACLE_KEY $DATA/$SBID/logs/plot_err*.log flash@$CLIENT:$PARENTDIR/$SBID/logs/err.log
-    scp -i $ORACLE_KEY $DATA/$SBID/logs/plot_out*.log flash@$CLIENT:$PARENTDIR/$SBID/logs/out.log
+    ssh -i $ORACLE_KEY flash@$CLIENT "mkdir -p $PARENTDIR/$SBID/logs"
+    cat $DATA/$SBID/logs/plot_err*.log | ssh -i $ORACLE_KEY flash@$CLIENT "cat > $PARENTDIR/$SBID/logs/err.log"
+    cat $DATA/$SBID/logs/plot_out*.log | ssh -i $ORACLE_KEY flash@$CLIENT "cat > $PARENTDIR/$SBID/logs/out.log"
     scp -i $ORACLE_KEY $DATA/catalogues/*$SBID*.xml flash@$CLIENT:$PARENTDIR/catalogues/
     scp -i $ORACLE_KEY $DATA/$SBID/*Spectra-image*.tar flash@$CLIENT:$PARENTDIR/$SBID/
     scp -i $ORACLE_KEY $DATA/$SBID/*sources_tarball.tar.gz flash@$CLIENT:$PARENTDIR/$SBID/SourceSpectra/
