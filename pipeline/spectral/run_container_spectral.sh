@@ -12,7 +12,7 @@
 mkdir -p $1/$2/logs
 sbatch <<EOT
 #!/bin/bash
-#SBATCH --job-name=plot_"$1"
+#SBATCH --job-name=plot_"$2"
 #SBATCH --output="$1"/"$2"/logs/plot_out.log
 #SBATCH --error="$1"/"$2"/logs/plot_err.log
 #SBATCH --time=02:00:00
