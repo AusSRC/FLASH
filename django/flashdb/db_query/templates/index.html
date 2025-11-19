@@ -50,7 +50,7 @@
                 $("#db" + test).show();
             });
         });
-        function showpass() {
+        function showpass(icon) {
             var x = document.getElementById("pass");
             if (x.type == "password") {
                 x.type = "text";
@@ -58,7 +58,8 @@
                 x.type = "password";
             }
             // Toggle the eye and bi-eye icon
-            this.classList.toggle('bi-eye');
+            icon.classList.toggle('bi-eye');
+            icon.classList.toggle('bi-eye-slash');
         }
         function empty() {
             var x;
@@ -68,6 +69,18 @@
             return false;
             };
         }
+        // disable enter to trigger observation sbids viewer button
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const submitButton = document.getElementById('submit');
+
+            form.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault(); // Prevent default form submission
+                    submitButton.click(); // Submit button should still be triggered
+                }
+            });
+        });
 
     </script>
 </head>
@@ -92,8 +105,8 @@
         <label for="pass" class="form-label">Enter DB password:</label>
         <div class="password-wrapper mb-3">
           <input type="password" placeholder="Password" class="form-control w-25" id="pass" name="pass" required>
-          <span class="password-toggle-icon" onclick="showpass()">
-            <i class="bi bi-eye-slash"></i>
+          <span class="password-toggle-icon">
+            <i class="bi bi-eye-slash" onclick="showpass(this)"></i>
           </span>
         </div>    
         <div class="mb-3">

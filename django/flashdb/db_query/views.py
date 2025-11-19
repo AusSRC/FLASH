@@ -708,7 +708,7 @@ def query_database(request):
         sbid_val = request.POST.get('sbid_for_ascii')
         with connection.cursor() as cur:
             sid,version = get_max_sbid_version(cur,sbid_val)
-            conn = connect(password=password)
+            conn = connect(host=host, password=password)
             get_ascii_files_tarball(conn,cur,sid,sbid_val,ascii_dir,version,password)
             conn.close()
             ascii_tar = f"db_query/ascii/{session_id}/{sbid_val}_{version}.tar.gz"
