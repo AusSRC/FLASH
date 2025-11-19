@@ -2,7 +2,7 @@
 # Run daily on weekdays to delete old session folders older than 1 day.
 # add to crontab with:
 # m h  dom mon dow   command
-# 00 00 * * 1-5 /bin/bash /home/flash/src/cronjobs/oracle_casda_update.sh
+# 00 00 * * 1-5 /bin/bash /home/flash/src/cronjobs/delete_old_files.sh
 
 BASE_DIR="$HOME/src/FLASH/django/flashdb"
 TMP_ROOT="$BASE_DIR/db_query/static/db_query"
