@@ -50,6 +50,11 @@ export HPC_SCRATCH
 HPCDATA=$HPC_SCRATCH
 export HPCDATA
 
+# Set the DATA directory for this machine - uncomment ONE of these:
+#DATA=$CLIENTDATA
+#DATA=$HPCDATA
+export DATA
+
 # Blacklisted SBIDS directory
 BLACKLIST_DIRS=$DATA/blacklist_sbids
 export BLACKLIST_DIRS
