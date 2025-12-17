@@ -14,6 +14,7 @@ rm -R *
 echo "Removing stale directories on HPC platform"
 
 
-ssh $HPC_USER@$HPC_PLATFORM "cd $HPC_SCRATCH; find . -mindepth 1 -maxdepth 1 -type d ! -name 'catalogues' ! -name 'bad_ascii_files' -exec rm -rf {} \; mkdir tmp"
+ssh $HPC_USER@$HPC_PLATFORM "cd $HPC_SCRATCH; find . -mindepth 1 -maxdepth 1 -type d ! -name 'catalogues' ! -name 'bad_ascii_files' -exec rm -rf {} \;"
+ssh $HPC_USER@$HPC_PLATFORM "cd $HPC_SCRATCH; mkdir tmp"
 
 echo "Done directory cleanup"
