@@ -55,6 +55,11 @@ export HPCDATA
 #DATA=$HPCDATA
 export DATA
 
+# Set a TMP dir based on client/hpc role - uncomment ONE of these:
+#TMPDIR=$CLIENTTMP
+#TMPDIR=$DATA/tmp
+export TMPDIR
+
 # Blacklisted SBIDS directory
 BLACKLIST_DIRS=$DATA/blacklist_sbids
 export BLACKLIST_DIRS
