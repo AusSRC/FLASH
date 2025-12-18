@@ -165,7 +165,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
     
         echo "triggering detection_processing.sh on $HPC_PLATFORM"
         ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $MODE $SBID1 > ~/src/cronjobs/'$MODE'_detection_$SBID1.log"
-        scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/${MODE}_detection_${SBID1}.log /home/flash/src/cronjobs/
+        scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/${MODE}_detection_${SBID1}.log $CRONDIR
         ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; rm ${MODE}_detection_${SBID1}.log"
     fi
     cd ../
