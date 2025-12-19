@@ -37,10 +37,13 @@ for SBID in "${SBIDARRAY[@]}"; do
     scp -i $ORACLE_KEY $DATA/$SBID/*sources_tarball.tar.gz flash@$CLIENT:$PARENTDIR/$SBID/SourceSpectra/
     ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID/spectra_plots; tar -zxvf *plots_tarball.tar.gz; rm *plots_tarball.tar.gz"
     ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID/SourceSpectra; tar -zxvf *sources_tarball.tar.gz; rm *sources_tarball.tar.gz"
+    echo "Starting upload to FLASH db"
     ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh; cd ~/src/FLASH/database; python3 db_upload.py -m SPECTRAL -q $QUALITY -s $SBID -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -C 'new_CASDA_data' >> $PARENTDIR/$SBID/'$SBID'_spectral_db.log 2>&1"
 
 done
+echo "Completed data upload to FLASH db for ${SBIDARRAY[@]}"
 
 # Stash the SLURM logs
+echo "Checking for old SLURM logs"
 mv slurm-*.out $DATA/tmp/
 exit 0
