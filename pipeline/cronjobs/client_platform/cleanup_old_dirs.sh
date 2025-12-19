@@ -11,6 +11,8 @@ find . -mindepth 1 -maxdepth 1 -type d ! -name "catalogues" ! -name "bad_ascii_f
 cd $TMPDIR
 rm -R *
 
+cd $CRONDIR; rm ../cron*.log
+
 echo "Removing stale directories on HPC platform"
 
 
