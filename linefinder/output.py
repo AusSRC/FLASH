@@ -254,6 +254,15 @@ def get_separated_stats(self):
 
     return self
 
+# private function to convert str to float when scientific notation string is missing the 'e'
+def __float_from_str(x):
+    if '-' in x and x.rindex('-')>0 and 'e-' not in x:
+        return float('e-'.join(x.rsplit('-',1)))
+    elif '+' in x and x.rindex('+')>0 and 'e+' not in x:
+        return float('e+'.join(x.rsplit('+',1)))
+    else:
+        return float(x)
+
 # Read separated posterior file for multiple modes
 def get_separated_posterior(self):
 
@@ -280,7 +289,8 @@ def get_separated_posterior(self):
                     tmp_samples = []
                     mode_count += 1
             else:
-                tmp_samples.append([float(x) for x in line.split()])
+                #tmp_samples.append([__float_from_str(x) for x in line.lower().split()])
+                tmp_samples.append([float(x) for x in line.lower().split()])
     f.close()
     tmp_samples = np.array(tmp_samples)
     if mode_count > 1:
