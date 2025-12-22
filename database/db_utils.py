@@ -338,6 +338,9 @@ def update_quality_from_casda(conn,casda,casdatap,get_rejected):
     casda_sbids,quality_dict = get_sbids_in_casda(args,casda,casdatap,get_rejected)
     cur = get_cursor(conn)
     quality_changed = []
+    date = dt.datetime.now()
+    date_str = f"{date.day}/{date.month}/{date.year}"
+
     print("Checking QUALITY tags in FLASHDB")
     # For each sbid, find it in the FLASHDB and update the quality
     for sbid in casda_sbids:
@@ -356,6 +359,23 @@ def update_quality_from_casda(conn,casda,casdatap,get_rejected):
                 print(f" : updating quality from {db_quality} to {quality_dict[sbid]}")
                 sql = "update sbid set quality = %s where id = %s"
                 cur.execute(sql,(quality_dict[sbid],sbid_id))
+                # Update comment
+                # Get any existing comment
+                old_comment = ""
+                get_comment = "select comment from sbid where id = %s"
+                cur.execute(get_comment,(sbid_id,))
+                try:
+                    old_comment = cur.fetchall()[0][0]
+                except IndexError:
+                    print("Error getting previous comment")
+                if not old_comment:
+                    old_comment = ""
+                comment = "Quality updated"
+                comment = old_comment + "[" + date_str + ": " + comment + "]"
+                add_query = "update sbid set comment = %s where id = %s"
+                cur.execute(add_query,(comment,sbid_id))
+                print(f"Comment added to SB{sbid}")
+
                 quality_changed.append(f"{sbid}:{quality_dict[sbid]}")
         else:
             print(" not found in FLASHDB")
