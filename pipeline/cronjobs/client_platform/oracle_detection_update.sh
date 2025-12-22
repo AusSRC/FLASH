@@ -80,7 +80,7 @@ fi
 # Query FLASHDB for new sbids
 if [ "$CHECKDB" = true ]; then
     echo "Querying FLASHDB for $MODE detection status"
-    python3 ~/src/FLASH/database/db_utils.py -m SBIDSTODETECT -sm $MODE -ht $HOST -pt $PORT -pw $FLASHPASS > $DETECTLOG
+    python3 $FLASHDB/db_utils.py -m SBIDSTODETECT -sm $MODE -ht $HOST -pt $PORT -pw $FLASHPASS > $DETECTLOG
     output=$( tail -n 1 $DETECTLOG)
 
     sbids=${output:1: -1}
@@ -117,6 +117,7 @@ if [ "$CHECKDB" = true ]; then
     
 fi
 
+cd $CRONDIR
 rm $DETECTLOG
 printf "For $MODE detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
 for SBID1 in ${SBIDARRAY[@]}; do
@@ -135,7 +136,7 @@ echo -e "\nprocessing\n ${SBIDARRAY[@]}"
 # Get the data for the sbids from the FLASHDB 
 cd $TMPDIR
 for SBID1 in ${SBIDARRAY[@]}; do
-    python3 ~/src/FLASH/database/db_utils.py -m CHECK_SBIDS -s $SBID1 -sm INVERT -ht $HOST -pt $PORT -pw $FLASHPASS > $STATUSLOG
+    python3 $FLASHDB/db_utils.py -m CHECK_SBIDS -s $SBID1 -sm INVERT -ht $HOST -pt $PORT -pw $FLASHPASS > $STATUSLOG
     output=$( head -n 3 $STATUSLOG)
     flags=( ${output[@]} )
     stdF=${flags[0]}
@@ -151,7 +152,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
     mkdir "$SBID1"
     echo "Downloading $SBID1 spectral ascii files from database"
     cd $SBID1
-    python3 ~/src/FLASH/database/db_download.py -m ASCII -s $SBID1 -ht $HOST -pt $PORT -d $TMPDIR/$SBID1 -pw $FLASHPASS
+    python3 $FLASHDB/db_download.py -m ASCII -s $SBID1 -ht $HOST -pt $PORT -d $TMPDIR/$SBID1 -pw $FLASHPASS
     if [ "$MODE" != "TEST" ]; then
         echo "Sending $SBID1 ASCII tarball to $HPC_PLATFORM"
         ssh $HPC_USER@$HPC_PLATFORM "mkdir -p $HPC_SCRATCH/$SBID1/spectra_ascii; mkdir -p $HPC_SCRATCH/$SBID1/config; rm $HPC_SCRATCH/$SBID1/spectra_ascii/* $HPC_SCRATCH/$SBID1/config/*;"
