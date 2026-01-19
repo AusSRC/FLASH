@@ -7,6 +7,8 @@
 #########################################################
 source ~/set_local_flash_env.sh
 # Set the client platform details:
+COMMENT="new_CASDA_data"
+#COMMENT="update_missing_plots"
 TMPDIR=$CLIENTTMP
 PARENTDIR=$CLIENTDATA
 CLIENT=$CLIENTIP
@@ -28,6 +30,17 @@ for SBID in "${SBIDARRAY[@]}"; do
     ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR; rm -R $SBID/spectra_ascii* $SBID/spectra_plots* $TMPDIR/$SBID* $SBID/logs; mkdir -p $SBID/config $SBID/spectra_plots $SBID/spectra_ascii $SBID/SourceSpectra $SBID/logs;"
     scp -i $ORACLE_KEY $DATA/$SBID/*ascii_tarball.tar.gz flash@$CLIENT:$TMPDIR
     scp -i $ORACLE_KEY $DATA/$SBID/*plots_tarball.tar.gz flash@$CLIENT:$PARENTDIR/$SBID/spectra_plots/
+
+    # Compare the size of the plot tarball with the original
+    LOCAL_SIZE=$(stat -c %s $DATA/$SBID/${SBID}_plots_tarball.tar.gz)
+    REMOTE_SIZE=$(ssh -i $ORACLE_KEY flash@$CLIENT "stat -c %s $PARENTDIR/$SBID/spectra_plots/${SBID}_plots_tarball.tar.gz")
+    if [ "$LOCAL_SIZE" -eq "$REMOTE_SIZE" ]; then
+        echo ""
+    else
+        echo "❌ Failure: plot sizes for $SBID do not match."
+        continue
+    fi
+
     scp -i $ORACLE_KEY $DATA/$SBID/config/* flash@$CLIENT:$PARENTDIR/$SBID/config/
     ssh -i $ORACLE_KEY flash@$CLIENT "mkdir -p $PARENTDIR/$SBID/logs"
     cat $DATA/$SBID/logs/plot_err*.log | ssh -i $ORACLE_KEY flash@$CLIENT "cat > $PARENTDIR/$SBID/logs/err.log"
@@ -35,10 +48,10 @@ for SBID in "${SBIDARRAY[@]}"; do
     scp -i $ORACLE_KEY $DATA/catalogues/*$SBID*.xml flash@$CLIENT:$PARENTDIR/catalogues/
     scp -i $ORACLE_KEY $DATA/$SBID/*Spectra-image*.tar flash@$CLIENT:$PARENTDIR/$SBID/
     scp -i $ORACLE_KEY $DATA/$SBID/*sources_tarball.tar.gz flash@$CLIENT:$PARENTDIR/$SBID/SourceSpectra/
-    ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID/spectra_plots; tar -zxvf *plots_tarball.tar.gz; rm *plots_tarball.tar.gz"
-    ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID/SourceSpectra; tar -zxvf *sources_tarball.tar.gz; rm *sources_tarball.tar.gz"
+    ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID/spectra_plots; tar -zxvf *plots_tarball.tar.gz"
+    ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID/SourceSpectra; tar -zxvf *sources_tarball.tar.gz"
     echo "Starting upload to FLASH db"
-    ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh; cd ~/src/FLASH/database; python3 db_upload.py -m SPECTRAL -q $QUALITY -s $SBID -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -C 'new_CASDA_data' >> $PARENTDIR/$SBID/'$SBID'_spectral_db.log 2>&1"
+    ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh; cd ~/src/FLASH/database; python3 db_upload.py -m SPECTRAL -q $QUALITY -s $SBID -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -C $COMMENT >> $PARENTDIR/$SBID/'$SBID'_spectral_db.log 2>&1"
 
 done
 echo "Completed data upload to FLASH db for ${SBIDARRAY[@]}"
