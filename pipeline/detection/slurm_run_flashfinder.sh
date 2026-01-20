@@ -3,7 +3,8 @@
 ######################################################################################
 #   NOTE:   The script calling order is:
 #               1) "run_mpi_native_script.sh",  or "detection_processing.sh" which calls:
-#                   2) "slurm_run_flashfinder.sh" (this file)
+#                   2) "slurm_run_flashfinder.sh" (this file), which directly calls the
+#                       linefinder code.
 #
 ######################################################################################
 ######################################################################################
