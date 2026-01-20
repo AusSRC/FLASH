@@ -102,11 +102,18 @@ cd $DETECTDIR
 STATUSFILE="jobs_to_sbids.txt"
 
 for SBID1 in ${SBIDARRAY[@]}; do
-    
+   
+    # First check that there is no running process for this sbid!
+    num_jobs=$(squeue -u $USER -h | grep "$SBID1" | wc -l)
+    if [ "$num_jobs" -gt 0 ]; then
+        continue
+    fi
+ 
     # Make required config directories and load with ini files
     PARENT1="$PARENT_DIR/$SBID1"
     MASKDIR="$DETECTDIR/masks"
     DIR1="$PARENT1/spectra_ascii"
+
     if [ "$MODE" = "MASK" ]; then
         # Check that the mask file exists
         if ! ls $MASKDIR/*$SBID1_mask.txt 1> /dev/null 2>&1; then
@@ -114,6 +121,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
             continue
         fi
     fi 
+
     mkdir "$PARENT1/config"
     mkdir -p "$DIR1"
     # Untar ASCII tarball
