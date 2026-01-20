@@ -421,6 +421,7 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
     cur.execute(insert_query,(sbids,errdata,stddata,platform,spect_date,RUN_TAG))
     runid = cur.fetchone()[0]
     print(f"Data inserted into table 'spect_run': runid = {runid}",flush=True)
+    bad_sbids = []
     # Add the processed SBIDS
     for sbid in sbids:
         # Check if sbid exists - if it does, add it with a version number += 1:
@@ -447,9 +448,13 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
                         print(f"Found flux cutoff at {flux} mJy",flush=True)
             except FileNotFoundError:
                 print(f"Could not find config file {config_tardir}/config.py",flush=True)
-        add_sbid(conn,cur,sbid=sbid,spect_runid=runid,spectralF=True,dataDict=dataDict[sbid],datapath=dataDict["data_path"],ver=version,config=config_data,flux=flux)
-        print(f"Added sbid {sbid} and its components to db",flush=True)
-    return cur
+        state = add_sbid(conn,cur,sbid=sbid,spect_runid=runid,spectralF=True,dataDict=dataDict[sbid],datapath=dataDict["data_path"],ver=version,config=config_data,flux=flux)
+        if state:
+            print(f"Added sbid {sbid} and its components to db",flush=True)
+        else:
+            print(f"sbid {sbid} will be deleted from db",flush=True)
+            bad_sbids.append(sbid)
+    return cur,bad_sbids
 
 ###############################################
 def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_dir,versions=None,errlog=None,stdlog=None):
@@ -589,7 +594,7 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
     result = cur.fetchall()[0][0]
     if result == 0:
         print(f"ERROR: run id {runid} not found in table {run_table}; aborting")
-        return
+        return False
    
     # Create the tarball of ascii output files
     ascii_tarball = f"{TMP_TAR_DIR}/{sbid}_ascii_tarball.tar.gz"
@@ -619,6 +624,14 @@ def add_sbid(conn,cur,sbid,spect_runid,spectralF=True,detectionF=False,dataDict=
         plotfiles = [f for f in dataDict["plots"] if ("component_%s" % component_index) in f]
         plot_path = f"{dataDict['plots_path']}"
         cur = add_component(cur,comp,sbid_id,plotfiles,plot_path,processState="spectral",fluxcutoff=flux)
+
+    # Check how many components were added - there should always be more than 10
+    cur.execute(f"select count(*) from component where comp_id like '%{sbid}%';")
+    num_comps = cur.fetchall()[0][0]
+    if num_comps < 10:
+        print(f"ERROR: Only {num_comps} components loaded for sbid {sbid} !!",flush=True)
+        return False
+    return True
 
 ###############################################
 def add_sbid_comment(conn,sbid,comment,ver=None):
@@ -886,7 +899,7 @@ if __name__ == "__main__":
         if DATA_DIR != "./":
             os.chdir(DATA_DIR)
         dataDict = createDataDict()
-        cur = add_spect_run(conn,sbids=SBIDS,
+        cur,bad_sbids = add_spect_run(conn,sbids=SBIDS,
                         config_dir=SPECTRAL_CONFIG_DIR,
                         errlog=None,
                         stdlog=None,
@@ -894,6 +907,11 @@ if __name__ == "__main__":
                         platform=PLATFORM)
         conn.commit()
         cur.close()
+
+        # Delete any sbids that did not have a full set of components
+        for sbid in bad_sbids:
+            subprocess.run(["python3","delete_from_db.py",str(sbid)])
+        
         if ADD_CAT:
             cat_dir = f"{DATA_DIR}/catalogues"
             for i,sbid in enumerate(SBIDS):
