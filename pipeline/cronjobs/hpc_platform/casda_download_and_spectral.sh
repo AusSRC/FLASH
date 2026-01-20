@@ -78,6 +78,12 @@ done
 for i in "${!SBIDARRAY[@]}"; do
     SBID="${SBIDARRAY[$i]}"
     CONFIG="${CONFIGARRAY[$i]}"
+    # First check that there is no running process for this sbid!
+    num_jobs=$(squeue -u $USER -h | grep "$SBID" | wc -l)
+    if [ "$num_jobs" -gt 0 ]; then
+        continue
+    fi
+
 
     if [ -d "$DATA/$SBID/SourceSpectra" ]
     then
