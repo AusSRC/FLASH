@@ -1,8 +1,10 @@
 #!/bin/bash
 # Run daily on weekdays to delete old session folders older than 1 day.
-# add to crontab with:
+# Must be run as user flash; session files must be owned by flash (see flashdb.ini uid/gid).
+#
+# Crontab (as user flash):
 # m h  dom mon dow   command
-# 00 00 * * 1-5 /bin/bash /home/flash/src/cronjobs/delete_old_files.sh
+# 00 00 * * 1-5 /bin/bash /home/flash/src/cronjobs/delete_old_sessions.sh
 
 BASE_DIR="$HOME/src/FLASH/django/flashdb"
 TMP_ROOT="$BASE_DIR/db_query/static/db_query"
