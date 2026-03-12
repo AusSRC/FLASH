@@ -381,11 +381,11 @@ def index(request):
     
     # Cleanup user session files
     try:
-        os.system(f"sudo rm -R {static_dir}/plots/{session_id}")
-        os.system(f"sudo rm -R {static_dir}/linefinder/{session_id}")
-        os.system(f"sudo rm -R {static_dir}/linefinder/masks/{session_id}")
-        os.system(f"sudo rm -R {static_dir}/ascii/{session_id}")
-    except:
+        os.system(f"rm -rf {static_dir}/plots/{session_id}")
+        os.system(f"rm -rf {static_dir}/linefinder/{session_id}")
+        os.system(f"rm -rf {static_dir}/linefinder/masks/{session_id}")
+        os.system(f"rm -rf {static_dir}/ascii/{session_id}")
+    except Exception:
         pass
 
     with connection.cursor() as cursor:
