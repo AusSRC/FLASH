@@ -1,0 +1,3 @@
+#ID COMPONENT PARAMETRIZATION PRIORS
+1 absorption gaussian [x0,linear,auto,auto] [dx,log,0.1,2000.0] [y0,log,auto,auto]
+#2 calibration calibration [cal,normal,1.0,0.1]
