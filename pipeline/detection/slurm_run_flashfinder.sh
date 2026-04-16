@@ -16,28 +16,14 @@ MODE=$5
 mkdir -p "$1"/logs
 cd "$1"
 
-module unload gcc-native/14.2
-module swap pawseyenv/2025.08 pawseyenv/2024.05
-module load gcc/12.2.0
-module load libfabric/1.15.2.0 
-
-module load python/3.11.6 
-module load py-matplotlib/3.8.1 
-module load py-astropy/5.1 
-module load py-mpi4py/3.1.5-py3.11.6 
-module load gcc/12.2.0 
-module load py-scipy/1.11.3 
-module load py-numpy/1.24.4 
-
-#module load python/3.11.6
-#module load py-numpy/1.25.2
-#module load py-scipy/1.14.1
-#module load py-matplotlib/3.9.2
-#module load py-astropy/5.1
-#module load py-mpi4py/3.1.5-py3.11.6
-
-#module load py-astropy/5.1
-#module load py-mpi4py/3.1.5-py3.11.6
+# Using pawseyenv/2025.08 (Setonix default) with gcc-native/14.2
+# Old module set (pawseyenv/2024.05 + gcc/12.2.0) removed — incompatible with scipy>=1.14
+module load python/3.11.6
+module load py-numpy/1.25.2
+module load py-scipy/1.14.1
+module load py-matplotlib/3.9.2
+module load py-astropy/5.1
+module load py-mpi4py/3.1.5-py3.11.6
 
 
 
