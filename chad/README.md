@@ -3,6 +3,20 @@
 umask 022
 sudo pip install psycopg2-binary numpy astropy astroquery scipy flask
 ```
+## VM setup at Oracle Cloud
+A dedicated VM on AusSRC's Oracle infrastructure is set up to host CHAD and the accompanying database. The VM runs an Ubuntu 22.04 OS, and has both private and public subnet access. The VM is at 192.9.187.153, web access served via CLoudflare as chad.aussrc.org
+
+There is a 1TB volume mounted to the VM at /mnt/db. This is an Oracle ISCSI volume, and needs to be made available to the VM instance when rebooted. Upon reboot of the VM, the volume will appear as "attached", and will have a line in /etc/fstab, but that doesn't necessarily mean that it is "available". 
+
+Log into the VM to check (you should see the volume under /mnt/db with a "df- h" command). If it's not there, run the ISCSI commands found on the volume page at Oracle portal. They will look something like this:
+
+sudo iscsiadm -m node -o new -T iqn.2015-12.com.oracleiaas:ee642ad2-4a70-4d18-af5e-7fa68dfb0967 -p 169.254.2.2:3260
+sudo iscsiadm -m node -o update -T iqn.2015-12.com.oracleiaas:ee642ad2-4a70-4d18-af5e-7fa68dfb0967 -n node.startup -v automatic
+sudo iscsiadm -m node -T iqn.2015-12.com.oracleiaas:ee642ad2-4a70-4d18-af5e-7fa68dfb0967 -p 169.254.2.2:3260 -l
+
+You can now confirm the volume is mounted with:
+
+df -h
 
 ## Database setup
 Once postgresql is installed, set a password for the postgres user, modify /etc/postgres/12/main/pg_hba.conf 
