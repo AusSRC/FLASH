@@ -3,3 +3,11 @@ keyring set astroquery:casda.csiro.au Gordon.German@csiro.au
 
 # On Setonix you have to specify the backend to use (also on Oracle!):
 keyring -b keyring.backends.chainer.ChainerBackend set astroquery:casda.csiro.au Gordon.German@csiro.au
+
+# Preferred Method
+# When only using with Python on Setonix, start the venv and do:
+
+pip install keyring
+python -m pip install keyrings.alt
+
+keyring set astroquery:casda.csiro.au Gordon.German@csiro.au
