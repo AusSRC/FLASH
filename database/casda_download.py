@@ -18,6 +18,7 @@ import sys
 from glob import glob
 import getpass
 from argparse import ArgumentParser, RawTextHelpFormatter
+from packaging.version import parse
 
 UNTAR = True
 DATADIR = "/scratch/ja3/ger063/data/casda" # The expected structure is subdirs under here for sbids
@@ -62,16 +63,17 @@ def authenticate(args):
         username = args.email_address
     else:
         username = input("Enter your OPAL/CASDA email address: ")
-    if args.password == None and aq.__version__[:5] < "0.4.7":
+    if args.password == None and (parse(aq.__version__) < parse("0.4.7")):
         password = getpass.getpass(str("Enter your OPAL/CASDA password: "))
     else:
         password = args.password
-    if aq.__version__[:5] < "0.4.7":
+    if (parse(aq.__version__) < parse("0.4.7")):
         casda = Casda(username, password)
     else:
     # New authentication for astroquery 0.4.7:
+        print("Ensure the keyring is set for user ",username)
         casda = Casda()
-        casda.login(username=username,password = password)
+        casda.login(username=username)
     casdatap = TapPlus(url="https://casda.csiro.au/casda_vo_tools/tap")
     print("Logged in!")
     return casda,casdatap
