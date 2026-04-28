@@ -318,7 +318,7 @@ class Model():
                 rest_z = shift_frame(x_fine,mean_z)
                 rest_vel = zTOvel(rest_z, 'relativistic')
                 rest_vel *= constants.LIGHT_SPEED
-                int_S = np.abs(integrate.simps(emi_fine, rest_vel))
+                int_S = np.abs(integrate.simpson(emi_fine, x=rest_vel))
                 width = int_S/peak_S
             if options.x_units == 'optvel':
                 peak_z *= constants.LIGHT_SPEED
@@ -362,7 +362,7 @@ class Model():
                 rest_z = shift_frame(x_fine, mean_z)
                 rest_vel = zTOvel(rest_z, 'relativistic')
                 rest_vel *= constants.LIGHT_SPEED
-                int_opd = np.abs(integrate.simps(opd_fine, rest_vel))
+                int_opd = np.abs(integrate.simpson(opd_fine, x=rest_vel))
                 width = int_opd/peak_opd
             if options.x_units == 'optvel':
                 peak_z *= constants.LIGHT_SPEED
