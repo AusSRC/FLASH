@@ -14,7 +14,7 @@ from .models import MyModel
 
 #######################################################################################
 
-def connect(db="flashdb",user="flash",host="10.0.2.225",password=None):
+def connect(db="flashdbdev",user="flashdev",host="localhost",password=None):
 
     if not password:
         password = PASSWD
@@ -22,9 +22,7 @@ def connect(db="flashdb",user="flash",host="10.0.2.225",password=None):
         database = db,
         user = user,
         password = password,
-        #host = host,
-        #port = 2095
-        host = "10.0.2.225",
+        host = host,
         port = 5432
     )
     #print(conn.get_dsn_parameters(),"\n")
@@ -107,10 +105,12 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
         ln_mean = 0.0
                  
     # Get the results table 
-    if inverted:
+    if inverted and not masked:
         query = "select invert_results from sbid where id = %s;"
-    elif masked:
+    elif masked and not inverted:
         query = "select mask_results from sbid where id = %s;"
+    elif inverted and masked:
+        query = "select mask_invert_results from sbid where id = %s;"
     else:
         query = "select results from sbid where id = %s;"
     cur.execute(query,(sid,))
@@ -124,48 +124,63 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     query = "select pointing from sbid where id = %s;"
     cur.execute(query,(sid,))
     pointing = cur.fetchone()[0]
+    # Base query fields (common to all)
+    base_fields = (
+        "component_name, comp_id, ra_hms_cont, dec_dms_cont, ra_deg_cont, "
+        "dec_deg_cont, flux_peak, flux_int, has_siblings, mode_num"
+    )
 
-    # Get the list of relevant components and their values for this sbid from the component table
-    if ln_mean == -1: # This means get all components, even if there is no value for ln_mean
-        if order == "lnmean":
-            if inverted:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s order by invert_ln_mean")
-            else:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean")
-            if reverse:
-                query += " desc;"
-            else:
-                query += ";"
-        else:
-            if inverted:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s order by comp_id")
-            else:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by comp_id")
-            if reverse:
-                query += " desc;"
-            else:
-                query += ";"
-        cur.execute(query,(sid,))
+    # Determine the column based on whether it's masked, inverted, etc.
+    if masked and inverted:
+        value_field = "invert_mask_ln_mean"
+        mode_field = "invert_mask_mode_num"
+        order_field = "invert_mask_ln_mean"
+    elif masked:
+        value_field = "mask_ln_mean"
+        mode_field = "mask_mode_num"
+        order_field = "mask_ln_mean"
+    elif inverted:
+        value_field = "invert_ln_mean"
+        mode_field = "invert_mode_num"
+        order_field = "invert_ln_mean"
     else:
-        if order == "lnmean":
-            if inverted:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s and invert_ln_mean > %s and invert_mode_num > 0 order by invert_ln_mean")
-            else:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by ln_mean")
-            if reverse:
-                query += " desc;"
-            else:
-                query += ";"
-        else:
-            if inverted:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s and invert_ln_mean > %s and invert_mode_num > 0 order by comp_id")
-            else:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by comp_id")
-            if reverse:
-                query += " desc;"
-            else:
-                query += ";"
-        cur.execute(query,(sid,ln_mean))
+        value_field = "ln_mean"
+        mode_field = "mode_num"
+        order_field = "ln_mean"
+
+    # Construct the WHERE clause
+    where_clause = f"WHERE sbid_id = %s"
+    if ln_mean != -1:
+        where_clause += f" AND {value_field} > %s AND {mode_field} > 0"
+
+    # Conditionally build the ORDER BY clause
+    if order == "lnmean":
+        # Sorting by ln_mean or its equivalent
+        order_clause = f"ORDER BY {value_field}"
+        if reverse:
+            order_clause += " DESC"
+    else:
+        # Sorting by comp_id (numeric part first, then alphabetical)
+        order_clause = f"""
+        ORDER BY
+            CAST(REGEXP_REPLACE(comp_id, '\\D', '', 'g') AS INTEGER),  -- Numeric part of component_id
+            comp_id  -- Tie-breaker for alphabetic order when numeric parts are equal
+        """
+        if reverse:
+            # Apply DESC specifically to comp_id sorting
+            order_clause = f"ORDER BY CAST(REGEXP_REPLACE(comp_id, '\\D', '', 'g') AS INTEGER) DESC, comp_id DESC"
+
+    # Create the final query
+    query = f"""
+        SELECT {base_fields}, {order_field}
+        FROM component
+        {where_clause}
+        {order_clause};
+    """
+
+    # Execute the query
+    cur.execute(query, (sid,) if ln_mean == -1 else (sid, ln_mean))
+
     results = cur.fetchall()
     row_count = len(results)
     # Extract component id from results and get corresponding line from result_data
@@ -188,6 +203,8 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
             f = open(f"{dir_download}/{sbid}_linefinder_inverted_outputs.csv","w")
         elif masked:
             f = open(f"{dir_download}/{sbid}_linefinder_masked_outputs.csv","w")
+        elif inverted and masked:
+            f = open(f"{dir_download}/{sbid}_linefinder_masked_inverted_outputs.csv","w")
         else:
             f = open(f"{dir_download}/{sbid}_linefinder_outputs.csv","w")
         # we want From component table - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
@@ -245,12 +262,15 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked):
     oid = None
     outputs = None
     name = f"{sbid}_{version}.tar"
-    if inverted:
+    if inverted and not masked:
         name = f"{sbid}_{version}_inverted.tar"
         query = "select invert_detectionF from sbid where id = %s"
-    elif masked:
+    elif masked and not inverted:
         name = f"{sbid}_{version}_masked.tar"
         query = "select mask_detectionF from sbid where id = %s"
+    elif inverted and masked:
+        name = f"{sbid}_{version}_masked.tar"
+        query = "select mask_invertF from sbid where id = %s"
     else:
         query = "select detectionF from sbid where id = %s"
     cur.execute(query,(sid,))
@@ -271,10 +291,12 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked):
         open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
     else:
         print(f"No LOB found - retrieving byte array from db")
-        if inverted:
+        if inverted and not masked:
             query = "select invert_detect_results from sbid where id = %s"
-        elif masked:
+        elif masked and not inverted:
             query = "select mask_detect_results from sbid where id = %s"
+        elif masked and inverted:
+            query = "select mask_invert_detect_results from sbid where id = %s"
         else:
             query = "select detect_results from sbid where id = %s"
         cur.execute(query,(sid,))
@@ -444,7 +466,7 @@ def show_sbids_aladin(request):
     host = request.POST.get('host')
     session_id = request.POST.get('session_id')
     try:
-        conn = connect(password=password, host=host)
+        conn = connect(password=password)
     except:
         return HttpResponse("Password has failed")
     with conn.cursor() as cursor:
@@ -476,7 +498,7 @@ def bad_ascii_view(request):
     password = request.POST.get('pass')
     host = request.POST.get('host')
     try:
-        conn = connect(password=password, host=host)
+        conn = connect(password=password)
         conn.close()
     except:
         return HttpResponse("Password has failed")
@@ -518,7 +540,7 @@ def query_database(request):
     session_id = request.POST.get('session_id')
     # Try a psycopg2 connection with the supplied password. If it fails, return error msg
     try:
-        conn = connect(password=password, host=host)
+        conn = connect(password=password)
         conn.close()
     except:
         return HttpResponse("Password has failed")
@@ -567,7 +589,7 @@ def query_database(request):
 
         with connection.cursor() as cursor:
             if sbid_val == "-1":
-                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"                
+                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.mask_invertF,s.pointing,s.comment,s.publicf FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
                 mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
                 if where_clause:
                     query = query + where_clause
@@ -582,7 +604,7 @@ def query_database(request):
                     mask_query += ";"
                 cursor.execute(query,)
             else:
-                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s order by {order}"
+                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.mask_invertF,s.pointing,s.comment,s.publicf FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s order by {order}"
                 mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s"
                 if reverse:
                     query += " desc;"
@@ -613,6 +635,9 @@ def query_database(request):
             use_invert = True
         elif output_type == "masked":
             use_masked = True
+        elif output_type == "masked_inverted":
+            use_masked = True
+            use_invert = True
 
         if reverse == "on":
             reverse = True
@@ -622,7 +647,8 @@ def query_database(request):
         with connection.cursor() as cursor:
             inverted = False
             masked = False
-            if use_invert:
+            inverted_masked = False
+            if use_invert and not use_masked:
                 # See if there are any inverted-spectra linefinder results
                 query = f"SELECT invert_detectionF from sbid where sbid_num = %s"
                 cursor.execute(query,(sbid_val,))
@@ -632,7 +658,8 @@ def query_database(request):
                 else:
                     return HttpResponse(f"No inverted-spectra Linefinder results for sbid {sbid_val}")
             print(f"inverted value = {inverted}")
-            if use_masked:
+
+            if use_masked and not use_invert:
                 # See if there are any masked-spectra linefinder results
                 query = f"SELECT mask_detectionF from sbid where sbid_num = %s"
                 cursor.execute(query,(sbid_val,))
@@ -641,7 +668,21 @@ def query_database(request):
                     masked = masked_results[0]
                 else:
                     return HttpResponse(f"No masked-spectra Linefinder results for sbid {sbid_val}")
+
             print(f"masked value = {masked}")
+
+            if use_masked and use_invert:
+                # See if there are any inverted-masked-spectra linefinder results
+                query = f"SELECT mask_invertF from sbid where sbid_num = %s"
+                cursor.execute(query,(sbid_val,))
+                inverted_masked_results = cursor.fetchone()
+                if inverted_masked_results and inverted_masked_results[0]:
+                    inverted_masked = inverted_masked_results[0]
+                else:
+                    return HttpResponse(f"No invert-masked-spectra Linefinder results for sbid {sbid_val}")
+
+            print(f"invert masked value = {inverted_masked}")
+
             # The path to Django's static dir for linefinder outputs
             static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
             os.system(f"mkdir -p {static_dir}")
@@ -655,10 +696,12 @@ def query_database(request):
             conn.close()
 
             tarball = f"db_query/linefinder/{session_id}/{name}"
-            if inverted:
+            if inverted and not masked:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_inverted_outputs.csv"
-            elif masked:
+            elif masked and not inverted:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_outputs.csv"
+            elif masked and inverted:
+                csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_inverted_outputs.csv"
             else:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
             return render(request, 'linefinder.html', {'session_id': session_id, 'sbid': sbid_val, 'lmean': lmean,\
@@ -708,7 +751,7 @@ def query_database(request):
         sbid_val = request.POST.get('sbid_for_ascii')
         with connection.cursor() as cur:
             sid,version = get_max_sbid_version(cur,sbid_val)
-            conn = connect(host=host, password=password)
+            conn = connect(password=password)
             get_ascii_files_tarball(conn,cur,sid,sbid_val,ascii_dir,version,password)
             conn.close()
             ascii_tar = f"db_query/ascii/{session_id}/{sbid_val}_{version}.tar.gz"
