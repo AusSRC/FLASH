@@ -1,7 +1,6 @@
 import json
 import os
 import subprocess
-import sys
 import re
 import psycopg2
 import random
@@ -11,14 +10,11 @@ from django.conf import settings
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.db import connection
-from .models import MyModel
 
 #######################################################################################
 
-def connect(db="flashdbdev",user="flashdev",host="localhost",password=None):
+def connect(db="flashdb",user="flash",host="10.0.2.225",password=None):
 
-    if not password:
-        password = PASSWD
     conn = psycopg2.connect(
         database = db,
         user = user,
