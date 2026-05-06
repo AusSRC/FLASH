@@ -1,32 +1,42 @@
 import subprocess
 import os
-from argparse import ArgumentError
-
 import psycopg2
 import time
 import socket
 
+"""
+The purpose of this script is to populate your local database with a single
+complete set of data for one SBID in order to do basic testing.
+"""
+
+# Pre-setup Instructions
 # To get started install postgres18 and do this once you have entered the DB
 # as the administrator
-# psql postgres
-# CREATE DATABASE flashdbdev;
+# 'psql postgres' or 'psql your_laptop_user' depending on how you installed PG
+# CREATE DATABASE flashdbdev; <- For safety do not use Prod DB name here
 # then quit postgres using \q
 
-# Reconnetc to local flashdbdev
+# Reconnect to local flashdbdev
 # psql -d flashdbdev
-# CREATE USER flashdev WITH PASSWORD 'password';
+# CREATE USER flashdev WITH PASSWORD 'password'; <- For safety do not use Prod password or usernames here
 # GRANT ALL PRIVILEGES ON DATABASE flashdbdev TO flashdev;
 # ALTER SCHEMA public OWNER TO flashdev;
 # GRANT ALL ON SCHEMA public TO flashdev;
 
-
+# Sets which SBID you wish to use for testing, ideally this should be a GOOD
+# rated SBID quality with all of the current pipeline run options (masked etc)
+# available for it so that you can test all Django UI options
 SBID_NUM = 60095
 
+# These settings are used to effectively make the PROD_DB_HOST available
+# locally on LOCAL_PROD_DB_PORT
 PROD_VM_HOST = "flash@152.67.97.254"
 PROD_DB_HOST = "10.0.2.225"
 PROD_DB_PORT = 5432
 LOCAL_PROD_DB_PORT = 55432
 
+# These settings then configure how to connect to the Prod DB on your localhost
+# port.
 # Note this is localhost but still PROD DB as its port forwarded via the VM
 PROD_DB = {
     "host": "localhost",
@@ -36,7 +46,9 @@ PROD_DB = {
     "password": os.environ["PGPASSWORD"]
 }
 
-# This is your local db after tunnel has been dropped
+# These settings define how you will connect to your actual local copy of the
+# production database. They should match what you used to make your local db
+# above
 DEV_DB = {
     "host": "localhost",
     "user": "flashdev",
@@ -57,6 +69,9 @@ SSH_KEY = os.path.expanduser("~/.ssh/flash_oracle_key")
 
 
 def open_tunnel():
+    """
+    Opens the tunnel between the specified remote DB VM and your machine
+    """
     print("Opening Tunnel")
     return subprocess.Popen([
         "ssh",
@@ -68,6 +83,9 @@ def open_tunnel():
 
 
 def wait_for_db():
+    """
+    Retries DB for 10s every 0.5s while we wait for tunnel
+    """
     print("Waiting for DB")
     for _ in range(20):
         try:
@@ -82,7 +100,10 @@ def wait_for_db():
     raise RuntimeError("Tunnel not ready")
 
 
-def copy(cur, filename, sql, params):
+def dump_csv(cur, filename, sql, params):
+    """
+    Dumps output from ran sql+sql params to specified filename as csv
+    """
     with open(filename, "w") as f:
         q = cur.mogrify(sql, params).decode()
         cur.copy_expert(
@@ -91,6 +112,10 @@ def copy(cur, filename, sql, params):
 
 
 def get_columns(cur, table):
+    """
+    Gets the columns in correct order for specified table, makes read/writes
+    with differing sql column orders easy.
+    """
     cur.execute("""
         SELECT column_name
         FROM information_schema.columns
@@ -101,6 +126,9 @@ def get_columns(cur, table):
 
 
 def load_csv(conn, table, csv_path, columns):
+    """
+    Loads data from specified csv into specified columns in given table
+    """
     print(f'Loading in {table}')
     cols = ",".join(columns)
 
@@ -114,6 +142,9 @@ def load_csv(conn, table, csv_path, columns):
 
 
 def export_lobject(conn, oid, path, chunk=CHUNK):
+    """
+    Exports given large objects by oid in chunks to the specified path
+    """
     if oid is None:
         return
     i = 0
@@ -133,7 +164,9 @@ def export_lobject(conn, oid, path, chunk=CHUNK):
 def import_lobject(conn, oid, path, chunk=CHUNK):
     if oid is None:
         return
-
+    """
+    Imports given large objects path to specified oid in chunks
+    """
     print(f"Restoring OID {oid}")
 
     with conn.cursor() as cur:
@@ -152,7 +185,36 @@ def import_lobject(conn, oid, path, chunk=CHUNK):
     conn.commit()
 
 
+def export_schema(schema_file):
+    """
+    Exports schema to specified schema file.
+    """
+    print("Exporting schema from production...")
+
+    cmd = [
+        "pg_dump",
+        "-h", PROD_DB["host"],
+        "-U", PROD_DB["user"],
+        "-d", PROD_DB["dbname"],
+        "-p", str(PROD_DB["port"]),
+        "-s",  # schema only
+        "-t", "sbid",
+        "-t", "component",
+        "-t", "spect_run",
+        "-t", "detect_run",
+        "-f", schema_file
+    ]
+
+    subprocess.run(cmd, check=True)
+
+    print(f"Schema exported to {schema_file}")
+    return schema_file
+
+
 def import_schema(schema_file):
+    """
+    Imports schema from specified schema file.
+    """
     print("Importing schema into local DB...")
 
     cmd = [
@@ -172,6 +234,10 @@ def import_schema(schema_file):
 
 
 def ensure_schema(schema_file):
+    """
+    Ensures schema exists in local DB by checking first then making it if not.
+    # TODO make this generic, it currently checks for public.sbid
+    """
     try:
         conn = psycopg2.connect(
             host=DEV_DB["host"],
@@ -182,7 +248,7 @@ def ensure_schema(schema_file):
         )
         cur = conn.cursor()
 
-        # cheap existence check
+        # Cheap existence check
         cur.execute("""
             SELECT to_regclass('public.sbid')
         """)
@@ -203,32 +269,10 @@ def ensure_schema(schema_file):
     import_schema(schema_file)
 
 
-def export_schema():
-    print("Exporting schema from production...")
-
-    output_file = "schema.sql"
-
-    cmd = [
-        "pg_dump",
-        "-h", PROD_DB["host"],
-        "-U", PROD_DB["user"],
-        "-d", PROD_DB["dbname"],
-        "-p", str(PROD_DB["port"]),
-        "-s",  # schema only
-        "-t", "sbid",
-        "-t", "component",
-        "-t", "spect_run",
-        "-t", "detect_run",
-        "-f", output_file
-    ]
-
-    subprocess.run(cmd, check=True)
-
-    print(f"Schema exported to {output_file}")
-    return output_file
-
-
 def get_oid_data(conn, sbid_map):
+    """
+    Exports the large objects for each field that has them
+    """
     for field in OID_FIELDS:
         oid = sbid_map.get(field)
         if oid:
@@ -236,6 +280,9 @@ def get_oid_data(conn, sbid_map):
 
 
 def load_oid_data(conn, sbid_map):
+    """
+    Imports the large objects for each field that needs them
+    """
     for field in OID_FIELDS:
         oid = sbid_map.get(field)
         if oid:
@@ -244,6 +291,9 @@ def load_oid_data(conn, sbid_map):
 
 
 def fix_sequence(conn, table, id_col="id"):
+    """
+    Updates pq sequences to match the max in the imported tables
+    """
     with conn.cursor() as cur:
         cur.execute(f"""
             SELECT setval(
@@ -255,7 +305,11 @@ def fix_sequence(conn, table, id_col="id"):
         """, (table, id_col))
     conn.commit()
 
+
 def fetch_from_remote():
+    """
+    Handles overall fetching of data from remote database
+    """
     tunnel = open_tunnel()
     cur = None
     conn = None
@@ -310,7 +364,7 @@ def fetch_from_remote():
             ORDER BY id DESC 
             LIMIT 1
         """
-        copy(cur, "sbid.csv", sql, (SBID_NUM,))
+        dump_csv(cur, "sbid.csv", sql, (SBID_NUM,))
 
         print('Copying Components')
         comp_cols = get_columns(cur, "component")
@@ -321,7 +375,7 @@ def fetch_from_remote():
             ORDER BY id DESC 
             LIMIT 10
         """
-        copy(cur, "component.csv", sql, (sbid_id,))
+        dump_csv(cur, "component.csv", sql, (sbid_id,))
 
         spect_cols = None
         if spect_id:
@@ -332,7 +386,7 @@ def fetch_from_remote():
                 FROM spect_run
                 WHERE id = %s
             """
-            copy(cur, "spect_run.csv", sql, (spect_id,))
+            dump_csv(cur, "spect_run.csv", sql, (spect_id,))
 
         detect_cols = None
         if len(detect_ids) > 0:
@@ -343,7 +397,7 @@ def fetch_from_remote():
                 FROM detect_run
                 WHERE id = ANY(%s)
             """
-            copy(cur, "detect_run.csv", sql, (detect_ids,))
+            dump_csv(cur, "detect_run.csv", sql, (detect_ids,))
 
         # -------------------------
         # Copy OID Data
@@ -374,6 +428,9 @@ def write_to_local(
         detect_ids,
         sbid_map
 ):
+    """
+    Handles overall ingest of local csvs from remote database
+    """
     conn = None
     try:
         print('Loading Tables & OIDs into:')
@@ -382,7 +439,8 @@ def write_to_local(
         print(f'Database: {DEV_DB["dbname"]}')
         print(f'Port: {DEV_DB["port"]}')
 
-        print('BE SURE THIS IS NOT PRODUCTION!')
+        print('BE VERY SURE THE ABOVE IS NOT PRODUCTION OR YOUR LOCAL PORT '
+              'FOR PRODUCTION IF YOU REUSED PROD PASSWORD!')
         answer = input("Do you want to continue? (y/n): ").lower().strip()
         if answer != "y":
             raise ValueError("User did not say 'y', erroring")
@@ -428,5 +486,4 @@ if __name__ == "__main__":
 
     ensure_schema(schema_file)
 
-    # TODO IF COMING BACK TO THIS AFTER A WHILE, BE DAMN CAREFUL THIS DOESNT WRITE TO PROD!
     write_to_local(sbid_cols, comp_cols, spect_cols, detect_cols, spect_id, detect_ids, sbid_map)
