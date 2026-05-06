@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import sys
 import re
 import psycopg2
@@ -66,6 +67,7 @@ def get_max_sbid_version(cur,sbid_num,version=None):
             sbid_id = None
             version = 0
     return sbid_id,version
+
 ##################################################################################################
 def get_comp_ra_dec(cur,comp_id):
     query = ("select ra_deg_cont,dec_deg_cont from component where comp_id = %s order by comp_id")
@@ -82,8 +84,9 @@ def getSBIDmetadata(sbid):
         cur.execute(query,(sbid_id,))
         data = cur.fetchone()
     return data
+
 ##################################################################################################
-def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inverted,masked,verbose=True):
+def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inverted,masked,inverted_masked,verbose=True):
     # This will print out a table of linefinder output data for a given sbid
     # args[1] = db cursor
     # args[2] = The sbid you want to use - if a version is not declared ("45833" rather than "45833:2"),
@@ -94,10 +97,14 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     #           If no value is given, it will be set to 0.0
     # args[8] = if inverted spectra are requested
     # args[9] = if masked spectra are requested
+    # args[10] = if inverted masked spectra are requested
 
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
-    #print(f"For {sbid}:{version} ...")
+    print(f"For {sbid}:{version} ...")
+    print(f"masked {masked}")
+    print(f"inverted {inverted}")
+    print(f"inverted_masked {inverted_masked}")
     # min val for ln_mean:
     try:
         ln_mean = float(LN_MEAN)
@@ -105,11 +112,11 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
         ln_mean = 0.0
                  
     # Get the results table 
-    if inverted and not masked:
+    if inverted:
         query = "select invert_results from sbid where id = %s;"
-    elif masked and not inverted:
+    elif masked:
         query = "select mask_results from sbid where id = %s;"
-    elif inverted and masked:
+    elif inverted_masked:
         query = "select mask_invert_results from sbid where id = %s;"
     else:
         query = "select results from sbid where id = %s;"
@@ -124,29 +131,26 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     query = "select pointing from sbid where id = %s;"
     cur.execute(query,(sid,))
     pointing = cur.fetchone()[0]
-    # Base query fields (common to all)
-    base_fields = (
-        "component_name, comp_id, ra_hms_cont, dec_dms_cont, ra_deg_cont, "
-        "dec_deg_cont, flux_peak, flux_int, has_siblings, mode_num"
-    )
 
     # Determine the column based on whether it's masked, inverted, etc.
-    if masked and inverted:
+    if inverted_masked:
         value_field = "invert_mask_ln_mean"
         mode_field = "invert_mask_mode_num"
-        order_field = "invert_mask_ln_mean"
     elif masked:
         value_field = "mask_ln_mean"
         mode_field = "mask_mode_num"
-        order_field = "mask_ln_mean"
     elif inverted:
         value_field = "invert_ln_mean"
         mode_field = "invert_mode_num"
-        order_field = "invert_ln_mean"
     else:
         value_field = "ln_mean"
         mode_field = "mode_num"
-        order_field = "ln_mean"
+
+    # Base query fields (common to all)
+    base_fields = (
+        f"component_name, comp_id, ra_hms_cont, dec_dms_cont, ra_deg_cont, "
+        f"dec_deg_cont, flux_peak, flux_int, has_siblings"
+    )
 
     # Construct the WHERE clause
     where_clause = f"WHERE sbid_id = %s"
@@ -172,11 +176,13 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
 
     # Create the final query
     query = f"""
-        SELECT {base_fields}, {order_field}
+        SELECT {base_fields}, {mode_field}, {value_field}
         FROM component
         {where_clause}
         {order_clause};
     """
+
+    print(query)
 
     # Execute the query
     cur.execute(query, (sid,) if ln_mean == -1 else (sid, ln_mean))
@@ -203,7 +209,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
             f = open(f"{dir_download}/{sbid}_linefinder_inverted_outputs.csv","w")
         elif masked:
             f = open(f"{dir_download}/{sbid}_linefinder_masked_outputs.csv","w")
-        elif inverted and masked:
+        elif inverted_masked:
             f = open(f"{dir_download}/{sbid}_linefinder_masked_inverted_outputs.csv","w")
         else:
             f = open(f"{dir_download}/{sbid}_linefinder_outputs.csv","w")
@@ -238,7 +244,25 @@ def get_ascii_files_tarball(conn,cur,sid,sbid,static_dir,version,password=None):
     name = f"{sbid}_{version}.tar.gz"
     pathname = f"{static_dir}/{name}"
     export_q = f"\lo_export {oid} '{pathname}'"
-    os.system(f'export PGPASSWORD={password}; psql -h 10.0.2.225 -p 5432 -d flashdb -U flash -c "{export_q}"') 
+    params = conn.get_dsn_parameters()
+
+    host = params.get("host")
+    port = params.get("port", "5432")
+    dbname = params.get("dbname")
+    user = params.get("user")
+
+    env = os.environ.copy()
+    env["PGPASSWORD"] = password
+
+    subprocess.run([
+        "psql",
+        "-h", host,
+        "-p", str(port),
+        "-d", dbname,
+        "-U", user,
+        "-c", export_q
+    ], env=env, check=True)
+
     print(f"Downloaded tar of ascii files for {sbid}:{version} to {static_dir}",flush=True)
     return name
 
@@ -254,7 +278,7 @@ def get_ascii_files_tarball(conn,cur,sid,sbid,static_dir,version,password=None):
     #return name
 
 ##################################################################################################
-def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked):
+def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked,inverted_masked):
     cur = get_cursor(conn)
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
@@ -262,14 +286,14 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked):
     oid = None
     outputs = None
     name = f"{sbid}_{version}.tar"
-    if inverted and not masked:
+    if inverted:
         name = f"{sbid}_{version}_inverted.tar"
         query = "select invert_detectionF from sbid where id = %s"
-    elif masked and not inverted:
+    elif masked:
         name = f"{sbid}_{version}_masked.tar"
         query = "select mask_detectionF from sbid where id = %s"
-    elif inverted and masked:
-        name = f"{sbid}_{version}_masked.tar"
+    elif inverted_masked:
+        name = f"{sbid}_{version}_inverted_masked.tar"
         query = "select mask_invertF from sbid where id = %s"
     else:
         query = "select detectionF from sbid where id = %s"
@@ -280,7 +304,7 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked):
         return
     # The output files are normally stored as both a byte array AND a large object.
     # If the LOB exists, down load that in preference to the byte array, as it's more efficient:
-    if not inverted and not masked:
+    if not inverted and not masked and not inverted_masked:
         query = "select detect_tar from sbid where id = %s"
         cur.execute(query,(sid,))
         oid = cur.fetchone()[0]
@@ -291,11 +315,11 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked):
         open(f"{dir_download}/{name}", 'wb').write(loaded_lob.read())
     else:
         print(f"No LOB found - retrieving byte array from db")
-        if inverted and not masked:
+        if inverted:
             query = "select invert_detect_results from sbid where id = %s"
-        elif masked and not inverted:
+        elif masked:
             query = "select mask_detect_results from sbid where id = %s"
-        elif masked and inverted:
+        elif inverted_masked:
             query = "select mask_invert_detect_results from sbid where id = %s"
         else:
             query = "select detect_results from sbid where id = %s"
@@ -472,11 +496,11 @@ def show_sbids_aladin(request):
     with conn.cursor() as cursor:
         query = 'SELECT t.sbid_num, t.pointing, comp.sbid_id, AVG(comp.ra_deg_cont::NUMERIC) AS ra,'\
             + ' AVG(comp.dec_deg_cont::NUMERIC) AS dec, t.quality AS status,'\
-            + ' t.detectionf, t.invert_detectionf, t.mask_detectionf, run.run_tag'\
+            + ' t.detectionf, t.invert_detectionf, t.mask_detectionf, t.mask_invertF, run.run_tag'\
             + ' FROM sbid t'\
             + ' INNER JOIN component comp ON comp.sbid_id = t.id'\
             + ' LEFT JOIN spect_run run ON t.spect_runid = run.id'\
-            + ' GROUP BY comp.sbid_id, t.sbid_num, t.pointing, t.quality, t.detectionf, t.invert_detectionf, t.mask_detectionf, run.run_tag'
+            + ' GROUP BY comp.sbid_id, t.sbid_num, t.pointing, t.quality, t.detectionf, t.invert_detectionf, t.mask_detectionf, mask_invertF, run.run_tag'
         cursor.execute(query)
         sbids = cursor.fetchall()
         conn.close()
@@ -582,10 +606,10 @@ def query_database(request):
         if where_clause:
                 where_clause = where_clause +") "
         if no_bad_sbids:
-                if where_clause:
-                    where_clause = where_clause + "and s.quality not in ('BAD','REJECTED') "
-                else:
-                    where_clause = " where s.quality not in ('BAD','REJECTED') "
+            if where_clause:
+                where_clause = where_clause + "and s.quality not in ('BAD','REJECTED') "
+            else:
+                where_clause = " where s.quality not in ('BAD','REJECTED') "
 
         with connection.cursor() as cursor:
             if sbid_val == "-1":
@@ -639,6 +663,8 @@ def query_database(request):
             use_masked = True
             use_invert = True
 
+        print(f"USE INVERT: {use_invert}")
+        print(f"USE MASKED: {use_masked}")
         if reverse == "on":
             reverse = True
         else:
@@ -688,11 +714,12 @@ def query_database(request):
             os.system(f"mkdir -p {static_dir}")
             version = None
             # Screen outputs:
-            outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir,inverted,masked)
+            outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir,inverted,masked,inverted_masked)
+
         # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
         if outputs:
             conn = connect(password=password)
-            name = get_linefinder_tarball(conn,sbid_val,static_dir,version,inverted,masked)
+            name = get_linefinder_tarball(conn,sbid_val,static_dir,version,inverted,masked,inverted_masked)
             conn.close()
 
             tarball = f"db_query/linefinder/{session_id}/{name}"
@@ -700,13 +727,13 @@ def query_database(request):
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_inverted_outputs.csv"
             elif masked and not inverted:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_outputs.csv"
-            elif masked and inverted:
+            elif inverted_masked:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_inverted_outputs.csv"
             else:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
             return render(request, 'linefinder.html', {'session_id': session_id, 'sbid': sbid_val, 'lmean': lmean,\
                 'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), \
-                'tarball': tarball, 'inverted':inverted, 'masked':masked})
+                'tarball': tarball, 'inverted': inverted, 'masked': masked, 'inverted_masked': inverted_masked})
         else:
             return HttpResponse(f"No Linefinder results for sbid {sbid_val}")
 
