@@ -101,10 +101,7 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
 
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
-    print(f"For {sbid}:{version} ...")
-    print(f"masked {masked}")
-    print(f"inverted {inverted}")
-    print(f"inverted_masked {inverted_masked}")
+    #print(f"For {sbid}:{version} ...")
     # min val for ln_mean:
     try:
         ln_mean = float(LN_MEAN)
@@ -181,8 +178,6 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
         {where_clause}
         {order_clause};
     """
-
-    print(query)
 
     # Execute the query
     cur.execute(query, (sid,) if ln_mean == -1 else (sid, ln_mean))
@@ -487,7 +482,6 @@ def show_csv(request):
 def show_sbids_aladin(request):
     # Show the aladin view with all SBIDs
     password = request.POST.get('pass')
-    host = request.POST.get('host')
     session_id = request.POST.get('session_id')
     try:
         conn = connect(password=password)
@@ -560,7 +554,6 @@ def bad_ascii_view(request):
 def query_database(request):
     # Build the SQL query using Django's SQL syntax
     password = request.POST.get('pass')
-    host = request.POST.get('host')
     session_id = request.POST.get('session_id')
     # Try a psycopg2 connection with the supplied password. If it fails, return error msg
     try:
@@ -570,7 +563,6 @@ def query_database(request):
         return HttpResponse("Password has failed")
     
     query_type = request.POST.get('query_type')
-    reverse = False
 
     if query_type == "QUERY":
         sbid_val = request.POST.get('sbid_query')
@@ -663,8 +655,6 @@ def query_database(request):
             use_masked = True
             use_invert = True
 
-        print(f"USE INVERT: {use_invert}")
-        print(f"USE MASKED: {use_masked}")
         if reverse == "on":
             reverse = True
         else:
@@ -694,7 +684,6 @@ def query_database(request):
                     masked = masked_results[0]
                 else:
                     return HttpResponse(f"No masked-spectra Linefinder results for sbid {sbid_val}")
-
             print(f"masked value = {masked}")
 
             if use_masked and use_invert:
@@ -706,7 +695,6 @@ def query_database(request):
                     inverted_masked = inverted_masked_results[0]
                 else:
                     return HttpResponse(f"No invert-masked-spectra Linefinder results for sbid {sbid_val}")
-
             print(f"invert masked value = {inverted_masked}")
 
             # The path to Django's static dir for linefinder outputs
@@ -723,9 +711,9 @@ def query_database(request):
             conn.close()
 
             tarball = f"db_query/linefinder/{session_id}/{name}"
-            if inverted and not masked:
+            if inverted:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_inverted_outputs.csv"
-            elif masked and not inverted:
+            elif masked:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_outputs.csv"
             elif inverted_masked:
                 csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_inverted_outputs.csv"
