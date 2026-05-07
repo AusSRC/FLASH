@@ -14,6 +14,11 @@
 # It then tars up the outputs, pushes them to the client and initiates a script on the client to
 # upload the outputs to the FLASH database (via ssh).
 
+#   NOTE:   The script calling order is:
+#               1) "run_mpi_native_script.sh",  or "detection_processing.sh" (this script) which calls:
+#                   2) "slurm_run_flashfinder.sh", which directly calls the linefinder code.
+#
+
 #######################################################################################################
 source ~/set_local_flash_env.sh
 # Edit these for the specific hpc-platform user:
