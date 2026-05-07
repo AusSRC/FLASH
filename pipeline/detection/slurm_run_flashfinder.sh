@@ -33,7 +33,7 @@ module load py-numpy/1.24.4
 #module load py-numpy/1.25.2
 #module load py-scipy/1.14.1
 #module load py-matplotlib/3.9.2
-#module load py-astropy/5.1
+#module load py-astropy/5.1   # This causes a module version change 
 #module load py-mpi4py/3.1.5-py3.11.6
 
 #module load py-astropy/5.1
