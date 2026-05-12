@@ -1,8 +1,9 @@
 import json
 import os
 import shutil
-import sys
 import re
+import tarfile
+
 from django.utils import timezone
 from pathlib import Path
 import psycopg2
@@ -11,7 +12,6 @@ from django.contrib.sessions.models import Session
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.db import connection
-from .models import MyModel
 
 #######################################################################################
 
@@ -23,9 +23,7 @@ def connect(db="flashdb",user="flash",host="10.0.2.225",password=None):
         database = db,
         user = user,
         password = password,
-        #host = host,
-        #port = 2095
-        host = "10.0.2.225",
+        host = host,
         port = 5432
     )
     #print(conn.get_dsn_parameters(),"\n")
@@ -224,17 +222,65 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     return outputs,alt_outputs
 
 ##################################################################################################
-def get_ascii_files_tarball(conn,cur,sid,sbid,static_dir,version,password=None):
-    # Download tar of ascii files for the sbid
+def get_ascii_files_tarball(conn, cur, sid, sbid, static_dir, version, password=None):
+    # Query the database for the PostgreSQL large object ID (OID)
+    # that stores the ASCII tarball for this SBID.
     query = "select ascii_tar from sbid where id = %s"
-    cur.execute(query,(sid,))
-    oid = cur.fetchone()[0]
-    print(f"Retrieving large object {oid} from db to {static_dir}")
+    cur.execute(query, (sid,))
+
+    # Fetch the first row from the query result
+    row = cur.fetchone()
+
+    # Validate that a row exists and it contains a valid OID
+    # (prevents attempting to read a non-existent large object)
+    if not row or row[0] is None:
+        raise ValueError(f"No ASCII tar available for sbid {sbid}:{version}")
+
+    # Extract the large object ID (PostgreSQL LOB reference)
+    oid = row[0]
+
+    print(f"Retrieving large object {oid} to {static_dir}")
+
+    # Final filename that will be served to the user
     name = f"{sbid}_{version}.tar.gz"
-    pathname = f"{static_dir}/{name}"
-    export_q = f"\lo_export {oid} '{pathname}'"
-    os.system(f'export PGPASSWORD={password}; psql -h 10.0.2.225 -p 5432 -d flashdb -U flash -c "{export_q}"')
-    print(f"Downloaded tar of ascii files for {sbid}:{version} to {static_dir}",flush=True)
+
+    # Full output path for the final file
+    path = Path(static_dir) / name
+
+    # Ensure the output directory exists (safe if it already does)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Create a temporary file path:
+    # this avoids exposing partially-written files to users
+    # e.g. sbid.tar.gz.tmp
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+
+    # Remove any leftover temp file from previous failed runs
+    # (prevents accidental reuse of corrupt partial downloads)
+    try:
+        tmp_path.unlink(missing_ok=True)
+
+        lob = conn.lobject(oid=oid, mode="rb")
+        try:
+            with open(tmp_path, "wb") as f:
+                for chunk in iter(lambda: lob.read(1024 * 1024), b""):
+                    f.write(chunk)
+        finally:
+            lob.close()
+
+        # Atomically move the completed temp file into its final location
+        # This ensures users never see partial/corrupted files
+        tmp_path.replace(path)
+
+    finally:
+        # Safety cleanup:
+        # If anything failed mid-write, ensure no orphan .tmp file remains
+        if tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+
+    print(f"Downloaded tar of ascii files for {sbid}:{version} to {static_dir}", flush=True)
+
+    # Return filename for use in templates / download links
     return name
 
 
@@ -435,10 +481,9 @@ def show_csv(request):
 def show_sbids_aladin(request):
     # Show the aladin view with all SBIDs
     password = request.POST.get('pass')
-    host = request.POST.get('host')
     session_id = get_session_id(request)
     try:
-        conn = connect(password=password, host=host)
+        conn = connect(password=password)
     except:
         return HttpResponse("Password has failed")
     with conn.cursor() as cursor:
@@ -468,9 +513,8 @@ def get_bad_file_description(name):
 def bad_ascii_view(request):
     session_id = get_session_id(request)
     password = request.POST.get('pass')
-    host = request.POST.get('host')
     try:
-        conn = connect(password=password, host=host)
+        conn = connect(password=password)
         conn.close()
     except:
         return HttpResponse("Password has failed")
@@ -508,11 +552,10 @@ def bad_ascii_view(request):
 def query_database(request):
     # Build the SQL query using Django's SQL syntax
     password = request.POST.get('pass')
-    host = request.POST.get('host')
     session_id = get_session_id(request)
     # Try a psycopg2 connection with the supplied password. If it fails, return error msg
     try:
-        conn = connect(password=password, host=host)
+        conn = connect(password=password)
         conn.close()
     except:
         return HttpResponse("Password has failed")
@@ -637,8 +680,8 @@ def query_database(request):
                     return HttpResponse(f"No masked-spectra Linefinder results for sbid {sbid_val}")
             print(f"masked value = {masked}")
             # The path to Django's static dir for linefinder outputs
-            static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
-            os.system(f"mkdir -p {static_dir}")
+            static_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/linefinder/{session_id}/"
+            static_dir.mkdir(parents=True, exist_ok=True)
             version = None
             # Screen outputs:
             outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir,inverted,masked)
@@ -683,26 +726,32 @@ def query_database(request):
                     comp = f"spec_SB{sbid_val}_component_{val}.fits"
                     comps.append(comp)
             # The path to Django's static dir for plots
-            static_dir = os.path.abspath(f"db_query/static/db_query/plots/{session_id}/")
-            os.system(f"mkdir -p {static_dir}")
+            static_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/plots/{session_id}/"
+            static_dir.mkdir(parents=True, exist_ok=True)
             version = None
             for comp in comps:
                 flux,opd = get_plots_for_comp(cur,sbid_val,comp,static_dir)
                 if flux and opd:
                     radec = get_comp_ra_dec(cur,comp)
                     sources.append([f"db_query/plots/{session_id}/{flux}",f"db_query/plots/{session_id}/{opd}",radec])
-            tarball_name = f"{sbid_val}_plots.tar"
-            os.system(f"cd {static_dir}; tar -zcvf {tarball_name} spec_SB{sbid_val}*")
+
+            tarball_name = f"{sbid_val}_plots.tar.gz"
+            tarball_path = Path(static_dir) / tarball_name
+
+            with tarfile.open(tarball_path, "w:gz") as tar:
+                for file in Path(static_dir).glob(f"spec_SB{sbid_val}*"):
+                    tar.add(file, arcname=file.name)
+
             tarball = f"db_query/plots/{session_id}/{tarball_name}"
 
         return render(request, 'source.html', {'session_id': session_id, 'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball,'render': view_or_tar, 'metadata': metadata})
     elif query_type == "ASCII":
-        ascii_dir = os.path.abspath(f"db_query/static/db_query/ascii/{session_id}/")
-        os.system(f"mkdir -p {ascii_dir}")
+        ascii_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/ascii/{session_id}/"
+        ascii_dir.mkdir(parents=True, exist_ok=True)
         sbid_val = request.POST.get('sbid_for_ascii')
         with connection.cursor() as cur:
             sid,version = get_max_sbid_version(cur,sbid_val)
-            conn = connect(host=host, password=password)
+            conn = connect(password=password)
             get_ascii_files_tarball(conn,cur,sid,sbid_val,ascii_dir,version,password)
             conn.close()
             ascii_tar = f"db_query/ascii/{session_id}/{sbid_val}_{version}.tar.gz"
@@ -713,8 +762,8 @@ def download_mask_files(mask_rows, session_id):
     # Stage mask file downloads
     mask_files = []
     if len(mask_rows) > 0:
-        static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/masks/{session_id}")
-        os.system(f"mkdir -p {static_dir}")
+        static_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/linefinder/masks/{session_id}/"
+        static_dir.mkdir(parents=True, exist_ok=True)
         for mask_row in mask_rows:
             mask = mask_row[0]
             if mask:
