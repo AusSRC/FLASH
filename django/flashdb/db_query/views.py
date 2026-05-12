@@ -451,11 +451,11 @@ def show_sbids_aladin(request):
     with conn.cursor() as cursor:
         query = 'SELECT t.sbid_num, t.pointing, comp.sbid_id, AVG(comp.ra_deg_cont::NUMERIC) AS ra,'\
             + ' AVG(comp.dec_deg_cont::NUMERIC) AS dec, t.quality AS status,'\
-            + ' t.detectionf, t.invert_detectionf, t.mask_detectionf, t.mask_invertF, run.run_tag'\
+            + ' t.detectionf, t.invert_detectionf, t.mask_detectionf, run.run_tag'\
             + ' FROM sbid t'\
             + ' INNER JOIN component comp ON comp.sbid_id = t.id'\
             + ' LEFT JOIN spect_run run ON t.spect_runid = run.id'\
-            + ' GROUP BY comp.sbid_id, t.sbid_num, t.pointing, t.quality, t.detectionf, t.invert_detectionf, t.mask_detectionf, mask_invertF, run.run_tag'
+            + ' GROUP BY comp.sbid_id, t.sbid_num, t.pointing, t.quality, t.detectionf, t.invert_detectionf, t.mask_detectionf, run.run_tag'
         cursor.execute(query)
         sbids = cursor.fetchall()
         conn.close()
