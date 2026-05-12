@@ -376,7 +376,6 @@ def get_plots_for_comp(cur,sbid,comp,static_dir):
 
 # Create your views here.
 
-
 def index(request):
 
     base_dir = Path(settings.BASE_DIR) / "db_query/static/db_query"
