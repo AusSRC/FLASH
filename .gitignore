@@ -1,0 +1,6 @@
+*__pycache__
+*.csv
+*.bin
+settings*.py
+django/flashdb/db_query/static/db_query/*
+*.idea

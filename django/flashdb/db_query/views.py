@@ -1,12 +1,13 @@
 import json
 import os
+import shutil
 import sys
 import re
+from django.utils import timezone
+from pathlib import Path
 import psycopg2
-import random
-import string
-
 from django.conf import settings
+from django.contrib.sessions.models import Session
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.db import connection
@@ -35,13 +36,24 @@ def get_cursor(conn):
     cursor = conn.cursor()
     return cursor
 
+def get_session_id(request):
+    if not request.session.session_key:
+        request.session.create()
+    return request.session.session_key
 
-##################################################################################################
-def generate_id(length=20):
-    # Generate a random id string of 20 letters
-    letters = string.ascii_letters
-    id = ''.join(random.choice(letters) for i in range(length))
-    return id
+def cleanup_orphan_session_files(base_dir):
+    expired_sessions = set(
+        Session.objects.filter(expire_date__lt=timezone.now())
+        .values_list("session_key", flat=True)
+    )
+
+    try:
+        for folder in base_dir.iterdir():
+            if folder.is_dir() and folder.name in expired_sessions:
+                print(f"Deleting session {folder.name}")
+                shutil.rmtree(folder, ignore_errors=True)
+    except FileNotFoundError:
+        pass
 
 ##################################################################################################
 def get_max_sbid_version(cur,sbid_num,version=None):
@@ -221,7 +233,7 @@ def get_ascii_files_tarball(conn,cur,sid,sbid,static_dir,version,password=None):
     name = f"{sbid}_{version}.tar.gz"
     pathname = f"{static_dir}/{name}"
     export_q = f"\lo_export {oid} '{pathname}'"
-    os.system(f'export PGPASSWORD={password}; psql -h 10.0.2.225 -p 5432 -d flashdb -U flash -c "{export_q}"') 
+    os.system(f'export PGPASSWORD={password}; psql -h 10.0.2.225 -p 5432 -d flashdb -U flash -c "{export_q}"')
     print(f"Downloaded tar of ascii files for {sbid}:{version} to {static_dir}",flush=True)
     return name
 
@@ -364,29 +376,13 @@ def get_plots_for_comp(cur,sbid,comp,static_dir):
 
 # Create your views here.
 
+
 def index(request):
-    static_dir = os.path.abspath("db_query/static/db_query/")
-    session_id = request.POST.get('session_id')
-    if session_id is not None:
-        print(f"Got {session_id} from POST")
-        request.session["session_id"] = session_id
-    else:    
-        session_id = request.session.get("session_id")
-        if session_id is None:
-            session_id = generate_id(20)
-            print(f"Generated {session_id}")
-            request.session["session_id"] = session_id
-        else:
-            print(f"Got {session_id} from session")
-    
-    # Cleanup user session files
-    try:
-        os.system(f"rm -rf {static_dir}/plots/{session_id}")
-        os.system(f"rm -rf {static_dir}/linefinder/{session_id}")
-        os.system(f"rm -rf {static_dir}/linefinder/masks/{session_id}")
-        os.system(f"rm -rf {static_dir}/ascii/{session_id}")
-    except Exception:
-        pass
+
+    base_dir = Path(settings.BASE_DIR) / "db_query/static/db_query"
+
+    for sub in ["plots", "linefinder", "ascii", "linefinder/masks"]:
+        cleanup_orphan_session_files(base_dir / sub)
 
     with connection.cursor() as cursor:
         cursor.execute("SELECT count(*) from sbid;")
@@ -411,17 +407,22 @@ def index(request):
         survey_accept = int(survey_records) - int(survey_reject)
         cursor.execute("select count(*) from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%Survey%' and sbid.quality = 'NOT_VALIDATED';")
         survey_unvalidated = cursor.fetchone()[0]
-    return render(request, 'index.html', {'records': num_records, 
-                                          'pilot1': pilot1_records, 
-                                          'rpilot1': pilot1_reject, 
-                                          'apilot1': pilot1_accept, 
-                                          'pilot2': pilot2_records, 
-                                          'rpilot2': pilot2_reject, 
-                                          'apilot2': pilot2_accept, 
-                                          'survey': survey_records,
-                                          'asurvey': survey_accept,
-                                          'unvalid': survey_unvalidated,
-                                          'session_id': session_id})
+    return render(
+        request,
+        'index.html',
+        {
+            'records': num_records,
+            'pilot1': pilot1_records,
+            'rpilot1': pilot1_reject,
+            'apilot1': pilot1_accept,
+            'pilot2': pilot2_records,
+            'rpilot2': pilot2_reject,
+            'apilot2': pilot2_accept,
+            'survey': survey_records,
+            'asurvey': survey_accept,
+            'unvalid': survey_unvalidated
+            }
+        )
 
 def show_aladin(request):
     ra = request.POST.get('ra')
@@ -442,7 +443,7 @@ def show_sbids_aladin(request):
     # Show the aladin view with all SBIDs
     password = request.POST.get('pass')
     host = request.POST.get('host')
-    session_id = request.POST.get('session_id')
+    session_id = get_session_id(request)
     try:
         conn = connect(password=password, host=host)
     except:
@@ -450,11 +451,11 @@ def show_sbids_aladin(request):
     with conn.cursor() as cursor:
         query = 'SELECT t.sbid_num, t.pointing, comp.sbid_id, AVG(comp.ra_deg_cont::NUMERIC) AS ra,'\
             + ' AVG(comp.dec_deg_cont::NUMERIC) AS dec, t.quality AS status,'\
-            + ' t.detectionf, t.invert_detectionf, t.mask_detectionf, run.run_tag'\
+            + ' t.detectionf, t.invert_detectionf, t.mask_detectionf, t.mask_invertF, run.run_tag'\
             + ' FROM sbid t'\
             + ' INNER JOIN component comp ON comp.sbid_id = t.id'\
             + ' LEFT JOIN spect_run run ON t.spect_runid = run.id'\
-            + ' GROUP BY comp.sbid_id, t.sbid_num, t.pointing, t.quality, t.detectionf, t.invert_detectionf, t.mask_detectionf, run.run_tag'
+            + ' GROUP BY comp.sbid_id, t.sbid_num, t.pointing, t.quality, t.detectionf, t.invert_detectionf, t.mask_detectionf, mask_invertF, run.run_tag'
         cursor.execute(query)
         sbids = cursor.fetchall()
         conn.close()
@@ -472,7 +473,7 @@ def get_bad_file_description(name):
     return None
 
 def bad_ascii_view(request):
-    session_id = request.POST.get('session_id')
+    session_id = get_session_id(request)
     password = request.POST.get('pass')
     host = request.POST.get('host')
     try:
@@ -515,7 +516,7 @@ def query_database(request):
     # Build the SQL query using Django's SQL syntax
     password = request.POST.get('pass')
     host = request.POST.get('host')
-    session_id = request.POST.get('session_id')
+    session_id = get_session_id(request)
     # Try a psycopg2 connection with the supplied password. If it fails, return error msg
     try:
         conn = connect(password=password, host=host)
@@ -567,7 +568,7 @@ def query_database(request):
 
         with connection.cursor() as cursor:
             if sbid_val == "-1":
-                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"                
+                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
                 mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
                 if where_clause:
                     query = query + where_clause
