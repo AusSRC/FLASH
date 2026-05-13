@@ -289,8 +289,7 @@ def get_separated_posterior(self):
                     tmp_samples = []
                     mode_count += 1
             else:
-                #tmp_samples.append([__float_from_str(x) for x in line.lower().split()])
-                tmp_samples.append([float(x) for x in line.lower().split()])
+                tmp_samples.append([__float_from_str(x) for x in line.lower().split()])
     f.close()
     tmp_samples = np.array(tmp_samples)
     if mode_count > 1:
