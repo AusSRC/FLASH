@@ -15,6 +15,10 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Handles sessions so they expire and get cleaned up next time anyone
+# lands on index
+SESSION_COOKIE_AGE = 3600  # 1 hour (in seconds)
+SESSION_SAVE_EVERY_REQUEST = True
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
