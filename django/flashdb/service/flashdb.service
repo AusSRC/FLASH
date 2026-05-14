@@ -1,11 +1,23 @@
 [Unit]
-Description= FLASH database frontend service
-After=multi-user.target
+Description=FLASH Django app
+After=network.target
 
 [Service]
-Type=simple
+User=flash
+Group=www-data
+UMask=007
+
+WorkingDirectory=/home/flash/src/FLASH/django/flashdb
+RuntimeDirectory=flashdb
+RuntimeDirectoryMode=755
+
+ExecStart=/usr/bin/gunicorn \
+    --workers 3 \
+    --bind unix:/run/flashdb/flashdb.sock \
+    flashdb.wsgi:application
+
 Restart=always
-ExecStart=/etc/flashdb/flashdb.sh
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
