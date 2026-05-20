@@ -1,12 +1,15 @@
 import json
 import os
+import shutil
 import subprocess
 import re
-import psycopg2
-import random
-import string
+import tarfile
 
+from django.utils import timezone
+from pathlib import Path
+import psycopg2
 from django.conf import settings
+from django.contrib.sessions.models import Session
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.db import connection
@@ -30,13 +33,24 @@ def get_cursor(conn):
     cursor = conn.cursor()
     return cursor
 
+def get_session_id(request):
+    if not request.session.session_key:
+        request.session.create()
+    return request.session.session_key
 
-##################################################################################################
-def generate_id(length=20):
-    # Generate a random id string of 20 letters
-    letters = string.ascii_letters
-    id = ''.join(random.choice(letters) for i in range(length))
-    return id
+def cleanup_orphan_session_files(base_dir):
+    expired_sessions = set(
+        Session.objects.filter(expire_date__lt=timezone.now())
+        .values_list("session_key", flat=True)
+    )
+
+    try:
+        for folder in base_dir.iterdir():
+            if folder.is_dir() and folder.name in expired_sessions:
+                print(f"Deleting session {folder.name}")
+                shutil.rmtree(folder, ignore_errors=True)
+    except FileNotFoundError:
+        pass
 
 ##################################################################################################
 def get_max_sbid_version(cur,sbid_num,version=None):
@@ -226,35 +240,65 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     return outputs,alt_outputs
 
 ##################################################################################################
-def get_ascii_files_tarball(conn,cur,sid,sbid,static_dir,version,password=None):
-    # Download tar of ascii files for the sbid
+def get_ascii_files_tarball(conn, cur, sid, sbid, static_dir, version, password=None):
+    # Query the database for the PostgreSQL large object ID (OID)
+    # that stores the ASCII tarball for this SBID.
     query = "select ascii_tar from sbid where id = %s"
-    cur.execute(query,(sid,))
-    oid = cur.fetchone()[0]
-    print(f"Retrieving large object {oid} from db to {static_dir}")
+    cur.execute(query, (sid,))
+
+    # Fetch the first row from the query result
+    row = cur.fetchone()
+
+    # Validate that a row exists and it contains a valid OID
+    # (prevents attempting to read a non-existent large object)
+    if not row or row[0] is None:
+        raise ValueError(f"No ASCII tar available for sbid {sbid}:{version}")
+
+    # Extract the large object ID (PostgreSQL LOB reference)
+    oid = row[0]
+
+    print(f"Retrieving large object {oid} to {static_dir}")
+
+    # Final filename that will be served to the user
     name = f"{sbid}_{version}.tar.gz"
-    pathname = f"{static_dir}/{name}"
-    export_q = f"\lo_export {oid} '{pathname}'"
-    params = conn.get_dsn_parameters()
 
-    host = params.get("host")
-    port = params.get("port", "5432")
-    dbname = params.get("dbname")
-    user = params.get("user")
+    # Full output path for the final file
+    path = Path(static_dir) / name
 
-    env = os.environ.copy()
-    env["PGPASSWORD"] = password
+    # Ensure the output directory exists (safe if it already does)
+    path.parent.mkdir(parents=True, exist_ok=True)
 
-    subprocess.run([
-        "psql",
-        "-h", host,
-        "-p", str(port),
-        "-d", dbname,
-        "-U", user,
-        "-c", export_q
-    ], env=env, check=True)
+    # Create a temporary file path:
+    # this avoids exposing partially-written files to users
+    # e.g. sbid.tar.gz.tmp
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
 
-    print(f"Downloaded tar of ascii files for {sbid}:{version} to {static_dir}",flush=True)
+    # Remove any leftover temp file from previous failed runs
+    # (prevents accidental reuse of corrupt partial downloads)
+    try:
+        tmp_path.unlink(missing_ok=True)
+
+        lob = conn.lobject(oid=oid, mode="rb")
+        try:
+            with open(tmp_path, "wb") as f:
+                for chunk in iter(lambda: lob.read(1024 * 1024), b""):
+                    f.write(chunk)
+        finally:
+            lob.close()
+
+        # Atomically move the completed temp file into its final location
+        # This ensures users never see partial/corrupted files
+        tmp_path.replace(path)
+
+    finally:
+        # Safety cleanup:
+        # If anything failed mid-write, ensure no orphan .tmp file remains
+        if tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+
+    print(f"Downloaded tar of ascii files for {sbid}:{version} to {static_dir}", flush=True)
+
+    # Return filename for use in templates / download links
     return name
 
 
@@ -402,28 +446,11 @@ def get_plots_for_comp(cur,sbid,comp,static_dir):
 # Create your views here.
 
 def index(request):
-    static_dir = os.path.abspath("db_query/static/db_query/")
-    session_id = request.POST.get('session_id')
-    if session_id is not None:
-        print(f"Got {session_id} from POST")
-        request.session["session_id"] = session_id
-    else:    
-        session_id = request.session.get("session_id")
-        if session_id is None:
-            session_id = generate_id(20)
-            print(f"Generated {session_id}")
-            request.session["session_id"] = session_id
-        else:
-            print(f"Got {session_id} from session")
-    
-    # Cleanup user session files
-    try:
-        os.system(f"rm -rf {static_dir}/plots/{session_id}")
-        os.system(f"rm -rf {static_dir}/linefinder/{session_id}")
-        os.system(f"rm -rf {static_dir}/linefinder/masks/{session_id}")
-        os.system(f"rm -rf {static_dir}/ascii/{session_id}")
-    except Exception:
-        pass
+
+    base_dir = Path(settings.BASE_DIR) / "db_query/static/db_query"
+
+    for sub in ["plots", "linefinder", "ascii", "linefinder/masks"]:
+        cleanup_orphan_session_files(base_dir / sub)
 
     with connection.cursor() as cursor:
         cursor.execute("SELECT count(*) from sbid;")
@@ -448,17 +475,16 @@ def index(request):
         survey_accept = int(survey_records) - int(survey_reject)
         cursor.execute("select count(*) from sbid inner join spect_run on sbid.spect_runid = spect_run.id where spect_run.run_tag like '%Survey%' and sbid.quality = 'NOT_VALIDATED';")
         survey_unvalidated = cursor.fetchone()[0]
-    return render(request, 'index.html', {'records': num_records, 
-                                          'pilot1': pilot1_records, 
-                                          'rpilot1': pilot1_reject, 
-                                          'apilot1': pilot1_accept, 
-                                          'pilot2': pilot2_records, 
-                                          'rpilot2': pilot2_reject, 
-                                          'apilot2': pilot2_accept, 
+    return render(request, 'index.html', {'records': num_records,
+                                          'pilot1': pilot1_records,
+                                          'rpilot1': pilot1_reject,
+                                          'apilot1': pilot1_accept,
+                                          'pilot2': pilot2_records,
+                                          'rpilot2': pilot2_reject,
+                                          'apilot2': pilot2_accept,
                                           'survey': survey_records,
                                           'asurvey': survey_accept,
-                                          'unvalid': survey_unvalidated,
-                                          'session_id': session_id})
+                                          'unvalid': survey_unvalidated})
 
 def show_aladin(request):
     ra = request.POST.get('ra')
@@ -478,7 +504,7 @@ def show_csv(request):
 def show_sbids_aladin(request):
     # Show the aladin view with all SBIDs
     password = request.POST.get('pass')
-    session_id = request.POST.get('session_id')
+    session_id = get_session_id(request)
     try:
         conn = connect(password=password)
     except:
@@ -508,9 +534,8 @@ def get_bad_file_description(name):
     return None
 
 def bad_ascii_view(request):
-    session_id = request.POST.get('session_id')
+    session_id = get_session_id(request)
     password = request.POST.get('pass')
-    host = request.POST.get('host')
     try:
         conn = connect(password=password)
         conn.close()
@@ -550,7 +575,7 @@ def bad_ascii_view(request):
 def query_database(request):
     # Build the SQL query using Django's SQL syntax
     password = request.POST.get('pass')
-    session_id = request.POST.get('session_id')
+    session_id = get_session_id(request)
     # Try a psycopg2 connection with the supplied password. If it fails, return error msg
     try:
         conn = connect(password=password)
@@ -694,8 +719,8 @@ def query_database(request):
             print(f"invert masked value = {inverted_masked}")
 
             # The path to Django's static dir for linefinder outputs
-            static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/{session_id}/")
-            os.system(f"mkdir -p {static_dir}")
+            static_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/linefinder/{session_id}/"
+            static_dir.mkdir(parents=True, exist_ok=True)
             version = None
             # Screen outputs:
             outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir,inverted,masked,inverted_masked)
@@ -743,22 +768,28 @@ def query_database(request):
                     comp = f"spec_SB{sbid_val}_component_{val}.fits"
                     comps.append(comp)
             # The path to Django's static dir for plots
-            static_dir = os.path.abspath(f"db_query/static/db_query/plots/{session_id}/")
-            os.system(f"mkdir -p {static_dir}")
+            static_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/plots/{session_id}/"
+            static_dir.mkdir(parents=True, exist_ok=True)
             version = None
             for comp in comps:
                 flux,opd = get_plots_for_comp(cur,sbid_val,comp,static_dir)
                 if flux and opd:
                     radec = get_comp_ra_dec(cur,comp)
                     sources.append([f"db_query/plots/{session_id}/{flux}",f"db_query/plots/{session_id}/{opd}",radec])
-            tarball_name = f"{sbid_val}_plots.tar"
-            os.system(f"cd {static_dir}; tar -zcvf {tarball_name} spec_SB{sbid_val}*")
+
+            tarball_name = f"{sbid_val}_plots.tar.gz"
+            tarball_path = Path(static_dir) / tarball_name
+
+            with tarfile.open(tarball_path, "w:gz") as tar:
+                for file in Path(static_dir).glob(f"spec_SB{sbid_val}*"):
+                    tar.add(file, arcname=file.name)
+
             tarball = f"db_query/plots/{session_id}/{tarball_name}"
 
         return render(request, 'source.html', {'session_id': session_id, 'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball,'render': view_or_tar, 'metadata': metadata})
     elif query_type == "ASCII":
-        ascii_dir = os.path.abspath(f"db_query/static/db_query/ascii/{session_id}/")
-        os.system(f"mkdir -p {ascii_dir}")
+        ascii_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/ascii/{session_id}/"
+        ascii_dir.mkdir(parents=True, exist_ok=True)
         sbid_val = request.POST.get('sbid_for_ascii')
         with connection.cursor() as cur:
             sid,version = get_max_sbid_version(cur,sbid_val)
@@ -773,8 +804,8 @@ def download_mask_files(mask_rows, session_id):
     # Stage mask file downloads
     mask_files = []
     if len(mask_rows) > 0:
-        static_dir = os.path.abspath(f"db_query/static/db_query/linefinder/masks/{session_id}")
-        os.system(f"mkdir -p {static_dir}")
+        static_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/linefinder/masks/{session_id}/"
+        static_dir.mkdir(parents=True, exist_ok=True)
         for mask_row in mask_rows:
             mask = mask_row[0]
             if mask:
