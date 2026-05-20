@@ -1,0 +1,17 @@
+[project]
+name = "flashdb"
+version = "0.1.0"
+requires-python = ">=3.12,<3.14"
+
+dependencies = [
+  "Django>=5.2,<6.0",
+  "gunicorn>=23.0",
+  "psycopg[binary]>=3.1",
+]
+
+[dependency-groups]
+dev = [
+  "ruff",
+  "pytest",
+  "pytest-django",
+]

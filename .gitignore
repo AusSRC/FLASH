@@ -2,5 +2,6 @@
 *.csv
 *.bin
 settings*.py
-django/flashdb/db_query/static/db_query/*
+flashdb/apps/db_query/static/*
 *.idea
+*.venv

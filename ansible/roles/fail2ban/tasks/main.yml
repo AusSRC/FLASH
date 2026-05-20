@@ -1,0 +1,23 @@
+# fail2ban/tasks/main.ynl
+- name: Install fail2ban
+  apt:
+    name: fail2ban
+    state: present
+
+- name: Configure SSH jail
+  copy:
+    dest: /etc/fail2ban/jail.d/sshd.local
+    content: |
+      [sshd]
+      enabled = true
+      port = {{ ssh_port | default(22) }}
+      maxretry = 5
+      findtime = 10m
+      bantime = 1h
+  notify: restart fail2ban
+
+- name: Enable fail2ban service
+  service:
+    name: fail2ban
+    enabled: yes
+    state: started

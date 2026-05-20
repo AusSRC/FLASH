@@ -6,7 +6,7 @@ import tarfile
 
 from django.utils import timezone
 from pathlib import Path
-import psycopg2
+import psycopg
 from django.conf import settings
 from django.contrib.sessions.models import Session
 from django.shortcuts import render
@@ -15,18 +15,15 @@ from django.db import connection
 
 #######################################################################################
 
-def connect(db="flashdb",user="flash",host="10.0.2.225",password=None):
+def connect(db="flashdbdev",user="flashdev",host="localhost",password=None):
 
-    if not password:
-        password = PASSWD
-    conn = psycopg2.connect(
-        database = db,
+    conn = psycopg.connect(
+        dbname = db,
         user = user,
         password = password,
         host = host,
         port = 5432
     )
-    #print(conn.get_dsn_parameters(),"\n")
     return conn
 
 def get_cursor(conn):
@@ -553,6 +550,7 @@ def query_database(request):
     # Build the SQL query using Django's SQL syntax
     password = request.POST.get('pass')
     session_id = get_session_id(request)
+    print(password, session_id)
     # Try a psycopg2 connection with the supplied password. If it fails, return error msg
     try:
         conn = connect(password=password)
