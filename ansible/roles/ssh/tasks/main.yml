@@ -1,0 +1,28 @@
+# roles/ssh/tasks/main.yml
+- name: Ensure at least one SSH key exists
+  assert:
+    that:
+      - ssh_public_keys is defined
+      - ssh_public_keys | length > 0
+
+- name: Add SSH keys for ubuntu
+  ansible.posix.authorized_key:
+    user: "{{ ssh_user }}"
+    state: present
+    key: "{{ item | trim }}"
+    exclusive: true
+  loop: "{{ ssh_public_keys }}"
+
+- name: Ensure SSH config hardened
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - { regexp: '^PasswordAuthentication', line: 'PasswordAuthentication no' }
+    - { regexp: '^PermitRootLogin', line: 'PermitRootLogin no' }
+    - { regexp: '^PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
+
+- name: Validate sshd config
+  command: sshd -t
+  changed_when: false

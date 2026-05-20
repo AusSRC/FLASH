@@ -1,4 +1,6 @@
 from django.urls import path
+from django.conf.urls.static import static
+from flashdb import settings
 from . import views
 
 urlpatterns = [
@@ -10,3 +12,6 @@ urlpatterns = [
 	path('show_sbids_aladin/', views.show_sbids_aladin, name="show_sbids_aladin"),
     path('my-url/', views.my_view, name='my-view'),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

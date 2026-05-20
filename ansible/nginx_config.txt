@@ -1,0 +1,42 @@
+# Install the part below the ##### into /etc/nginx/sites-available/flashdb
+# Note: you will also need to install nginx and the ssl certificate and ssl
+# certificate key in the location used below, these can be made in Cloudflare
+# Note: increase max-age steadily as we become more confident in the https
+# being right, it locks browsers to https for the time specified once they
+# have visited once.
+
+######
+
+server {
+    listen 443 ssl;
+    server_name flash.aussrc.org;
+
+    ssl_certificate     /etc/nginx/ssl/flashdev_origin.pem;
+    ssl_certificate_key /etc/nginx/ssl/flashdev_key.pem;
+
+    add_header Strict-Transport-Security "max-age=300; includeSubDomains" always;
+    add_header Content-Security-Policy "
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://aladin.cds.unistra.fr;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' https: data:;
+    font-src 'self' https:;
+    frame-ancestors 'none';
+    base-uri 'self';
+    " always;
+
+    location /static/ {
+        alias /home/flash/src/FLASH/django/flashdb/db_query/static/;
+    }
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://unix:/run/flashdb/flashdb.sock;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}

@@ -1,0 +1,11 @@
+# group_vars/all.yml
+ssh_port: 22
+
+ssh_manage_user: ubuntu
+ssh_user: "{{ ssh_manage_user }}"
+
+allowed_ports:
+  - 443
+
+ssh_public_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGVp3ttZbvSvxARF4ZE0TbcS5AB8eAtSOvvmxTtjGYpR ree13d@GLENS-CSIRO-LAPTOP-MM"

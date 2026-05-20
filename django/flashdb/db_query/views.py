@@ -6,19 +6,20 @@ import tarfile
 
 from django.utils import timezone
 from pathlib import Path
-import psycopg
+import psycopg2
 from django.conf import settings
 from django.contrib.sessions.models import Session
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.db import connection
+from django.http import FileResponse, Http404
 
 #######################################################################################
 
-def connect(db="flashdbdev",user="flashdev",host="localhost",password=None):
+def connect(db="flashdbdev",user="flashdev",host=os.environ.get("DB_HOST", "127.0.0.1"),password=None):
 
-    conn = psycopg.connect(
-        dbname = db,
+    conn = psycopg2.connect(
+        database = db,
         user = user,
         password = password,
         host = host,
@@ -107,6 +108,13 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     # args[8] = if inverted spectra are requested
     # args[9] = if masked spectra are requested
     # args[10] = if inverted masked spectra are requested
+    import os
+
+    print("dir_download:", dir_download)
+    print("exists:", os.path.exists(dir_download))
+    print("isdir:", os.path.isdir(dir_download))
+    print("cwd:", os.getcwd())
+    print("BASE_DIR:", settings.BASE_DIR)
 
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
@@ -659,7 +667,9 @@ def query_database(request):
             mask_files = download_mask_files(mask_rows, session_id)
 
         # Render the template with the query results
-        return render(request, 'query_results.html', {'session_id': session_id, 'sbid': sbid_val, 'rows': rows, 'num_rows': len(rows), 'mask_files': mask_files})
+        rows_with_masks = zip(rows, mask_files)
+
+        return render(request, 'query_results.html', {'session_id': session_id, 'sbid': sbid_val, 'num_rows': len(rows), 'rows_with_masks': rows_with_masks})
 
     elif query_type == "LINEFINDER":
         password = request.POST.get('pass')
@@ -722,27 +732,27 @@ def query_database(request):
             print(f"invert masked value = {inverted_masked}")
 
             # The path to Django's static dir for linefinder outputs
-            static_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/linefinder/{session_id}/"
-            static_dir.mkdir(parents=True, exist_ok=True)
+            media_dir = Path(settings.MEDIA_ROOT) / "linefinder" / session_id
+            media_dir.mkdir(parents=True, exist_ok=True)
             version = None
             # Screen outputs:
-            outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir,inverted,masked,inverted_masked)
+            outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,media_dir,inverted,masked,inverted_masked)
 
         # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
         if outputs:
             conn = connect(password=password)
-            name = get_linefinder_tarball(conn,sbid_val,static_dir,version,inverted,masked,inverted_masked)
+            name = get_linefinder_tarball(conn,sbid_val,media_dir,version,inverted,masked,inverted_masked)
             conn.close()
 
-            tarball = f"db_query/linefinder/{session_id}/{name}"
+            tarball = f"{settings.MEDIA_URL}linefinder/{session_id}/{name}"
             if inverted:
-                csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_inverted_outputs.csv"
+                csv_file = f"{settings.MEDIA_URL}linefinder/{session_id}/{sbid_val}_linefinder_inverted_outputs.csv"
             elif masked:
-                csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_outputs.csv"
+                csv_file = f"{settings.MEDIA_URL}linefinder/{session_id}/{sbid_val}_linefinder_masked_outputs.csv"
             elif inverted_masked:
-                csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_inverted_outputs.csv"
+                csv_file = f"{settings.MEDIA_URL}linefinder/{session_id}/{sbid_val}_linefinder_masked_inverted_outputs.csv"
             else:
-                csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
+                csv_file = f"{settings.MEDIA_URL}linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
             return render(request, 'linefinder.html', {'session_id': session_id, 'sbid': sbid_val, 'lmean': lmean,\
                 'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), \
                 'tarball': tarball, 'inverted': inverted, 'masked': masked, 'inverted_masked': inverted_masked})
@@ -771,27 +781,29 @@ def query_database(request):
                     comp = f"spec_SB{sbid_val}_component_{val}.fits"
                     comps.append(comp)
             # The path to Django's static dir for plots
-            static_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/plots/{session_id}/"
-            static_dir.mkdir(parents=True, exist_ok=True)
-            version = None
+            media_dir = Path(settings.MEDIA_ROOT) / "plots" / session_id
+            media_dir.mkdir(parents=True, exist_ok=True)
             for comp in comps:
-                flux,opd = get_plots_for_comp(cur,sbid_val,comp,static_dir)
+                flux,opd = get_plots_for_comp(cur,sbid_val,comp,media_dir)
                 if flux and opd:
                     radec = get_comp_ra_dec(cur,comp)
-                    sources.append([f"db_query/plots/{session_id}/{flux}",f"db_query/plots/{session_id}/{opd}",radec])
-
+                    sources.append({
+                        "flux": f"{settings.MEDIA_URL}plots/{session_id}/{flux}",
+                        "opd": f"{settings.MEDIA_URL}plots/{session_id}/{opd}",
+                        "radec": radec,
+                    })
             tarball_name = f"{sbid_val}_plots.tar.gz"
-            tarball_path = Path(static_dir) / tarball_name
+            tarball_path = Path(media_dir) / tarball_name
 
             with tarfile.open(tarball_path, "w:gz") as tar:
-                for file in Path(static_dir).glob(f"spec_SB{sbid_val}*"):
+                for file in Path(media_dir).glob(f"spec_SB{sbid_val}*"):
                     tar.add(file, arcname=file.name)
 
-            tarball = f"db_query/plots/{session_id}/{tarball_name}"
+            tarball = f"{settings.MEDIA_URL}plots/{session_id}/{tarball_name}"
 
         return render(request, 'source.html', {'session_id': session_id, 'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball,'render': view_or_tar, 'metadata': metadata})
     elif query_type == "ASCII":
-        ascii_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/ascii/{session_id}/"
+        ascii_dir = Path(settings.MEDIA_ROOT) / "ascii" / session_id
         ascii_dir.mkdir(parents=True, exist_ok=True)
         sbid_val = request.POST.get('sbid_for_ascii')
         with connection.cursor() as cur:
@@ -799,7 +811,7 @@ def query_database(request):
             conn = connect(password=password)
             get_ascii_files_tarball(conn,cur,sid,sbid_val,ascii_dir,version,password)
             conn.close()
-            ascii_tar = f"db_query/ascii/{session_id}/{sbid_val}_{version}.tar.gz"
+            ascii_tar = f"{settings.MEDIA_URL}ascii/{session_id}/{sbid_val}_{version}.tar.gz"
 
         return render(request, 'ascii.html', {'session_id': session_id, 'sbid': sbid_val, 'version': version, 'ascii_tar': ascii_tar})
 
@@ -807,17 +819,21 @@ def download_mask_files(mask_rows, session_id):
     # Stage mask file downloads
     mask_files = []
     if len(mask_rows) > 0:
-        static_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/linefinder/masks/{session_id}/"
-        static_dir.mkdir(parents=True, exist_ok=True)
+        media_dir = Path(settings.MEDIA_ROOT) / "linefinder" / session_id
+        media_dir.mkdir(parents=True, exist_ok=True)
         for mask_row in mask_rows:
             mask = mask_row[0]
             if mask:
                 sbid_val = mask_row[1]
                 version = mask_row[2]
-                mask_file = f"{static_dir}/{sbid_val}_{version}_mask.txt"
-                # TODO: When the bytea column is available, we use 'wb' mode instead
-                open(mask_file, 'w').write(mask)
-                mask_file_link = f"db_query/linefinder/masks/{session_id}/{sbid_val}_{version}_mask.txt"
+                filename = f"{sbid_val}_{version}_mask.txt"
+
+                full_path = media_dir / filename
+
+                with open(full_path, "w") as f:
+                    f.write(mask)
+
+                mask_file_link = f"{settings.MEDIA_URL}linefinder/{session_id}/{filename}"
                 mask_files.append(mask_file_link)
             else:
                 mask_files.append(None)

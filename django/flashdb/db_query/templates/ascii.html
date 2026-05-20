@@ -34,7 +34,7 @@
 	<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
 	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
 	<p style="text-align: center;"> <strong><i>Query for SBID = {{ sbid }}</i></strong></p>
-	<p  style="text-align: left;"> <a href="{% static ascii_tar %}" download>Download</a> the source ASCII files in a tar archive</p>
+	<p  style="text-align: left;"> <a href="{{ ascii_tar }}">Download</a> the source ASCII files in a tar archive</p>
 	<form action="/">
 		<input type="submit" value="Return to Main page"/>
 	</form>

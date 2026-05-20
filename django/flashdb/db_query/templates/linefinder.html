@@ -40,9 +40,15 @@
 	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
 	<p style="text-align: center;"> Query for SBID = {{ sbid }}, ln_mean cutoff = {{ lmean }}</p>
 	<p  style="text-align: center;"> Total number of records returned: <strong> {{ num_outs }} </strong> </p>
-	<p  style="text-align: left;"> <a href="{% static tarball %}" download>Download</a> the complete linefinder results + small plots in a tar archive</p>
-	<p  style="text-align: left;"> <a href="{% static csv_file %}" download>Download</a> the linefinder results.dat file in a csv file</p>
-	<form action=/db_query/show_csv/ method="post" target="_blank">
+	<p style="text-align: left;">
+        <a href="{{ tarball }}">Download</a>
+        the complete linefinder results + small plots in a tar archive
+    </p>
+    <p style="text-align: left;">
+        <a href="{{ csv_file }}">Download</a>
+        the linefinder results.dat file in a csv file
+    </p>
+        <form action=/db_query/show_csv/ method="post" target="_blank">
 			{% csrf_token %}
 			<input type="hidden" id="csv" name="csv" value={{ csv_file }}>
 			<input type="hidden" id="sbid" name="sbid" value={{ sbid }}>
