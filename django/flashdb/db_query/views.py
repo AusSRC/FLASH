@@ -6,7 +6,7 @@ import tarfile
 
 from django.utils import timezone
 from pathlib import Path
-import psycopg2
+import psycopg
 from django.conf import settings
 from django.contrib.sessions.models import Session
 from django.shortcuts import render
@@ -15,10 +15,10 @@ from django.db import connection
 
 #######################################################################################
 
-def connect(db="flashdb",user="flash",host="10.0.2.225",password=None):
+def connect(db="flashdbdev",user="flashdev",host="localhost",password=None):
 
-    conn = psycopg2.connect(
-        database = db,
+    conn = psycopg.connect(
+        dbname = db,
         user = user,
         password = password,
         host = host,
@@ -639,6 +639,9 @@ def query_database(request):
                     query += ";"
                     mask_query += ";"
                 cursor.execute(query,)
+                rows = cursor.fetchall()
+                cursor.execute(mask_query,)
+                mask_rows = cursor.fetchall()
             else:
                 query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.mask_invertF,s.pointing,s.comment,s.publicf FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s order by {order}"
                 mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s"
@@ -649,9 +652,10 @@ def query_database(request):
                     query += ";"
                     mask_query += ";"
                 cursor.execute(query,(sbid_val,))
-            rows = cursor.fetchall()
-            cursor.execute(mask_query, (sbid_val if sbid_val != "-1" else None,))
-            mask_rows = cursor.fetchall()
+                rows = cursor.fetchall()
+                cursor.execute(mask_query, (sbid_val,))
+                mask_rows = cursor.fetchall()
+
             mask_files = download_mask_files(mask_rows, session_id)
 
         # Render the template with the query results
