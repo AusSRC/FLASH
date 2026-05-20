@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FLASHDB</title>
+    <style>
+        div {
+	    	border: 2px solid black;
+	    	padding: 4px;
+	}
+	div.slim {
+		border: 0;
+		padding: 0;
+	}
+	table, th, td {
+		border: 1px solid black;
+		border-collapse: collapse;
+		margin-left: auto;
+		margin-right: auto;
+	}
+	.fixed {
+		position:fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+	}
+
+
+    </style>
+</head>
+<body style="background-color:#ABB2B9;">
+	<div class="fixed" style="background-color:aquamarine;">
+	<H1 style="text-align: center;">FLASH Database Query Result</H1>
+	{% load static %}
+	<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
+	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
+	<p style="text-align: center;"> <strong><i>Query for SBID = {{ sbid }}, quality = {{ metadata.0 }}</i></strong></p>
+	<p style="text-align: center;"> uploaded: <i>{{ metadata.2 }}</i>, in <i>{{ metadata.3 }}</i>, field: <i>{{ metadata.1 }}</i></p>
+	<p  style="text-align: center;"> Number of Components (sources): <strong>{{ num_sources }}</strong> </p>
+	{% if num_sources > 0 %}
+	    <p  style="text-align: left;"> <a href="{% static tarball %}" download>Download</a> the source plots in a tar archive</p>
+	{% endif %}
+	<form action="/apps/db_querytatic">
+		<input type="submit" value="Return to Main page"/>
+	</form>
+	</div>
+        {% if render == "VIEW" %}
+	<div class="slim" style="position:relative; top: 240px; left:200px; right: 200px;">
+	{% load static %}
+	<table style="background-color:white">
+	    <thead>
+		<tr>
+		    <th>FLUX</th>
+		    <th>OPD</th>
+		</tr>
+	    </thead>
+	    <tbody>
+		{% for source in sources %}
+		<tr>
+		<td>
+			<p style="text-align: center;"><b>ra:</b> {{ source.2.0 }} <b>dec:</b> {{ source.2.1 }}</p> 
+			<p style="text-align: left;">View in <a href="https://chad.aussrc.org?ra={{ source.2.0 }}&dec={{ source.2.1 }}" target="_blank">CHAD</a>
+			<form action=/db_query/show_aladin/ method="post" target="_blank">
+			{% csrf_token %}
+				<input type="hidden" id="ra" name="ra" value={{ source.2.0 }}>
+				<input type="hidden" id="dec" name="dec" value={{ source.2.1 }}>
+				<input type="hidden" id="sbid" name="sbid" value={{ sbid }}>
+				<input type="hidden" id="comp" name="comp" value={{ source.0 }}>
+				OR view in <input type="submit" value="Aladin"/>
+			</form></p>
+			<img src="{% static source.0 %}" alt="Flux_img"  style="position:relative; left:0; right:0;" width="600" height="1000"></td>
+		<td>
+			<p style="text-align: center;"><b>ra:</b> {{ source.2.0 }} <b>dec:</b> {{ source.2.1 }}</p><br><br><br>
+			<img src="{% static source.1 %}" alt="opd_img"  style="position:relative; left:0; right:0;" width="600" height="1000"></td>
+		</tr>
+		{% endfor %}
+	    </tbody>
+	</table>
+	</div>
+        {% endif %}
+
+</body>
+</html>

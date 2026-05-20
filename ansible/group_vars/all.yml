@@ -1,0 +1,9 @@
+# group_vars/all.yml
+ssh_port: 22
+
+allowed_ports:
+  - 443
+
+ssh_public_keys:
+  - "ssh-ed25519 AAAAC3NzaC1... engineer1"
+  - "ssh-ed25519 AAAAC3NzaC1... engineer2"
