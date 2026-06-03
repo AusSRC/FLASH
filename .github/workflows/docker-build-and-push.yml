@@ -2,28 +2,34 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [ "FLASH-75-Swap-to-using-Nginx-ansible-docker" ] # Triggers on push to my branch
+    branches: [ "FLASH-75-Swap-to-using-Nginx-ansible-docker" ]
 
 jobs:
-  docker:
+
+  get_version:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
       - name: Get version
-        id: get_version
+        id: version
         run: |
           VERSION=$(python -c "import tomllib; print(tomllib.load(open('django/pyproject.toml','rb'))['project']['version'])")
-      
-          echo "VERSION=$VERSION"
-      
+
           if [ -z "$VERSION" ]; then
             echo "VERSION is empty - failing build"
             exit 1
           fi
-      
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  build_and_push:
+    runs-on: ubuntu-latest
+    needs: get_version
+    steps:
+      - uses: actions/checkout@v6
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v4
@@ -40,15 +46,19 @@ jobs:
           context: django
           file: django/Dockerfile
           push: true
-          tags: | 
+          tags: |
             aussrc/flash_gui:latest
-            aussrc/flash_gui:${{ env.VERSION }}
+            aussrc/flash_gui:${{ needs.get_version.outputs.version }}
             aussrc/flash_gui:${{ github.sha }}
 
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [get_version, build_and_push]
+    steps:
       - name: Deploy to DEV_VM
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEV_VM_HOST }}
           username: ${{ secrets.DEV_VM_USER }}
           key: ${{ secrets.DEV_VM_SSH_KEY }}
-          script: "/usr/local/bin/deploy.sh ${{ env.VERSION }}"
+          script: "/usr/local/bin/deploy.sh ${{ needs.get_version.outputs.version }}"
