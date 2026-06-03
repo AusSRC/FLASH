@@ -22,6 +22,5 @@ export FLASH_IMAGE_TAG="$TAG"
 docker compose pull
 
 #docker compose run --rm web python manage.py migrate
-docker compose run --rm web python manage.py collectstatic --noinput
 
 docker compose up -d --remove-orphans
