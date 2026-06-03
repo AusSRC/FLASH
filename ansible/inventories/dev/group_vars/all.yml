@@ -1,7 +1,7 @@
 # group_vars/all.yml
 env: dev
 
-domain: flash.dev.aussrc.org
+domain: flash-dev.aussrc.org
 
 # Note: add the admin public key made during VM creation here before any personal keys
 ssh_public_keys:
