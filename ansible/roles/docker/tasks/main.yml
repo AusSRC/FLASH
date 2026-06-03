@@ -41,16 +41,22 @@
     enabled: true
     state: started
 
+- name: Add admin user to docker group
+  user:
+    name: "{{ ssh_user }}"
+    groups: docker
+    append: yes
+
 - name: Add deploy user to docker group
   user:
-    name: "{{ ssh_manage_user }}"
+    name: "{{ deploy_user }}"
     groups: docker
     append: yes
 
 - name: Copy docker-compose.yml to home directory
   copy:
     src: "docker-compose.yml"
-    dest: "/home/{{ ansible_user }}/docker-compose.yml"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    dest: "/home/{{ deploy_user }}/docker-compose.yml"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
     mode: "0644"

@@ -27,18 +27,9 @@
   command: sshd -t
   changed_when: false
 
-# Setup ssh for deploy user, limited to just a single sh command
-- name: Create deploy user
-  user:
-    name: deploy
-    shell: /usr/sbin/nologin
-    create_home: yes
-    system: yes
-    mode: '0700'
-
 - name: Add deploy user to docker group
   user:
-    name: deploy
+    name: "{{ deploy_user }}"
     groups: docker
     append: yes
 
@@ -50,15 +41,12 @@
     owner: root
     group: root
 
+# Note key options has to be one line as >- folds newlines as spaces which the
+# key doesnt like when in command mode
 - name: Add GitHub deploy key (restricted)
   authorized_key:
-    user: deploy
+    user: "{{ deploy_user }}"
     key: "{{ github_deploy_ssh_key }}"
     state: present
     exclusive: true
-    key_options: >-
-      command="/usr/local/bin/deploy.sh",
-      no-port-forwarding,
-      no-agent-forwarding,
-      no-X11-forwarding,
-      no-pty
+    key_options: 'command="/usr/local/bin/deploy.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty'

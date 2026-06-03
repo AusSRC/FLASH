@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Prefer explicit argument if passed
-TAG="${1:-}"
+TAG="${1:-${SSH_ORIGINAL_COMMAND:-}}"
 
 # Safety check for missing tag
 if [[ -z "$TAG" ]]; then

@@ -55,15 +55,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: [get_version, build_and_push]
     steps:
-      - name: Validate key parsing inside runner
-        run: |
-          echo "${{ secrets.DEV_VM_SSH_KEY }}" > key
-          ssh-keygen -lf key
+#      - name: Deploy to DEV_VM
+#        uses: appleboy/ssh-action@v1.0.3
+#        with:
+#          host: ${{ secrets.DEV_VM_HOST }}
+#          username: ${{ secrets.DEV_VM_USER }}
+#          key: ${{ secrets.DEV_VM_SSH_KEY }}
+#          script: "/usr/local/bin/deploy.sh ${{ needs.get_version.outputs.version }}"
 
-      - name: Deploy to DEV_VM
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEV_VM_HOST }}
-          username: ${{ secrets.DEV_VM_USER }}
-          key: ${{ secrets.DEV_VM_SSH_KEY }}
-          script: "/usr/local/bin/deploy.sh ${{ needs.get_version.outputs.version }}"
+        - name: Raw SSH test
+          run: |
+            echo "${{ secrets.DEV_VM_SSH_KEY }}" > key
+            chmod 600 key
+            ssh -vvv -i key -o StrictHostKeyChecking=no deploy@${{ secrets.DEV_VM_HOST }} "echo OK"
