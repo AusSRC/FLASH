@@ -7,24 +7,19 @@ services:
     volumes:
       - media_data:/app/media
       - static_data:/app/staticfiles
-
     environment:
       - DB_HOST=host.docker.internal
+    command: gunicorn flashdb.wsgi:application --bind 0.0.0.0:8000
 
   nginx:
     image: nginx:alpine
     restart: always
-
     ports:
       - "80:80"
-      - "443:443"
-
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - media_data:/media:ro
-      - static_data:/app/staticfiles
-      - ./ssl:/etc/nginx/ssl:ro
-
+      - media_data:/app/media:ro
+      - static_data:/app/staticfiles:ro
+      - ./nginx-local.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - web
 

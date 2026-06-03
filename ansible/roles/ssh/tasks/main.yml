@@ -26,3 +26,38 @@
 - name: Validate sshd config
   command: sshd -t
   changed_when: false
+
+# Setup ssh for deploy user, limited to just a single sh command
+- name: Create deploy user
+  user:
+    name: deploy
+    shell: /usr/sbin/nologin
+    create_home: yes
+    system: yes
+
+- name: Add deploy user to docker group
+  user:
+    name: deploy
+    groups: docker
+    append: yes
+
+- name: Install deploy script
+  copy:
+    src: deploy.sh
+    dest: /usr/local/bin/deploy.sh
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Add GitHub deploy key (restricted)
+  authorized_key:
+    user: deploy
+    key: "{{ github_deploy_ssh_key }}"
+    state: present
+    exclusive: true
+    key_options: >-
+      command="/usr/local/bin/deploy.sh",
+      no-port-forwarding,
+      no-agent-forwarding,
+      no-X11-forwarding,
+      no-pty

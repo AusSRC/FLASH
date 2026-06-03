@@ -10,3 +10,6 @@ __pycache__
 *.tar
 *.gz
 media/*
+secrets.env
+fullchain.pem
+privkey.pem

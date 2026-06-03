@@ -12,21 +12,27 @@ from django.contrib.sessions.models import Session
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.db import connection
-from django.http import FileResponse, Http404
 
-#######################################################################################
 
-def connect(db="flashdbdev",user="flashdev",host=os.environ.get("DB_HOST", "127.0.0.1"),password=None):
+##############################################################################
+
+def connect(
+    db=os.environ.get("DB_NAME"),
+    user=os.environ.get("DB_USER"),
+    host=os.environ.get("DB_HOST"),
+    password=os.environ.get("DB_PASSWORD"),
+    port=os.environ.get("DB_PORT")
+):
 
     conn = psycopg2.connect(
-        database = db,
-        user = user,
-        password = password,
-        host = host,
-        port = 5432
+        database=db,
+        user=user,
+        password=password,
+        host=host,
+        port=port
     )
-    #print(conn.get_dsn_parameters(),"\n")
     return conn
+
 
 def get_cursor(conn):
 

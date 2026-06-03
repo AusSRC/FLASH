@@ -6,6 +6,8 @@
     - common
     - ssh
     - docker
-    - nginx
     - firewall
     - fail2ban
+    - nginx
+    - secrets
+    - ssl

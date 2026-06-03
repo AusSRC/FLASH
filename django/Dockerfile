@@ -78,6 +78,4 @@ USER app
 # ---------------------------------------------------------
 # Start Gunicorn
 # ---------------------------------------------------------
-RUN python manage.py collectstatic --noinput
-
 CMD ["gunicorn", "flashdb.wsgi:application", "--bind", "0.0.0.0:8000"]
