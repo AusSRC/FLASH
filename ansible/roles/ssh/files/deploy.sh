@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Prefer explicit argument if passed
-TAG="${1:-${SSH_ORIGINAL_COMMAND:-}}"
+TAG="${SSH_ORIGINAL_COMMAND##* }"
 
 # Safety check for missing tag
 if [[ -z "$TAG" ]]; then
@@ -10,11 +10,6 @@ if [[ -z "$TAG" ]]; then
   exit 1
 fi
 
-if [[ -n "${1:-}" ]]; then
-  TAG="$1"
-elif [[ -n "${SSH_ORIGINAL_COMMAND:-}" ]]; then
-  TAG="$(awk '{print $NF}' <<< "$SSH_ORIGINAL_COMMAND")"
-fi
 
 #Validate tag
 if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
