@@ -17,4 +17,5 @@
       - ca-certificates
       - gnupg
       - lsb-release
+      - iputils-ping
     state: present
