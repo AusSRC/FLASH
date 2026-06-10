@@ -5,11 +5,9 @@ __pycache__
 *.pyd
 .git
 .gitignore
-.env
+*.env
 .DS_Store
 *.tar
 *.gz
 media/*
-secrets.env
-fullchain.pem
-privkey.pem
+*.pem
