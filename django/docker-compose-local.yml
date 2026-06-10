@@ -12,8 +12,9 @@ services:
     command: gunicorn flashdb.wsgi:application --bind 0.0.0.0:8000
 
   nginx:
-    image: nginx:alpine
+    image: nginx:stable-alpine
     restart: always
+    pull_policy: always
     ports:
       - "80:80"
     volumes:
