@@ -19,8 +19,9 @@ ssh_public_keys:
 
 6) IMPORTANT!!! If you don't do step 5 right you will lock yourself out the VM
 7) Generate a ssh-key for github, put the private key file in github secrets and the public in inventories/dev/group_vars/all.yml github_deploy_ssh_key property
-4) cd FLASH/ansible/
-5) ansible-playbook site.yml -i inventories/dev/hosts.ini
+8) Locally create secrets.env in secrets/files/dev using templates and values from actual dev/prod setup # Note that this should be replaced by oracle/k8 secrets pulling in future
+9) cd FLASH/ansible/
+10) ansible-playbook site.yml -i inventories/dev/hosts.ini
 
 Production VMs are identical but will need prod instead of dev in all steps 
 and will need the production Cloudflare Origin Cert & Key
