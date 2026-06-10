@@ -460,8 +460,7 @@ def get_plots_for_comp(cur,sbid,comp,static_dir):
 
 def index(request):
 
-    base_dir = Path(settings.BASE_DIR) / "db_query/static/db_query"
-
+    base_dir = Path(settings.BASE_DIR) / "media"
     for sub in ["plots", "linefinder", "ascii", "linefinder/masks"]:
         cleanup_orphan_session_files(base_dir / sub)
 
