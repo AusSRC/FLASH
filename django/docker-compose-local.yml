@@ -8,7 +8,7 @@ services:
       - media_data:/app/media
       - static_data:/app/staticfiles
     env_file:
-      - local_docker_envs.env.template
+      - local_docker_envs.env
     command: gunicorn flashdb.wsgi:application --bind 0.0.0.0:8000
 
   nginx:
