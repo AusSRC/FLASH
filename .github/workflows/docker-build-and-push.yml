@@ -2,7 +2,7 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [ "FLASH-75-Swap-to-using-Nginx-ansible-docker" ]
+    branches: [ "main" ]
 
 jobs:
 
