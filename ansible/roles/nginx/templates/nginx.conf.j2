@@ -6,15 +6,7 @@ server {
     ssl_certificate_key /etc/nginx/ssl/privkey.pem;
 
     add_header Strict-Transport-Security "max-age=300; includeSubDomains" always;
-    add_header Content-Security-Policy "
-    default-src 'self';
-    script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://aladin.cds.unistra.fr;
-    style-src 'self' 'unsafe-inline';
-    img-src 'self' https: data:;
-    font-src 'self' https:;
-    frame-ancestors 'none';
-    base-uri 'self';
-    " always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://aladin.cds.unistra.fr https://cdn.jsdelivr.net https://ajax.googleapis.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https: data:; img-src 'self' https: data:; connect-src 'self' https: wss:; frame-ancestors 'none'; base-uri 'self';" always;
 
     location /media/ {
         alias /media/;

@@ -60,3 +60,32 @@
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
     mode: "0644"
+
+# This group gid and name must match whats used in dockerfile
+- name: Create flash group
+  group:
+    name: flash
+    gid: 2000
+    state: present
+
+- name: Add deploy user to flash group
+  user:
+    name: "{{ deploy_user }}"
+    groups: flash
+    append: yes
+
+- name: Create media dir
+  file:
+    path: /srv/flashdb/media
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: flash
+    mode: "2775"
+
+- name: Create static dir
+  file:
+    path: /srv/flashdb/static
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: flash
+    mode: "2775"

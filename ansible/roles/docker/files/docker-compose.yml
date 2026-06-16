@@ -10,8 +10,8 @@ services:
     expose:
       - "8000"
     volumes:
-      - media_data:/app/media
-      - static_data:/app/staticfiles
+      - /srv/flashdb/media:/app/media
+      - /srv/flashdb/staticfiles:/app/staticfiles
     env_file:
       - /etc/flashdb/secrets.env
     command: gunicorn flashdb.wsgi:application --bind 0.0.0.0:8000
@@ -28,8 +28,8 @@ services:
     ports:
       - "443:443"
     volumes:
-      - media_data:/media:ro
-      - static_data:/app/staticfiles:ro
+      - /srv/flashdb/media:/media:ro
+      - /srv/flashdb/static:/app/staticfiles:ro
       - /etc/nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
       - /etc/nginx/ssl:/etc/nginx/ssl:ro
     depends_on:

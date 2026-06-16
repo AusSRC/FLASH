@@ -51,11 +51,12 @@ ENV PATH="/app/.venv/bin:$PATH"
 WORKDIR /app
 
 # ---------------------------------------------------------
-# Create non-root user
+# Create non-root user thats forced to UID 999 and Group flash which
+# exists on the VM as flash with gui 2000
 # ---------------------------------------------------------
 
-RUN groupadd --system app && \
-    useradd --system --gid app --create-home app
+RUN groupadd -g 2000 flash && \
+    useradd -m -u 999 -g flash app
 
 # ---------------------------------------------------------
 # Copy application
@@ -67,16 +68,10 @@ COPY --from=builder /app /app
 # Set ownership
 # ---------------------------------------------------------
 
-RUN chown -R app:app /app
+RUN chown -R app:flash /app
 
-# ---------------------------------------------------------
-# Switch to non-root user
-# ---------------------------------------------------------
-
-USER app
 
 # ---------------------------------------------------------
 # Start Gunicorn
 # ---------------------------------------------------------
-RUN python manage.py collectstatic --noinput
 CMD ["gunicorn", "flashdb.wsgi:application", "--bind", "0.0.0.0:8000"]
