@@ -1,0 +1,10 @@
+# group_vars/all.yml
+env: dev
+
+domain: flash-dev.aussrc.org
+
+# Note: add the admin public key made during VM creation here before any personal keys
+ssh_public_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGVp3ttZbvSvxARF4ZE0TbcS5AB8eAtSOvvmxTtjGYpR ree13d@GLENS-CSIRO-LAPTOP-MM"
+
+github_deploy_ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdABj9NnjiTSWbWtHxBrkpEFgoe9jOZmTYduQzpV2J6 ci-deploy-key"

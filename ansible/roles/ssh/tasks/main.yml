@@ -1,0 +1,52 @@
+# roles/ssh/tasks/main.yml
+- name: Ensure at least one SSH key exists
+  assert:
+    that:
+      - ssh_public_keys is defined
+      - ssh_public_keys | length > 0
+
+- name: Add SSH keys for ubuntu
+  ansible.posix.authorized_key:
+    user: "{{ ssh_user }}"
+    state: present
+    key: "{{ item | trim }}"
+    exclusive: true
+  loop: "{{ ssh_public_keys }}"
+
+- name: Ensure SSH config hardened
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - { regexp: '^PasswordAuthentication', line: 'PasswordAuthentication no' }
+    - { regexp: '^PermitRootLogin', line: 'PermitRootLogin no' }
+    - { regexp: '^PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
+
+- name: Validate sshd config
+  command: sshd -t
+  changed_when: false
+
+- name: Add deploy user to docker group
+  user:
+    name: "{{ deploy_user }}"
+    groups: docker
+    append: yes
+
+- name: Install deploy script
+  copy:
+    src: deploy.sh
+    dest: /usr/local/bin/deploy.sh
+    mode: '0755'
+    owner: root
+    group: root
+
+# Note key options has to be one line as >- folds newlines as spaces which the
+# key doesnt like when in command mode
+- name: Add GitHub deploy key (restricted)
+  authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ github_deploy_ssh_key }}"
+    state: present
+    exclusive: true
+    key_options: 'command="/usr/local/bin/deploy.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty'
