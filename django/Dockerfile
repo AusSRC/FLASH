@@ -70,6 +70,7 @@ COPY --from=builder /app /app
 
 RUN chown -R app:flash /app
 
+USER app
 
 # ---------------------------------------------------------
 # Start Gunicorn

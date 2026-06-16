@@ -26,7 +26,7 @@ docker compose pull
 #docker compose run --rm web python manage.py migrate
 
 # Tidy up any old staticfiles and media files
-rm -rf /srv/flashdb/static/*
+rm -rf /srv/flashdb/staticfiles/*
 rm -rf /srv/flashdb/media/*
 
 # Create new static files using the docker container
