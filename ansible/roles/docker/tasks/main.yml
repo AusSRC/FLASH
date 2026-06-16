@@ -84,7 +84,7 @@
 
 - name: Create static dir
   file:
-    path: /srv/flashdb/static
+    path: /srv/flashdb/staticfiles
     state: directory
     owner: "{{ deploy_user }}"
     group: flash
