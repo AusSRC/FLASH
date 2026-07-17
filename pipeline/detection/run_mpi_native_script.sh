@@ -8,6 +8,9 @@
 #       1. Copy ini files from working directory into appropriate config directories
 #       2. Run the linefinder on each SBID simultaneously
 #
+#   It assumes you have already put the input files (ascii source files) in the correct
+#   directory on /scratch, and that all the required sub-directories on /scratch exist.
+#
 #   NOTE:   The script calling order is:
 #               1) "run_mpi_native_script.sh", which calls:
 #                   2) "slurm_run_flashfinder.sh"
@@ -23,6 +26,7 @@
 ######################################################################################
 ######################################################################################
 ####################### USER EDIT VALUES #############################################
+source ~/set_local_flash_env.sh
 MODE=$1
 
 # The SBIDS to process (if not pass on the command line):
@@ -51,7 +55,6 @@ BAD_FILES_DIR="$DATA/bad_ascii_files"
 #####################################################################################
 ############### DO NOT EDIT FURTHER #################################################
 
-source ~/set_local_flash_env.sh
 
 for SBID1 in "${SBIDARRAY[@]}"; do
     PARENT1=$PARENT_DIR/$SBID1
