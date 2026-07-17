@@ -76,7 +76,7 @@ def set_parser():
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default=None,
-            help='Specify run mode: SPECTRAL, DETECTION, INVERTED, MASKED, COMP_RESULTS, QUALITY, COMMENT , POINTING, ASCII_UPLOAD (default: %(default)s)')
+            help='Specify run mode: SPECTRAL, DETECTION, INVERTED, MASKED, INVMASKED, COMP_RESULTS, QUALITY, COMMENT , POINTING, ASCII_UPLOAD (default: %(default)s)')
     parser.add_argument('-q', '--quality',
             default="UNCERTAIN",
             help='Set value - GOOD, BAD, "NOT VALIDATED" or UNCERTAIN (default: %(default)s)')
@@ -154,7 +154,7 @@ def set_mode_and_values(args):
     l_config_dir = args.config_linefinder.strip()
     if RUN_TYPE in ["SPECTRAL","POINTING"]:
         SPECTRAL_CONFIG_DIR = s_config_dir
-    elif RUN_TYPE in ["DETECTION","INVERTED","MASKED"]:
+    elif RUN_TYPE in ["DETECTION","INVERTED","MASKED","INVMASKED"]:
         LINEFINDER_CONFIG_DIR = l_config_dir
     ERROR_LOG = args.errfile.strip()
     STDOUT_LOG = args.logfile.strip()
@@ -173,6 +173,8 @@ def set_mode_and_values(args):
         DETECTMODE = "INVERT"
     elif RUN_TYPE == "MASKED":
         DETECTMODE = "MASK"
+    elif RUN_TYPE == "INVMASKED":
+        DETECTMODE = "INVMASK"
     else:
         DETECTMODE = None
 
@@ -246,7 +248,7 @@ def createDataDict(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH
         sbidsDict[sbid]["plots_path"] = plots_path
         sbidsDict[sbid]["ascii_path"] = ascii_path
         sbidsDict[sbid]["output_path"] = output_path
-        if RUN_TYPE not in ["DETECTION","INVERTED","MASKED"]:
+        if RUN_TYPE not in ["DETECTION","INVERTED","MASKED","INVMASKED"]:
             # Get the list of various files
             asciis = [f for f in os.listdir(ascii_path) if f.endswith(".dat")]
             components = [f for f in os.listdir(component_path) if f.endswith(".fits")]
@@ -255,7 +257,7 @@ def createDataDict(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH
             components = None
             plots = None
             asciis = None
-        if RUN_TYPE not in ["DETECTION","INVERTED","MASKED"]:
+        if RUN_TYPE not in ["DETECTION","INVERTED","MASKED","INVMASKED"]:
             # Get the name of the SourceSpectra tarball, so we can extract the pointing field value
             sspectraname = [f for f in os.listdir(f'{data_path}/{sbid}') if f.startswith("SourceSpectra-image")][0]
             try:
@@ -462,6 +464,7 @@ def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_di
     cur = get_cursor(conn)
     invertF = False
     maskF = False
+    invmaskF = False
     if DETECTMODE == "STD":
         print(f"Adding detection run for sbids {sbids}",flush=True)
     elif DETECTMODE == "INVERT":
@@ -470,6 +473,9 @@ def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_di
     elif DETECTMODE == "MASK":
         print(f"Adding masked detection run for sbids {sbids}", flush =True)
         maskF = True
+    elif DETECTMODE == "INVMASK":
+        print(f"Adding inverted masked detection run for sbids {sbids}", flush =True)
+        invmaskF = True
     # Check if any of the sbids have been entered before
     repeated_sbids = check_sbids(cur,sbids,versions,table="detect_run")
     if repeated_sbids and DETECTMODE == "STD":
@@ -497,8 +503,8 @@ def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_di
     detect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
  
     # insert into detect_run table
-    insert_query = "INSERT into detect_run(SBIDS,errlog,stdlog,result_filepath,platform,date,run_tag,invertF,maskF) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
-    cur.execute(insert_query,(sbids,errdata,stddata,result_file,platform,detect_date,RUN_TAG,invertF,maskF))
+    insert_query = "INSERT into detect_run(SBIDS,errlog,stdlog,result_filepath,platform,date,run_tag,invertF,maskF,mask_invertF) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;"
+    cur.execute(insert_query,(sbids,errdata,stddata,result_file,platform,detect_date,RUN_TAG,invertF,maskF,invmaskF))
     runid = cur.fetchone()[0]
     print(f"Data inserted into table 'detect_run': runid = {runid}",flush=True)
 
@@ -711,6 +717,8 @@ def add_component_results(cur,sbid,result_file,output_dir,version=None):
                 update = "update component set invert_mode_num = %s, invert_ln_mean = %s, invert_detection_date = %s where comp_id like %s and sbid_id = %s;"
             elif DETECTMODE == "MASK":
                 update = "update component set mask_mode_num = %s, mask_ln_mean = %s, mask_detection_date = %s where comp_id like %s and sbid_id = %s;"
+            elif DETECTMODE == "INVMASK":
+                update = "update component set invert_mask_mode_num = %s, invert_mask_ln_mean = %s, mask_inverted_date = %s where comp_id like %s and sbid_id = %s;"
             like= '%{}%'.format(name)
             cur.execute(update,(mode_num,ln_mean,detect_date,like,sbid_id))
             max_ln_mean = ln_mean  
@@ -782,8 +790,16 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
         with open(maskfile,'r') as f:
             for line in f:
                 mask_contents = mask_contents + line.strip() + "\n"
- 
         update_query = "UPDATE SBID SET mask_detect_runid = %s, mask_detectionF = %s, mask_detect_results = %s, detect_config_tar = %s, mask_results = %s, mask = %s where id = %s;"
+        cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),psycopg2.Binary(config),results,mask_contents,sbid_id))
+    elif DETECTMODE == "INVMASK":
+        # There is an additional 'mask' file for masked detections, so we need to store its contents
+        maskfile = f"{DATA_DIR}/{sbid}/config/mask.txt"
+        mask_contents = ""
+        with open(maskfile,'r') as f:
+            for line in f:
+                mask_contents = mask_contents + line.strip() + "\n"
+        update_query = "UPDATE SBID SET mask_invert_runid = %s, mask_invertF = %s, mask_invert_detect_results = %s, detect_config_tar = %s, mask_invert_results = %s, mask = %s where id = %s;"
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),psycopg2.Binary(config),results,mask_contents,sbid_id))
 
     else:
@@ -859,6 +875,8 @@ def update_component_detection(cur,comp,sbid_id,processState):
         update_query = "UPDATE component SET processState = 'detection', detection_date = %s where comp_id = %s and sbid_id = %s;"
     elif processState == "MASK":
         update_query = "UPDATE component SET processState = 'masked_detection', detection_date = %s where comp_id = %s and sbid_id = %s;"
+    elif processState == "INVMASK":
+        update_query = "UPDATE component SET processState = 'inverted_masked_detection', detection_date = %s where comp_id = %s and sbid_id = %s;"
     cur.execute(update_query,(detect_date,comp,sbid_id))
     print(f"    Detection updated into table 'component': comp_id = {comp}, sbid_id = {sbid_id}")
     return
@@ -954,7 +972,7 @@ if __name__ == "__main__":
         conn.commit()
         cur.close()
         conn.close()
-    elif RUN_TYPE == "DETECTION" or RUN_TYPE == "INVERTED" or RUN_TYPE == "MASKED":
+    elif RUN_TYPE in ["DETECTION","INVERTED","MASKED","INVMASKED"]:
         print(f"Starting {DETECTMODE} DETECTION upload")
         inverted = False
         # Change to data directory

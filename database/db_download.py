@@ -34,7 +34,7 @@ def set_parser():
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('-m', '--mode',
             default=None,
-            help='Specify run mode: PLOTS, ASCII, LINEFINDER, LINEFINDER_INVERT,QUERY, SQL, SOURCE (default: %(default)s)')
+            help='Specify run mode: PLOTS, ASCII, LINEFINDER, LINEFINDER_INVERT,LINEFINDER_MASK,LINEFINDER_INVMASK,QUERY, SQL, SOURCE (default: %(default)s)')
     parser.add_argument('-s', '--sbid',
             default=None,
             help='Specify the sbid eg 11346 or 41050:1 for a specific version (use "-1" to get all sbids) (default: %(default)s)') 
@@ -276,7 +276,7 @@ def get_ascii_files_tarball(conn,cur,sid,sbid,static_dir,version):
     return name
 ##################################################################################################
 
-def get_files_for_sbid(conn,cur,sbid,version,invertF):
+def get_files_for_sbid(conn,cur,sbid,version):
 
     # This will return a tarball of ascii files stored for a particular sbid, 
     # or linefinder results files for an sbid, if available.
@@ -294,25 +294,32 @@ def get_files_for_sbid(conn,cur,sbid,version,invertF):
     if MODE == "ASCII":
         return get_ascii_files_tarball(conn,cur,sid,sbid,dir_download,version)
 
-    elif MODE == "LINEFINDER":
+    elif "LINEFINDER" in MODE:
         oid = None
         outputs = None
         name = f"{sbid}_{version}.tar.gz"
-        query = "select detectionF,invert_detectionF from sbid where id = %s"    
+        mode_flags = {"LINEFINDER":False,"LINEFINDER_INVERT":False,"LINEFINDER_MASK":False,"LINEFINDER_INVMASK":False}
+        mode_data = {"LINEFINDER":["detect_tar","detect_results"],
+                     "LINEFINDER_INVERT":["invert_detect_tar","invert_detect_results"],
+                     "LINEFINDER_MASK":["mask_detect_tar","mask_detect_results"],
+                     "LINEFINDER_INVMASK":["mask_invert_detect_tar","mask_invert_detect_results"]} 
+
+        query = "select detectionF,invert_detectionF,mask_detectionF,mask_invertF from sbid where id = %s"    
         cur.execute(query,(sid,))
-        detect,invert_detect = cur.fetchall()[0]
-        if not detect:
-            print(f"No linefinder results available for sbid {sbid}:{version} !!")
+        detect,invert_detect,mask_detect,invmask_detect = cur.fetchall()[0]
+        modes = [detect,invert_detect,mask_detect,invmask_detect]
+        mode_flags.update(zip(mode_dir.keys(), modes))
+        if not mode_flags[MODE]:
+            print(f"No {MODE} results available for sbid {sbid}:{version} !!")
             return
-        if invertF and not invert_detect:
-            print(f"No inverted_spectra linefinder results available for sbid {sbid}:{version} !!")
-            return
+
         # The output files are normally stored as both a byte array AND a large object.
         # If the LOB exists, down load that in preference to the byte array, as it's more efficient:
-        if invertF:
-            query = "select invert_detect_tar from sbid where id = %s"
-        else:
-            query = "select detect_tar from sbid where id = %s"
+        query = f"select {mode_data[MODE][0]} from sbid where id = %s"
+        #if invertF:
+        #    query = "select invert_detect_tar from sbid where id = %s"
+        #else:
+        #    query = "select detect_tar from sbid where id = %s"
         cur.execute(query,(sid,))
         oid = cur.fetchone()[0]
         if oid:
@@ -325,10 +332,11 @@ def get_files_for_sbid(conn,cur,sbid,version,invertF):
             loaded_lob.close()
         else:
             print(f"No LOB found - retrieving byte array from db")
-            if invertF:
-                query = "select invert_detect_results from sbid where id = %s"
-            else:
-                query = "select detect_results from sbid where id = %s"
+            query = f"select {mode_data[MODE][1]} from sbid where id = %s"
+            #if invertF:
+            #    query = "select invert_detect_results from sbid where id = %s"
+            #else:
+            #    query = "select detect_results from sbid where id = %s"
             cur.execute(query,(sid,))
             outputs = cur.fetchone()[0]
             if outputs:
@@ -480,6 +488,7 @@ def get_results_for_sbid(cur,sbid,version,invertF,verbose=False):
                 source_list.append("component_" + name)
 
     
+    mode_files = {"LINEFINDER":"results","LINEFINDER_INVERT":"invert_results","LINEFINDER_MASK":"mask_results","LINEFINDER_INVMASK":"mask_invert_results"}
     #query = "select detect_runid from sbid where id = %s;"
     #cur.execute(query,(sid,))
     #res = cur.fetchone()[0]
@@ -489,10 +498,11 @@ def get_results_for_sbid(cur,sbid,version,invertF,verbose=False):
     #detect_runid = int(res)
 
     # Get the relevant results from the sbid table:
-    if invertF:
-        query = "select invert_results from sbid where id = %s;"
-    else:
-        query = "select results from sbid where id = %s;"
+    query = f"select {mode_files[MODE]} from sbid where id = %s;"
+    #if invertF:
+    #    query = "select invert_results from sbid where id = %s;"
+    #else:
+    #    query = "select results from sbid where id = %s;"
     cur.execute(query,(sid,))
     try:
         result_data = cur.fetchone()[0].split('\n')
@@ -506,17 +516,26 @@ def get_results_for_sbid(cur,sbid,version,invertF,verbose=False):
     pointing = cur.fetchone()[0]
 
     # Get the list of relevant components and their values for this sbid from the component table
-    if ln_mean == -1: # This means get all components, even if there is no value for ln_mean
-        if invertF:
-            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s order by invert_ln_mean desc;")
-        else:
-            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean desc;")
+    # if ln_mean is -1, this means get all components, even if there is no value for ln_mean
+    if MODE == "LINEFINDER":
+        query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean desc;")
+        if ln_mean != -1:
+            query = query.replace("sbid_id = %s","sbid_id = %s and ln_mean > %s and mode_num > 0")
+    elif MODE == "LINEFINDER_INVERT":
+        query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s order by invert_ln_mean desc;")
+        if ln_mean != -1:
+            query = query.replace("sbid_id = %s","sbid_id = %s and invert_ln_mean > %s and invert_mode_num > 0")
+    elif MODE == "LINEFINDER_MASK":
+        query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mask_mode_num,mask_ln_mean from component where sbid_id = %s order by invert_ln_mean desc;")
+        if ln_mean != -1:
+            query = query.replace("sbid_id = %s","sbid_id = %s and mask_ln_mean > %s and mask_mode_num > 0")
+    elif MODE == "LINEFINDER_INVMASK":
+        query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mask_mode_num,invert_mask_ln_mean from component where sbid_id = %s order by invert_ln_mean desc;")
+        if ln_mean != -1:
+            query = query.replace("sbid_id = %s","sbid_id = %s and invert_mask_ln_mean > %s and invert_mask_mode_num > 0")
+    if ln_mean == -1:
         cur.execute(query,(sid,))
     else:
-        if invertF:
-            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s and invert_ln_mean > %s and invert_mode_num > 0 order by invert_ln_mean desc;")
-        else:
-            query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by ln_mean desc;")
         cur.execute(query,(sid,ln_mean))
     results = cur.fetchall()
     row_count = len(results)
@@ -536,7 +555,7 @@ def get_results_for_sbid(cur,sbid,version,invertF,verbose=False):
             print(f"{notf}: NOT FOUND! {comp_id}")
 
     if verbose: # detailed output is saved to file
-        f = open(f"{DIR}/{sbid}_{version}_linefinder_outputs.csv","w")
+        f = open(f"{DIR}/{sbid}_{version}_{MODE}_outputs.csv","w")
         # we want From component table - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
         # From linefinder, all outputs except name: ModeNum x0_1_maxl dx_1_maxl y0_1_maxl abs_peakz_median abs_peakz_siglo abs_peakz_sighi abs_peakopd_median abs_peakopd_siglo abs_peakopd_sighi abs_intopd_median(km/s) abs_intopd_siglo(km/s) abs_intopd_sighi(km/s) abs_width_median(km/s) abs_width_siglo(km/s) abs_width_sighi(km/s) ln(B)_mean ln(B)_sigma chisq_mean chisq_sigma
         f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,x0_1_maxl,dx_1_maxl,y0_1_maxl,abs_peakz_median,abs_peakz_siglo,abs_peakz_sighi,abs_peakopd_median,abs_peakopd_siglo,abs_peakopd_sighi,abs_intopd_median(km/s),abs_intopd_siglo(km/s),abs_intopd_sighi(km/s),abs_width_median(km/s),abs_width_siglo(km/s),abs_width_sighi(km/s),ln(B)_mean,ln(B)_sigma,chisq_mean,chisq_sigma,field\n")
@@ -585,7 +604,6 @@ if __name__ == "__main__":
     set_mode_and_values(args)
     conn = connect()
     cur = get_cursor(conn)
-    invertF = False
     # Query db for sbid metadata
     if MODE == "QUERY":
         query_db_for_sbid(cur,SBID)
@@ -599,10 +617,8 @@ if __name__ == "__main__":
         get_plots_for_component(cur,SBID,SOURCE)
 
     # Get tar of either ascii files or linefinder results
-    elif MODE in ["ASCII","LINEFINDER","LINEFINDER_INVERT"]:
-        if MODE == "LINEFINDER_INVERT":
-            invertF = True
-        tar_name = get_files_for_sbid(conn,cur,SBID,VERSION,invertF)
+    elif MODE in ["ASCII","LINEFINDER","LINEFINDER_INVERT","LINEFINDER_MASK","LINEFINDER_INVMASK"]:
+        tar_name = get_files_for_sbid(conn,cur,SBID,VERSION)
         if UNTAR:
             print(f"Untarring download {tar_name}")
             os.system(f"cd {DIR}; tar -zxvf {tar_name} &> ../tar_msg.txt; rm {tar_name}")
@@ -612,10 +628,8 @@ if __name__ == "__main__":
         get_sql_result(conn,cur)
 
     # Get linfinder results for sbid
-    if MODE in ["LINEFINDER","LINEFINDER_INVERT"]:
-        if MODE == "LINEFINDER_INVERT":
-            invertF = True
-        get_results_for_sbid(cur,SBID,VERSION,invertF,verbose=True)
+    if MODE in ["LINEFINDER","LINEFINDER_INVERT","LINEFINDER_MASK","LINEFINDER_INVMASK"]:
+        get_results_for_sbid(cur,SBID,VERSION,verbose=True)
 
     
     cur.close()
