@@ -39,6 +39,11 @@ echo "${SBIDARRAY[@]}"
 # The parent directory holding the SBIDS
 PARENT_DIR=$DATA
 
+# Local directories on setonix:
+DBDIR="/home/$USER/src/database/"
+DETECTDIR="/home/$USER/src/linefinder/"
+MASKDIR="$DETECTDIR/masks"
+
 # Directory to move bad data files to:
 BAD_FILES_DIR="$DATA/bad_ascii_files"
 
@@ -51,20 +56,26 @@ source ~/set_local_flash_env.sh
 for SBID1 in "${SBIDARRAY[@]}"; do
     PARENT1=$PARENT_DIR/$SBID1
     mkdir -p $PARENT1/config
-    cp slurm_linefinder.ini model.txt $PARENT1/config
-    # Check if a mask file exists:
-    MASK="masks/SBID${SBID1}_mask.txt"
-    if test -f $MASK; then
-            cp $MASK "${PARENT1}/config/mask.txt"
-    fi
+    cp slurm_linefinder*.ini model.txt $PARENT1/config
+    # If masking, check that the mask file exists and copy it to SLURM directory
+    if [[ "$MODE" =~ ^("MASK"|"INVMASK")$ ]]; then
+        if ! ls $MASKDIR/*$SBID1_mask.txt 1> /dev/null 2>&1; then
+            echo "$SBID1 mask file not found!! Skipping"
+            continue
+        else
+            cp $MASKDIR/*$SBID1_mask.txt "${PARENT1}/config/mask.txt"
+        fi
+    fi 
 
-     # pass to slurm_run scripts: 
+    # pass to slurm_run scripts: 
     if [ "$MODE" = "STD" ]; then
         SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out.log --error $PARENT1/logs/err.log --job-name STD_$SBID1"
     elif [ "$MODE" = "INVERT" ]; then
         SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_inverted.log --error $PARENT1/logs/err_inverted.log --job-name INV_$SBID1"
     elif [ "$MODE" = "MASK" ]; then
         SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_masked.log --error $PARENT1/logs/err_masked.log --job-name MSK_$SBID1"
+    elif [ "$MODE" = "INVMASK" ]; then
+        SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 12:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_inv_masked.log --error $PARENT1/logs/err_inv_masked.log --job-name INVMSK_$SBID1"
     fi
 
     jid1=$(sbatch $SBATCHARGS $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1 $MODE)
