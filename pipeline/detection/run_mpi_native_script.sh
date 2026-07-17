@@ -23,15 +23,15 @@
 ######################################################################################
 ######################################################################################
 ####################### USER EDIT VALUES #############################################
-# The SBIDS to process (if not pass on the command line):
 MODE=$1
 
-if [ $# -eq 0 ]
-    then
-        rm jobs_to_sbids.txt
-        SBIDARRAY=(55247 55398 55460)
+# The SBIDS to process (if not pass on the command line):
+if [ $# -lt 2 ]; then
+    rm jobs_to_sbids.txt
+    # Add your sbids here
+    SBIDARRAY=(55247 55398 55460)
 else
-        SBIDARRAY=( "${@:2}" )
+    SBIDARRAY=( "${@:2}" )
 fi
 echo "${SBIDARRAY[@]}"
 
