@@ -1,0 +1,61 @@
+server {
+    listen 443 ssl;
+    server_name {{ domain }};
+
+    ssl_certificate     /etc/nginx/ssl/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+
+    add_header Strict-Transport-Security "max-age=300; includeSubDomains" always;
+
+    location / {
+        add_header Content-Security-Policy "
+            default-src 'self';
+            script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com https://code.jquery.com;
+            connect-src 'self' https: wss:;
+            img-src 'self' https: data:;
+            style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+            frame-ancestors 'none';
+            font-src 'self' https: data:;
+            base-uri 'self';
+        " always;
+
+        proxy_pass http://web:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /media/ {
+        alias /app/media/;
+    }
+
+    location /static/ {
+        alias /app/staticfiles/;
+    }
+
+    # Aladin viewer needs a whole bunch of extra unsafe things so it gets its
+    # own set of rules
+    location /show_sbids_aladin/ {
+        add_header Content-Security-Policy "
+            default-src 'self';
+            script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://aladin.cds.unistra.fr https://code.jquery.com;
+            connect-src 'self' https: wss: blob: data:;
+            img-src 'self' https: data:;
+            style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+            font-src 'self' https: data:;
+            worker-src 'self' blob:;
+            frame-ancestors 'none';
+            base-uri 'self';
+        " always;
+
+        proxy_pass http://web:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+}

@@ -1,6 +1,23 @@
 *__pycache__
 *.csv
 *.bin
-settings*.py
 django/flashdb/db_query/static/db_query/*
 *.idea
+*.venv
+staticfiles
+media
+*.DS_Store
+
+# exclude real secrets
+secrets.env
+fullchain.pem
+privkey.pem
+
+# (optional safety: ignore any env/pem variants)
+*.env
+*.pem
+
+# but explicitly allow templates
+!secrets.env.template
+!fullchain.pem.template
+!privkey.pem.template

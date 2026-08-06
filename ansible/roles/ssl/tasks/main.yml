@@ -1,0 +1,23 @@
+- name: Ensure SSL directory exists
+  file:
+    path: /etc/nginx/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Copy SSL cert
+  copy:
+    src: "{{ env }}/fullchain.pem"
+    dest: /etc/nginx/ssl/fullchain.pem
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Copy SSL key
+  copy:
+    src: "{{ env }}/privkey.pem"
+    dest: /etc/nginx/ssl/privkey.pem
+    owner: root
+    group: root
+    mode: "0600"

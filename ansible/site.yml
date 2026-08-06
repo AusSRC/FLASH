@@ -1,0 +1,14 @@
+# site.yml
+- hosts: web
+  become: yes
+
+  roles:
+    - common
+    - ssh
+    - docker
+    - firewall
+    - fail2ban
+    - nginx
+    - secrets
+    - ssl
+    - psql

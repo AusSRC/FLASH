@@ -1,0 +1,40 @@
+services:
+  web:
+    image: aussrc/flash_gui:${FLASH_IMAGE_TAG}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: always
+    expose:
+      - "8000"
+    volumes:
+      - /srv/flashdb/media:/app/media
+      - /srv/flashdb/staticfiles:/app/staticfiles
+    env_file:
+      - /etc/flashdb/secrets.env
+    command: gunicorn flashdb.wsgi:application --bind 0.0.0.0:8000
+
+  nginx:
+    image: nginx:stable-alpine
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: always
+    pull_policy: always
+    ports:
+      - "443:443"
+    volumes:
+      - /srv/flashdb/media:/app/media:ro
+      - /srv/flashdb/staticfiles:/app/staticfiles:ro
+      - /etc/nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - web
+
+volumes:
+  media_data:
+  static_data:

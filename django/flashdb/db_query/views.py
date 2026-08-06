@@ -13,21 +13,26 @@ from django.shortcuts import render
 from django.http import HttpResponse
 from django.db import connection
 
-#######################################################################################
 
-def connect(db="flashdb",user="flash",host="10.0.2.225",password=None):
+##############################################################################
 
-    if not password:
-        password = PASSWD
+def connect(
+    db=os.environ.get("DB_NAME"),
+    user=os.environ.get("DB_USER"),
+    host=os.environ.get("DB_HOST"),
+    password=os.environ.get("DB_PASSWORD"),
+    port=os.environ.get("DB_PORT")
+):
+
     conn = psycopg2.connect(
-        database = db,
-        user = user,
-        password = password,
-        host = host,
-        port = 5432
+        database=db,
+        user=user,
+        password=password,
+        host=host,
+        port=port
     )
-    #print(conn.get_dsn_parameters(),"\n")
     return conn
+
 
 def get_cursor(conn):
 
@@ -78,6 +83,7 @@ def get_max_sbid_version(cur,sbid_num,version=None):
             sbid_id = None
             version = 0
     return sbid_id,version
+
 ##################################################################################################
 def get_comp_ra_dec(cur,comp_id):
     query = ("select ra_deg_cont,dec_deg_cont from component where comp_id = %s order by comp_id")
@@ -94,8 +100,9 @@ def getSBIDmetadata(sbid):
         cur.execute(query,(sbid_id,))
         data = cur.fetchone()
     return data
+
 ##################################################################################################
-def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inverted,masked,verbose=True):
+def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inverted,masked,inverted_masked,verbose=True):
     # This will print out a table of linefinder output data for a given sbid
     # args[1] = db cursor
     # args[2] = The sbid you want to use - if a version is not declared ("45833" rather than "45833:2"),
@@ -106,6 +113,14 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     #           If no value is given, it will be set to 0.0
     # args[8] = if inverted spectra are requested
     # args[9] = if masked spectra are requested
+    # args[10] = if inverted masked spectra are requested
+    import os
+
+    print("dir_download:", dir_download)
+    print("exists:", os.path.exists(dir_download))
+    print("isdir:", os.path.isdir(dir_download))
+    print("cwd:", os.getcwd())
+    print("BASE_DIR:", settings.BASE_DIR)
 
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
@@ -121,6 +136,8 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
         query = "select invert_results from sbid where id = %s;"
     elif masked:
         query = "select mask_results from sbid where id = %s;"
+    elif inverted_masked:
+        query = "select mask_invert_results from sbid where id = %s;"
     else:
         query = "select results from sbid where id = %s;"
     cur.execute(query,(sid,))
@@ -135,47 +152,59 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
     cur.execute(query,(sid,))
     pointing = cur.fetchone()[0]
 
-    # Get the list of relevant components and their values for this sbid from the component table
-    if ln_mean == -1: # This means get all components, even if there is no value for ln_mean
-        if order == "lnmean":
-            if inverted:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s order by invert_ln_mean")
-            else:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by ln_mean")
-            if reverse:
-                query += " desc;"
-            else:
-                query += ";"
-        else:
-            if inverted:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s order by comp_id")
-            else:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s order by comp_id")
-            if reverse:
-                query += " desc;"
-            else:
-                query += ";"
-        cur.execute(query,(sid,))
+    # Determine the column based on whether it's masked, inverted, etc.
+    if inverted_masked:
+        value_field = "invert_mask_ln_mean"
+        mode_field = "invert_mask_mode_num"
+    elif masked:
+        value_field = "mask_ln_mean"
+        mode_field = "mask_mode_num"
+    elif inverted:
+        value_field = "invert_ln_mean"
+        mode_field = "invert_mode_num"
     else:
-        if order == "lnmean":
-            if inverted:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s and invert_ln_mean > %s and invert_mode_num > 0 order by invert_ln_mean")
-            else:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by ln_mean")
-            if reverse:
-                query += " desc;"
-            else:
-                query += ";"
-        else:
-            if inverted:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,invert_mode_num,invert_ln_mean from component where sbid_id = %s and invert_ln_mean > %s and invert_mode_num > 0 order by comp_id")
-            else:
-                query = ("select component_name,comp_id,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,has_siblings,mode_num,ln_mean from component where sbid_id = %s and ln_mean > %s and mode_num > 0 order by comp_id")
-            if reverse:
-                query += " desc;"
-            else:
-                query += ";"
-        cur.execute(query,(sid,ln_mean))
+        value_field = "ln_mean"
+        mode_field = "mode_num"
+
+    # Base query fields (common to all)
+    base_fields = (
+        f"component_name, comp_id, ra_hms_cont, dec_dms_cont, ra_deg_cont, "
+        f"dec_deg_cont, flux_peak, flux_int, has_siblings"
+    )
+
+    # Construct the WHERE clause
+    where_clause = f"WHERE sbid_id = %s"
+    if ln_mean != -1:
+        where_clause += f" AND {value_field} > %s AND {mode_field} > 0"
+
+    # Conditionally build the ORDER BY clause
+    if order == "lnmean":
+        # Sorting by ln_mean or its equivalent
+        order_clause = f"ORDER BY {value_field}"
+        if reverse:
+            order_clause += " DESC"
+    else:
+        # Sorting by comp_id (numeric part first, then alphabetical)
+        order_clause = f"""
+        ORDER BY
+            CAST(REGEXP_REPLACE(comp_id, '\\D', '', 'g') AS INTEGER),  -- Numeric part of component_id
+            comp_id  -- Tie-breaker for alphabetic order when numeric parts are equal
+        """
+        if reverse:
+            # Apply DESC specifically to comp_id sorting
+            order_clause = f"ORDER BY CAST(REGEXP_REPLACE(comp_id, '\\D', '', 'g') AS INTEGER) DESC, comp_id DESC"
+
+    # Create the final query
+    query = f"""
+        SELECT {base_fields}, {mode_field}, {value_field}
+        FROM component
+        {where_clause}
+        {order_clause};
+    """
+
+    # Execute the query
+    cur.execute(query, (sid,) if ln_mean == -1 else (sid, ln_mean))
+
     results = cur.fetchall()
     row_count = len(results)
     # Extract component id from results and get corresponding line from result_data
@@ -198,6 +227,8 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
             f = open(f"{dir_download}/{sbid}_linefinder_inverted_outputs.csv","w")
         elif masked:
             f = open(f"{dir_download}/{sbid}_linefinder_masked_outputs.csv","w")
+        elif inverted_masked:
+            f = open(f"{dir_download}/{sbid}_linefinder_masked_inverted_outputs.csv","w")
         else:
             f = open(f"{dir_download}/{sbid}_linefinder_outputs.csv","w")
         # we want From component table - component_id, component_name, ra_hms_cont dec_dms_cont (both hms and degree), flux_peak, flux_int, has_siblings
@@ -295,7 +326,7 @@ def get_ascii_files_tarball(conn, cur, sid, sbid, static_dir, version, password=
     #return name
 
 ##################################################################################################
-def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked):
+def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked,inverted_masked):
     cur = get_cursor(conn)
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
@@ -309,6 +340,9 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked):
     elif masked:
         name = f"{sbid}_{version}_masked.tar"
         query = "select mask_detectionF from sbid where id = %s"
+    elif inverted_masked:
+        name = f"{sbid}_{version}_inverted_masked.tar"
+        query = "select mask_invertF from sbid where id = %s"
     else:
         query = "select detectionF from sbid where id = %s"
     cur.execute(query,(sid,))
@@ -318,7 +352,7 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked):
         return
     # The output files are normally stored as both a byte array AND a large object.
     # If the LOB exists, down load that in preference to the byte array, as it's more efficient:
-    if not inverted and not masked:
+    if not inverted and not masked and not inverted_masked:
         query = "select detect_tar from sbid where id = %s"
         cur.execute(query,(sid,))
         oid = cur.fetchone()[0]
@@ -333,6 +367,8 @@ def get_linefinder_tarball(conn,sbid,dir_download,version,inverted,masked):
             query = "select invert_detect_results from sbid where id = %s"
         elif masked:
             query = "select mask_detect_results from sbid where id = %s"
+        elif inverted_masked:
+            query = "select mask_invert_detect_results from sbid where id = %s"
         else:
             query = "select detect_results from sbid where id = %s"
         cur.execute(query,(sid,))
@@ -424,8 +460,7 @@ def get_plots_for_comp(cur,sbid,comp,static_dir):
 
 def index(request):
 
-    base_dir = Path(settings.BASE_DIR) / "db_query/static/db_query"
-
+    base_dir = Path(settings.BASE_DIR) / "media"
     for sub in ["plots", "linefinder", "ascii", "linefinder/masks"]:
         cleanup_orphan_session_files(base_dir / sub)
 
@@ -489,11 +524,11 @@ def show_sbids_aladin(request):
     with conn.cursor() as cursor:
         query = 'SELECT t.sbid_num, t.pointing, comp.sbid_id, AVG(comp.ra_deg_cont::NUMERIC) AS ra,'\
             + ' AVG(comp.dec_deg_cont::NUMERIC) AS dec, t.quality AS status,'\
-            + ' t.detectionf, t.invert_detectionf, t.mask_detectionf, run.run_tag'\
+            + ' t.detectionf, t.invert_detectionf, t.mask_detectionf, t.mask_invertF, run.run_tag'\
             + ' FROM sbid t'\
             + ' INNER JOIN component comp ON comp.sbid_id = t.id'\
             + ' LEFT JOIN spect_run run ON t.spect_runid = run.id'\
-            + ' GROUP BY comp.sbid_id, t.sbid_num, t.pointing, t.quality, t.detectionf, t.invert_detectionf, t.mask_detectionf, run.run_tag'
+            + ' GROUP BY comp.sbid_id, t.sbid_num, t.pointing, t.quality, t.detectionf, t.invert_detectionf, t.mask_detectionf, mask_invertF, run.run_tag'
         cursor.execute(query)
         sbids = cursor.fetchall()
         conn.close()
@@ -561,7 +596,6 @@ def query_database(request):
         return HttpResponse("Password has failed")
     
     query_type = request.POST.get('query_type')
-    reverse = False
 
     if query_type == "QUERY":
         sbid_val = request.POST.get('sbid_query')
@@ -597,14 +631,14 @@ def query_database(request):
         if where_clause:
                 where_clause = where_clause +") "
         if no_bad_sbids:
-                if where_clause:
-                    where_clause = where_clause + "and s.quality not in ('BAD','REJECTED') "
-                else:
-                    where_clause = " where s.quality not in ('BAD','REJECTED') "
+            if where_clause:
+                where_clause = where_clause + "and s.quality not in ('BAD','REJECTED') "
+            else:
+                where_clause = " where s.quality not in ('BAD','REJECTED') "
 
         with connection.cursor() as cursor:
             if sbid_val == "-1":
-                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
+                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.mask_invertF,s.pointing,s.comment,s.publicf FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
                 mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid"
                 if where_clause:
                     query = query + where_clause
@@ -618,8 +652,11 @@ def query_database(request):
                     query += ";"
                     mask_query += ";"
                 cursor.execute(query,)
+                rows = cursor.fetchall()
+                cursor.execute(mask_query,)
+                mask_rows = cursor.fetchall()
             else:
-                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.pointing,s.comment FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s order by {order}"
+                query = f"SELECT sp.date,s.sbid_num,s.version,s.quality,sp.run_tag,s.detectionF,s.invert_detectionF,s.mask_detectionF,s.mask_invertF,s.pointing,s.comment,s.publicf FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s order by {order}"
                 mask_query = f"select s.mask,s.sbid_num,s.version FROM SBID s inner join spect_run sp on sp.id = s.spect_runid where s.sbid_num = %s"
                 if reverse:
                     query += " desc;"
@@ -628,13 +665,16 @@ def query_database(request):
                     query += ";"
                     mask_query += ";"
                 cursor.execute(query,(sbid_val,))
-            rows = cursor.fetchall()
-            cursor.execute(mask_query, (sbid_val if sbid_val != "-1" else None,))
-            mask_rows = cursor.fetchall()
+                rows = cursor.fetchall()
+                cursor.execute(mask_query, (sbid_val,))
+                mask_rows = cursor.fetchall()
+
             mask_files = download_mask_files(mask_rows, session_id)
 
         # Render the template with the query results
-        return render(request, 'query_results.html', {'session_id': session_id, 'sbid': sbid_val, 'rows': rows, 'num_rows': len(rows), 'mask_files': mask_files})
+        rows_with_masks = zip(rows, mask_files)
+
+        return render(request, 'query_results.html', {'session_id': session_id, 'sbid': sbid_val, 'num_rows': len(rows), 'rows_with_masks': rows_with_masks})
 
     elif query_type == "LINEFINDER":
         password = request.POST.get('pass')
@@ -650,6 +690,9 @@ def query_database(request):
             use_invert = True
         elif output_type == "masked":
             use_masked = True
+        elif output_type == "masked_inverted":
+            use_masked = True
+            use_invert = True
 
         if reverse == "on":
             reverse = True
@@ -659,7 +702,8 @@ def query_database(request):
         with connection.cursor() as cursor:
             inverted = False
             masked = False
-            if use_invert:
+            inverted_masked = False
+            if use_invert and not use_masked:
                 # See if there are any inverted-spectra linefinder results
                 query = f"SELECT invert_detectionF from sbid where sbid_num = %s"
                 cursor.execute(query,(sbid_val,))
@@ -669,7 +713,8 @@ def query_database(request):
                 else:
                     return HttpResponse(f"No inverted-spectra Linefinder results for sbid {sbid_val}")
             print(f"inverted value = {inverted}")
-            if use_masked:
+
+            if use_masked and not use_invert:
                 # See if there are any masked-spectra linefinder results
                 query = f"SELECT mask_detectionF from sbid where sbid_num = %s"
                 cursor.execute(query,(sbid_val,))
@@ -679,28 +724,43 @@ def query_database(request):
                 else:
                     return HttpResponse(f"No masked-spectra Linefinder results for sbid {sbid_val}")
             print(f"masked value = {masked}")
+
+            if use_masked and use_invert:
+                # See if there are any inverted-masked-spectra linefinder results
+                query = f"SELECT mask_invertF from sbid where sbid_num = %s"
+                cursor.execute(query,(sbid_val,))
+                inverted_masked_results = cursor.fetchone()
+                if inverted_masked_results and inverted_masked_results[0]:
+                    inverted_masked = inverted_masked_results[0]
+                else:
+                    return HttpResponse(f"No invert-masked-spectra Linefinder results for sbid {sbid_val}")
+            print(f"invert masked value = {inverted_masked}")
+
             # The path to Django's static dir for linefinder outputs
-            static_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/linefinder/{session_id}/"
-            static_dir.mkdir(parents=True, exist_ok=True)
+            media_dir = Path(settings.MEDIA_ROOT) / "linefinder" / session_id
+            media_dir.mkdir(parents=True, exist_ok=True)
             version = None
             # Screen outputs:
-            outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,static_dir,inverted,masked)
+            outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,media_dir,inverted,masked,inverted_masked)
+
         # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
         if outputs:
             conn = connect(password=password)
-            name = get_linefinder_tarball(conn,sbid_val,static_dir,version,inverted,masked)
+            name = get_linefinder_tarball(conn,sbid_val,media_dir,version,inverted,masked,inverted_masked)
             conn.close()
 
-            tarball = f"db_query/linefinder/{session_id}/{name}"
+            tarball = f"{settings.MEDIA_URL}linefinder/{session_id}/{name}"
             if inverted:
-                csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_inverted_outputs.csv"
+                csv_file = f"{settings.MEDIA_URL}linefinder/{session_id}/{sbid_val}_linefinder_inverted_outputs.csv"
             elif masked:
-                csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_masked_outputs.csv"
+                csv_file = f"{settings.MEDIA_URL}linefinder/{session_id}/{sbid_val}_linefinder_masked_outputs.csv"
+            elif inverted_masked:
+                csv_file = f"{settings.MEDIA_URL}linefinder/{session_id}/{sbid_val}_linefinder_masked_inverted_outputs.csv"
             else:
-                csv_file = f"db_query/linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
+                csv_file = f"{settings.MEDIA_URL}linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
             return render(request, 'linefinder.html', {'session_id': session_id, 'sbid': sbid_val, 'lmean': lmean,\
                 'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), \
-                'tarball': tarball, 'inverted':inverted, 'masked':masked})
+                'tarball': tarball, 'inverted': inverted, 'masked': masked, 'inverted_masked': inverted_masked})
         else:
             return HttpResponse(f"No Linefinder results for sbid {sbid_val}")
 
@@ -726,27 +786,29 @@ def query_database(request):
                     comp = f"spec_SB{sbid_val}_component_{val}.fits"
                     comps.append(comp)
             # The path to Django's static dir for plots
-            static_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/plots/{session_id}/"
-            static_dir.mkdir(parents=True, exist_ok=True)
-            version = None
+            media_dir = Path(settings.MEDIA_ROOT) / "plots" / session_id
+            media_dir.mkdir(parents=True, exist_ok=True)
             for comp in comps:
-                flux,opd = get_plots_for_comp(cur,sbid_val,comp,static_dir)
+                flux,opd = get_plots_for_comp(cur,sbid_val,comp,media_dir)
                 if flux and opd:
                     radec = get_comp_ra_dec(cur,comp)
-                    sources.append([f"db_query/plots/{session_id}/{flux}",f"db_query/plots/{session_id}/{opd}",radec])
-
+                    sources.append({
+                        "flux": f"{settings.MEDIA_URL}plots/{session_id}/{flux}",
+                        "opd": f"{settings.MEDIA_URL}plots/{session_id}/{opd}",
+                        "radec": radec,
+                    })
             tarball_name = f"{sbid_val}_plots.tar.gz"
-            tarball_path = Path(static_dir) / tarball_name
+            tarball_path = Path(media_dir) / tarball_name
 
             with tarfile.open(tarball_path, "w:gz") as tar:
-                for file in Path(static_dir).glob(f"spec_SB{sbid_val}*"):
+                for file in Path(media_dir).glob(f"spec_SB{sbid_val}*"):
                     tar.add(file, arcname=file.name)
 
-            tarball = f"db_query/plots/{session_id}/{tarball_name}"
+            tarball = f"{settings.MEDIA_URL}plots/{session_id}/{tarball_name}"
 
         return render(request, 'source.html', {'session_id': session_id, 'sbid': sbid_val, 'comp_id': comp, 'brightest':bright, 'sources': sources, 'num_sources': int(len(sources)), 'tarball': tarball,'render': view_or_tar, 'metadata': metadata})
     elif query_type == "ASCII":
-        ascii_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/ascii/{session_id}/"
+        ascii_dir = Path(settings.MEDIA_ROOT) / "ascii" / session_id
         ascii_dir.mkdir(parents=True, exist_ok=True)
         sbid_val = request.POST.get('sbid_for_ascii')
         with connection.cursor() as cur:
@@ -754,7 +816,7 @@ def query_database(request):
             conn = connect(password=password)
             get_ascii_files_tarball(conn,cur,sid,sbid_val,ascii_dir,version,password)
             conn.close()
-            ascii_tar = f"db_query/ascii/{session_id}/{sbid_val}_{version}.tar.gz"
+            ascii_tar = f"{settings.MEDIA_URL}ascii/{session_id}/{sbid_val}_{version}.tar.gz"
 
         return render(request, 'ascii.html', {'session_id': session_id, 'sbid': sbid_val, 'version': version, 'ascii_tar': ascii_tar})
 
@@ -762,17 +824,21 @@ def download_mask_files(mask_rows, session_id):
     # Stage mask file downloads
     mask_files = []
     if len(mask_rows) > 0:
-        static_dir = Path(settings.BASE_DIR) / f"db_query/static/db_query/linefinder/masks/{session_id}/"
-        static_dir.mkdir(parents=True, exist_ok=True)
+        media_dir = Path(settings.MEDIA_ROOT) / "linefinder" / session_id
+        media_dir.mkdir(parents=True, exist_ok=True)
         for mask_row in mask_rows:
             mask = mask_row[0]
             if mask:
                 sbid_val = mask_row[1]
                 version = mask_row[2]
-                mask_file = f"{static_dir}/{sbid_val}_{version}_mask.txt"
-                # TODO: When the bytea column is available, we use 'wb' mode instead
-                open(mask_file, 'w').write(mask)
-                mask_file_link = f"db_query/linefinder/masks/{session_id}/{sbid_val}_{version}_mask.txt"
+                filename = f"{sbid_val}_{version}_mask.txt"
+
+                full_path = media_dir / filename
+
+                with open(full_path, "w") as f:
+                    f.write(mask)
+
+                mask_file_link = f"{settings.MEDIA_URL}linefinder/{session_id}/{filename}"
                 mask_files.append(mask_file_link)
             else:
                 mask_files.append(None)
