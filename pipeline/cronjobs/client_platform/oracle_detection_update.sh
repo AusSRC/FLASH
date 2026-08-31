@@ -49,7 +49,7 @@ elif [ "$MODE" = "INVMASK" ]; then
 elif [ "$MODE" = "TEST" ]; then
     DETECTLOG="test_detection.log"
 elif [ "$MODE" = "STD" ]; then
-    DETECTLOG="find_std_detection.log"    
+    DETECTLOG="find_detection.log"    
 else
     echo "Invalid MODE"
     exit
