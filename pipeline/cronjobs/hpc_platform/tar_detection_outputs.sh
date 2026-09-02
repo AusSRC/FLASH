@@ -2,7 +2,7 @@
 ###############################################################
 # This script will tar up the linefinder outputs directory of a given SBID
 # ############################################################
-# $1 is the mode - STD, INVERT or MASK
+# $1 is the mode - STD, INVERT MASK or INVMASK
 MODE=$1
 # rest of $@ is the sbid(s) to process
 SBIDARR=( "$@" )
