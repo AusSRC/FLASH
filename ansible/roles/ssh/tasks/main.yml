@@ -5,9 +5,9 @@
       - ssh_public_keys is defined
       - ssh_public_keys | length > 0
 
-- name: Add SSH keys for ubuntu
+- name: Add SSH public keys for admin login
   ansible.posix.authorized_key:
-    user: "{{ ssh_user }}"
+    user: "{{ ssh_admin_user }}"
     state: present
     key: "{{ item | trim }}"
     exclusive: true
@@ -23,20 +23,23 @@
     - { regexp: '^PermitRootLogin', line: 'PermitRootLogin no' }
     - { regexp: '^PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
 
+
 - name: Validate sshd config
   command: sshd -t
   changed_when: false
-
-- name: Add deploy user to docker group
-  user:
-    name: "{{ deploy_user }}"
-    groups: docker
-    append: yes
 
 - name: Install deploy script
   copy:
     src: deploy.sh
     dest: /usr/local/bin/deploy.sh
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Install deploy jobs script
+  copy:
+    src: deploy.sh
+    dest: /usr/local/bin/deploy_jobs.sh
     mode: '0755'
     owner: root
     group: root
@@ -50,3 +53,33 @@
     state: present
     exclusive: true
     key_options: 'command="/usr/local/bin/deploy.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty'
+
+- name: Ensure .ssh directory exists for job user
+  ansible.builtin.file:
+    path: "/home/{{ job_user }}/.ssh"
+    state: directory
+    owner: "{{ job_user }}"
+    group: "{{ job_user }}"
+    mode: "0700"
+
+- name: Add Setonix ED25519 host key
+  ansible.builtin.known_hosts:
+    path: /home/{{ job_user }}/.ssh/known_hosts
+    name: setonix.pawsey.org.au
+    key: "setonix.pawsey.org.au ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKcmqXbKCdJ7EHa2U2WSL+91E3rMp2Sd3BEyZEqpfNG6"
+    state: present
+
+- name: Add Setonix RSA host key
+  ansible.builtin.known_hosts:
+    path: /home/{{ job_user }}/.ssh/known_hosts
+    name: setonix.pawsey.org.au
+    key: "setonix.pawsey.org.au ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7dFuhoEVpke/olFoukX+8EWCTWf4lF6FHbPv1CeaRMH0RoclZ/Sm/TlY/E+0vwyx1dcPDMHNPBu2ZZnKaqma8/fhV73JA2gm3pZ9wfAbo0fUqvNQk6FKcy/sk6flM29RsVCvP6EMTuW/ZU7awcKRiSbtaMJbaIUjX2scotIOgYqMulNcjfIuD3nrnakRbUZEj1IGWw6MdafG3+rZWzdvBXQM5I8SxW3cf8VI4Rl8fBdhRjCzxjSbXkpfbHxQfMzPc2wVdm/T4Qe9AwEVLSGrnB5oX7FazcFOe0Ff1NrCIK9wzSbr+l+973QDlOf+8Crl8le0LrbYcv4MtEQkUiGuswD4BifW7LPnlp5eDECMMHHDQy7XGHsSHPg5Ivn/YbcoIxvgAiVMMBmGuvkaRmeAAu5LVIlQ2RUbqByHqUgrCdOKLwXAmOjDK1QMjBQWKIGdQmS7aqL/hj7QCollKr3GGo96O6X7K2lQOH+vDBfCW6C4XmF8Sjob7E+OqlhHwYIE="
+    state: present
+
+- name: Install SSH private key
+  ansible.builtin.copy:
+    src: files/setonix_ssh_key
+    dest: /home/{{ job_user }}/.ssh/setonix
+    owner: "{{ job_user }}"
+    group: "{{ job_user }}"
+    mode: '0600'

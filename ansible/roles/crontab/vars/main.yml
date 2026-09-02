@@ -1,0 +1,33 @@
+cron_job_runner: >-
+  docker compose
+  --env-file /srv/flash/jobs/.env
+  run --rm submit-hpc-job
+
+cron_jobs:
+  - name: CASDA Update Pipeline
+    schedule: "00 00 * * 1-5"
+    command: "oracle_casda_update.sh"
+
+  - name: Detection pipeline
+    schedule: "00 06 * * 1-5"
+    command: "oracle_detection_update.sh STD"
+
+  - name: Inverted detection pipeline
+    schedule: "00 12 * * 1-5"
+    command: "oracle_detection_update.sh INVERT"
+
+  - name: Masked detection pipeline
+    schedule: "00 17 * * 3-5"
+    command: "oracle_detection_update.sh MASK"
+
+  - name: Cleanup
+    schedule: "00 10 * * 6"
+    command: "cleanup_old_dirs.sh"
+
+  - name: Check bad files
+    schedule: "00 15 * * 6"
+    command: "check_bad_files.sh"
+
+  - name: Pull latest runs & upload
+    schedule: "00 15 * * 6"
+    command: "pull_results_and_upload.sh"

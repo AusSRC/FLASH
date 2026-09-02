@@ -43,7 +43,7 @@
 
 - name: Add admin user to docker group
   user:
-    name: "{{ ssh_user }}"
+    name: "{{ ssh_admin_user }}"
     groups: docker
     append: yes
 
@@ -53,12 +53,26 @@
     groups: docker
     append: yes
 
-- name: Copy docker-compose.yml to home directory
+- name: Add job user to docker group
+  user:
+    name: "{{ job_user }}"
+    groups: docker
+    append: yes
+
+- name: Copy docker-compose.yml to deploy user home directory
   copy:
     src: "docker-compose.yml"
     dest: "/home/{{ deploy_user }}/docker-compose.yml"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
+    mode: "0644"
+
+- name: Copy docker-compose-jobs.yml to Job user home directory
+  copy:
+    src: "docker-compose-jobs.yml"
+    dest: "/home/{{ deploy_user }}/docker-compose-jobs.yml"
+    owner: "{{ job_user }}"
+    group: "{{ job_user }}"
     mode: "0644"
 
 # This group gid and name must match whats used in dockerfile
@@ -74,7 +88,21 @@
     groups: flash
     append: yes
 
-- name: Create media dir
+- name: Add jobs user to flash group
+  user:
+    name: "{{ job_user }}"
+    groups: flash
+    append: yes
+
+- name: Create job to service shared dir
+  file:
+    path: /srv/flashdb/job
+    state: directory
+    owner: "{{ job_user }}"
+    group: flash
+    mode: "2775"
+
+- name: Create services media dir
   file:
     path: /srv/flashdb/media
     state: directory
@@ -82,7 +110,7 @@
     group: flash
     mode: "2775"
 
-- name: Create static dir
+- name: Create services static dir
   file:
     path: /srv/flashdb/staticfiles
     state: directory

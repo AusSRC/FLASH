@@ -19,3 +19,17 @@
       - lsb-release
       - iputils-ping
     state: present
+
+- name: Create deploy user
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    state: present
+    create_home: true
+    shell: /bin/bash
+
+- name: Create job user
+  ansible.builtin.user:
+    name: "{{ job_user }}"
+    state: present
+    create_home: true
+    shell: /bin/bash

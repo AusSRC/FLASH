@@ -1,8 +1,8 @@
 ssh_port: 22
 
-ssh_manage_user: ubuntu
-ssh_user: "{{ ssh_manage_user }}"
+ssh_admin_user: ubuntu
 deploy_user: deploy
+job_user: job
 
 allowed_ports:
   - 443
