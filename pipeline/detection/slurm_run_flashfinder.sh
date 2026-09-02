@@ -33,7 +33,7 @@ module load py-numpy/1.24.4
 #module load py-numpy/1.25.2
 #module load py-scipy/1.14.1
 #module load py-matplotlib/3.9.2
-#module load py-astropy/5.1
+#module load py-astropy/5.1   # This causes a module version change 
 #module load py-mpi4py/3.1.5-py3.11.6
 
 #module load py-astropy/5.1
@@ -65,6 +65,10 @@ elif [ "$MODE" = "MASK" ]; then
     mkdir -p "$1"/masked_outputs
     srun -K1 python3 $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/masked_outputs \
 --mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder.ini
+elif [ "$MODE" = "INVMASK" ]; then
+    mkdir -p "$1"/inv_masked_outputs
+    srun -K1 python3 $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/inv_masked_outputs \
+--mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder_inverted.ini
 fi
 
 exit 0

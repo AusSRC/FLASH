@@ -18,6 +18,9 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     elif [ "$MODE" = "MASK" ]; then
         echo "Tarring $SBID1 masked linefinder results"
         cd $DATA/$SBID1/masked_outputs; tar -zcvf masked_linefinder.tar.gz results* *stats.dat *.pdf; mv masked_linefinder.tar.gz ../
+    elif [ "$MODE" = "INVMASK" ]; then
+        echo "Tarring $SBID1 inverted masked linefinder results"
+        cd $DATA/$SBID1/inv_masked_outputs; tar -zcvf inv_masked_linefinder.tar.gz results* *stats.dat *.pdf; mv inv_masked_linefinder.tar.gz ../
     fi
 done
 exit 0

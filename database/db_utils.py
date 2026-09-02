@@ -13,7 +13,7 @@ from casda_download import *
 
 ##################################### db_utils  ################################################################
 #
-#       This script deletes data held in the FLASH db at 146.118.64.208
+#       This script edits data held in the FLASH db on Oracle
 #       GWHG @ CSIRO, July 2023
 #
 #       version 1.06 25/06/2024
@@ -44,7 +44,7 @@ DUMMY=False # Set to true to only query - don't download or upload anything.
 REJECTED=True # If set, process sbids even if marked as 'REJECTED'.
 CASDA_EMAIL = ""
 PASSWD = ""
-DETECTFLAGS = {"45762":{"STD":False, "INVERT":False, "MASK":False}} # Dictionary holding the detection status flags 
+DETECTFLAGS = {"45762":{"STD":False, "INVERT":False, "MASK":False, "INVMASK":False}} # Dictionary holding the detection status flags 
 
 ###############################################################################################################
 ############ - FLASHDB details ################################################################################
@@ -78,7 +78,7 @@ def set_parser():
             help='Specify local directory to use (default: %(default)s)')   
     parser.add_argument('-sm', '--submode',
             default="SPECTRAL",
-            help='For SBIDSTODETECT, run as SPECTRAL,STD, INVERT or MASK (default: %(default)s)')   
+            help='For SBIDSTODETECT, run as SPECTRAL,STD, INVERT, MASK or INVMASK (default: %(default)s)')   
     parser.add_argument('-c', '--catalogues_only',
             default=False,
             action='store_true',
@@ -198,7 +198,7 @@ def check_sbids_in_db(conn,mode=None):
         for sbid in SBIDS: 
             DETECTFLAGS[sbid] = {}
             sbid_id,ver = get_max_sbid_version(cur,sbid)
-            query = "select detectionF,invert_detectionF,mask_detectionF from sbid where id = %s"
+            query = "select detectionF,invert_detectionF,mask_detectionF,mask_invertF from sbid where id = %s"
             cur.execute(query,(sbid_id,))
             modes = cur.fetchone()
             for i,mode in enumerate(modes):
@@ -208,6 +208,7 @@ def check_sbids_in_db(conn,mode=None):
             DETECTFLAGS[sbid]["STD"] = modes[0] 
             DETECTFLAGS[sbid]["INVERT"] = modes[1] 
             DETECTFLAGS[sbid]["MASK"] = modes[2]
+            DETECTFLAGS[sbid]["INVMASK"] = modes[3]
     return cur
         
 
@@ -218,7 +219,7 @@ def check_db_detection_run(conn,mode=MODE):
     # 
     # This only checks Survey sbids (not pilot) and will check if any sbid with quality not 'BAD', 'REJECTED' or 'NOT_VALIDATED'
     # has not been processed by the linfinder
-    # It can check for STD detection, INVERT or MASK - the last two can only be checked if a STD detection was already done.
+    # It can check for STD detection, INVERT, MASK or INVMASK - the last three can only be checked if a STD detection was already done.
 
     sbids = []
     cur = get_cursor(conn)
@@ -228,6 +229,9 @@ def check_db_detection_run(conn,mode=MODE):
     elif (mode == "MASK"):
         print("For masked detection:")
         query = f"select sbid_num from sbid where quality not in ('BAD','NOT_VALIDATED','REJECTED') and detectionF = true and (mask_detectionF = false or mask_detectionF is NULL) and sbid_num > {PILOT_SBID_CUTOFF} order by sbid_num;"
+    elif (mode == "INVMASK"):
+        print("For inverted masked detection:")
+        query = f"select sbid_num from sbid where quality not in ('BAD','NOT_VALIDATED','REJECTED') and detectionF = true and (mask_invertF = false or mask_invertF is NULL) and sbid_num > {PILOT_SBID_CUTOFF} order by sbid_num;"
     else:
         print("For std detection:")
         query = f"select sbid_num from sbid where quality not in ('BAD','NOT_VALIDATED','REJECTED') and detectionF = false and sbid_num > {PILOT_SBID_CUTOFF} order by sbid_num;"

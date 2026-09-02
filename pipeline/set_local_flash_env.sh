@@ -13,7 +13,7 @@ HOST="10.0.2.225"
 PORT="5432"
 
 # Set HPC path to FLASH code
-FLASHHOME=/software/projects/ja3/ger063/setonix/FLASH
+FLASHHOME=/software/projects/ja3/$USER/setonix/FLASH
 # This path is for the CLIENT platform
 #FLASHHOME=/home/flash/src/FLASH
 export FLASHHOME
