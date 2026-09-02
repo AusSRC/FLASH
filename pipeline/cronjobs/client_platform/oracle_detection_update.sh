@@ -30,7 +30,7 @@ MASKDIR="$CRONDIR/masks"
 
 ###############################################################################################
 MODE=$1
-LIMIT=8
+LIMIT=6
 CHECKDB=true
 
 SBIDARR=()
@@ -39,13 +39,19 @@ SBIDARRAY=()
 SBIDMASKS=""
 STATUSLOG="status.log"
 
-DETECTLOG="find_detection.log"
-if [ "$MODE" = "INVERT" ]; then
+if [ "$MODE" = "STD" ]; then
+    DETECTLOG="find_detection.log"
+elif [ "$MODE" = "INVERT" ]; then
     DETECTLOG="find_invert_detection.log"
 elif [ "$MODE" = "MASK" ]; then
     DETECTLOG="find_mask_detection.log"
+elif [ "$MODE" = "INVMASK" ]; then
+    DETECTLOG="find_inv_mask_detection.log"
 elif [ "$MODE" = "TEST" ]; then
     DETECTLOG="test_detection.log"
+else
+    echo "Invalid MODE"
+    exit
 fi
 
 # Check if we were passed sbids to process, or we need to check the db
@@ -54,7 +60,7 @@ if [ "$#" -gt 1 ]; then
     CHECKDB=false
     echo "Got cmd line sbids ${SBIDARR[@]}"
     # For masked detection, only process if there is a matching mask file
-    if [ "$MODE" = "MASK" ]; then
+    if [[ "$MODE" =~ ^("MASK"|"INVMASK")$ ]]; then
         MASKFILES=$(printf '%s ' $MASKDIR/SB*.txt)
         SBIDSTR=($(echo "$MASKFILES" | grep -oE '[0-9]+'))
         for item1 in "${SBIDSTR[@]}"; do
@@ -96,7 +102,7 @@ if [ "$CHECKDB" = true ]; then
     read -a SBIDARR <<< "$SBIDS"
 
     # For masked detection, only process if there is a matching mask file
-    if [ "$MODE" = "MASK" ]; then
+    if [[ "$MODE" =~ ^("MASK"|"INVMASK")$ ]]; then
         MASKFILES=$(printf '%s ' $MASKDIR/SB*.txt)
         SBIDSTR=($(echo "$MASKFILES" | grep -oE '[0-9]+'))
         for item1 in "${SBIDSTR[@]}"; do
@@ -159,7 +165,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
         scp $TMPDIR/$SBID1/*$SBID1*.tar.gz $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/spectra_ascii
 
         # If masking, we need to transfer the mask file to the HPC:
-        if [ "$MODE" = "MASK" ]; then
+        if [[ "$MODE" =~ ^("MASK"|"INVMASK")$ ]]; then
             scp ~/src/cronjobs/masks/*"$SBID1"_mask.txt $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/config/mask.txt
             echo "Sent mask file to HPC platform $HPC_PLATFORM"
         fi
