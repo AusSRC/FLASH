@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FLASHDB</title>
+  <style>
+  div {
+    border: 2px solid black;
+    padding: 4px;
+  }
+  table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+    padding: 15px;
+  }
+  </style>
+</head>
+<body style="background-color:#ABB2B9;">
+  <div class="container-fluid" style="background-color:aquamarine;">
+    <H1 style="text-align: center;">Linefinder Status Check</H1>
+    {% load static %}
+    <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
+    <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
+    <br>
+    <br>* Exludes SBIDs that have been marked REJECTED, BAD, or NOT_VALIDATED. 
+    <br>* If "Bad ASCII Found", then bad components would have been checked and matching components excluded from the "Missing" count.     <form action="/">
+        <input type="submit" value="Return to Main page"/>
+    </form>
+  </div>
+  <div class="container-fluid">       
+    <table style="background-color:white">
+      <thead>
+        <tr>
+          <th>SBID</th>
+          <th>Number of Components</th>
+          <th>Bad ASCII Found</th>
+          <th>Missing components (STD)</th>
+          <th>Missing components (INVERT)</th>
+          <th>Missing components (MASK)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.sbid }}</td>
+            <td>{{ row.components }}</td>
+            <td>{{ row.bad_ascii }}</td>
+            <td>{{ row.STD }}</td>
+            <td>{{ row.INVERT }}</td>
+            <td>{{ row.MASK }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
