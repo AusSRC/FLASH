@@ -4,6 +4,7 @@ import shutil
 import re
 import tarfile
 
+from collections import defaultdict
 from django.utils import timezone
 from pathlib import Path
 import psycopg2
@@ -507,6 +508,135 @@ def get_bad_file_description(name):
             return category["description"]
     return None
 
+def get_sbids_for_linefinder(cursor):
+    """Get all SBID IDs that are not rejected, bad, or not validated."""
+    cursor.execute("""
+        SELECT id, sbid_num
+        FROM sbid
+        WHERE quality not in ('REJECTED', 'BAD', 'NOT_VALIDATED')
+        ORDER BY sbid_num;
+    """)
+    return [(row[0], row[1]) for row in cursor.fetchall()]
+
+def get_components_for_sbid(cur, sid):
+    """
+    Get list of comp_id for an SBID id
+    """
+    query = """
+        SELECT comp_id
+        FROM component
+        WHERE sbid_id = %s
+        ORDER BY comp_id;
+    """
+    cur.execute(query, (sid,))
+
+    return [row[0] for row in cur.fetchall()]
+
+def get_detection_results_for_sbid(cur, sid, mode):
+    """Get result data for a specific linefinder mode, skipping the ones that haven't been run."""
+    if mode == "STD":
+        # skip if detection hasn't been run
+        query = "SELECT results FROM sbid WHERE id = %s and detectionF = true;"
+    elif mode == "MASK":
+        query = "SELECT mask_results FROM sbid WHERE id = %s and mask_detectionF = true;"
+    elif mode == "INVERT":
+        query = "SELECT invert_results FROM sbid WHERE id = %s and invert_detectionF = true;"
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
+    cur.execute(query, (sid,))
+    result = cur.fetchone()
+    if result is None or result[0] is None:
+        return []
+    return [
+        line.strip() 
+        for line in result[0].split("\n")
+        if line.strip()
+    ]
+
+def get_bad_components_by_sbid():
+    """Get all the component names with bad ascii grouped by sbid"""
+    components_by_sbid = defaultdict(list)
+    bad_json_file = settings.BASE_DIR/"../../pipeline/detection/bad_files.json"
+    if os.path.exists(bad_json_file):
+        with open(bad_json_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            for category, sbids in data.items():
+                for sbid, components in sbids.items():
+                    components_by_sbid[sbid].extend(components)
+            f.close()
+    else:
+        return HttpResponse(f"{bad_json_file} is not found! Please run the cronjob to generate it.")        
+
+    return components_by_sbid
+
+def linefinder_status_view(request):
+    session_id = get_session_id(request)
+    password = request.POST.get('pass')
+    try:
+        conn = connect(password=password)
+        conn.close()
+    except:
+        return HttpResponse("Password has failed")
+
+    # Get the list of bad components for each SBID to check for bad ASCII files
+    bad_components_by_sbid = get_bad_components_by_sbid()
+    with connection.cursor() as cursor:
+        sbids = get_sbids_for_linefinder(cursor)        
+        modes = ["STD", "INVERT",  "MASK"]
+        rows = [] #rows to be displayed in the template
+        for sid, sbid_num in sbids:
+            components = get_components_for_sbid(cursor, sid)
+            results = {}
+            for mode in modes:
+                results[mode] = get_detection_results_for_sbid(cursor, sid, mode)
+                missing = {
+                    "STD": 0,
+                    "MASK": 0,
+                    "INVERT": 0
+                }
+                
+                bad_ascii_found = "No" #true if bad_ascii exists for the sbid
+                
+                if not results[mode]: 
+                    missing[mode] = "NOT RUN"
+                else:    
+                    for component in components:
+                        component_name = component.strip()
+                        # Remove spec_ prefix
+                        if component_name.startswith("spec_"):
+                            component_name = component_name[len("spec_"):]
+                        # Remove .fits extension
+                        if component_name.endswith(".fits"):
+                            component_name = component_name[:-len(".fits")]
+
+                        component_number = component_name.split("component_", 1)[1]
+
+                        # skip if component is of bad ascii
+                        if component_number not in bad_components_by_sbid[sbid_num]:
+                            for mode in modes:
+                                component_found = False
+                                for row in results[mode]:
+                                    # Skip possible header row
+                                    if row.lower().startswith("name"):
+                                        continue                                
+                                    # Match component name against result row
+                                    if component_name in row:
+                                        component_found = True
+                                        break
+                                if not component_found:
+                                    missing[mode] += 1  
+                        else:
+                            bad_ascii_found = "Yes"
+                rows.append({
+                    "sbid": sbid_num,
+                    "components": len(components),
+                    "bad_ascii": bad_ascii_found,
+                    "STD": missing['STD'],
+                    "INVERT": missing['INVERT'],
+                    "MASK": missing['MASK']
+                })
+    return render(request, "linefinder_status.html", {"session_id": session_id, "rows": rows})
+
 def bad_ascii_view(request):
     session_id = get_session_id(request)
     password = request.POST.get('pass')
@@ -517,13 +647,13 @@ def bad_ascii_view(request):
         return HttpResponse("Password has failed")
 
     # Load the bad_files.json file
-    bad_json_file = settings.BASE_DIR/"../../../cronjobs/bad_files/bad_files.json"
+    bad_json_file = settings.BASE_DIR/"../../pipeline/detection/bad_files.json"
     sbid_source_dict = {}
     if os.path.exists(bad_json_file):
         with open(bad_json_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
             for category in ['flux', 'noise', 'malformed', 'stalled']:
-                category_data = data[category]
+                category_data = data.get(category)
                 description = get_bad_file_description(category)
                 for sbid,sources in category_data.items():
                     if sbid not in sbid_source_dict:
