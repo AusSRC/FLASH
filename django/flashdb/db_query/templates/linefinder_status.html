@@ -22,7 +22,7 @@
     <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
     <br>
     <br>* Exludes SBIDs that have been marked REJECTED, BAD, or NOT_VALIDATED. 
-    <br>* If "Bad ASCII Found", then bad components would have been checked and matching components excluded from the "Missing" count.     <form action="/">
+    <form action="/">
         <input type="submit" value="Return to Main page"/>
     </form>
   </div>
@@ -32,7 +32,6 @@
         <tr>
           <th>SBID</th>
           <th>Number of Components</th>
-          <th>Bad ASCII Found</th>
           <th>Missing components (STD)</th>
           <th>Missing components (INVERT)</th>
           <th>Missing components (MASK)</th>
@@ -43,10 +42,39 @@
           <tr>
             <td>{{ row.sbid }}</td>
             <td>{{ row.components }}</td>
-            <td>{{ row.bad_ascii }}</td>
-            <td>{{ row.STD }}</td>
-            <td>{{ row.INVERT }}</td>
-            <td>{{ row.MASK }}</td>
+            <td> 
+              {% if row.STD == "NOT RUN" %} 
+                {{ row.STD }} 
+              {% elif row.STD > 0 %} 
+                <a href="{% url 'show_missing_components' %}?sbid={{ row.sbid }}&mode=STD" target="_blank">
+                  {{ row.STD }} 
+                </a> 
+              {% else %} 
+                {{ row.STD }} 
+              {% endif %} 
+            </td>
+            <td> 
+              {% if row.INVERT == "NOT RUN" %} 
+                {{ row.INVERT }} 
+              {% elif row.INVERT > 0 %} 
+                <a href="{% url 'show_missing_components' %}?sbid={{ row.sbid }}&mode=INVERT" target="_blank"> 
+                  {{ row.INVERT }} 
+                </a> 
+              {% else %} 
+                {{ row.INVERT }} 
+              {% endif %}
+            </td>
+            <td> 
+              {% if row.MASK == "NOT RUN" %} 
+                {{ row.MASK }} 
+              {% elif row.MASK > 0 %} 
+                <a href="{% url 'show_missing_components' %}?sbid={{ row.sbid }}&mode=MASK" target="_blank"> 
+                  {{ row.MASK }} 
+                </a> 
+              {% else %} 
+                {{ row.MASK }} 
+              {% endif %} 
+            </td>  
           </tr>
         {% endfor %}
       </tbody>

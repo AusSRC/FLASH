@@ -27,7 +27,6 @@ def connect(db="flashdb",user="flash",host="10.0.2.225",password=None):
         host = host,
         port = 5432
     )
-    #print(conn.get_dsn_parameters(),"\n")
     return conn
 
 def get_cursor(conn):
@@ -110,7 +109,6 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
 
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
-    #print(f"For {sbid}:{version} ...")
     # min val for ln_mean:
     try:
         ln_mean = float(LN_MEAN)
@@ -532,18 +530,18 @@ def get_components_for_sbid(cur, sid):
 
     return [row[0] for row in cur.fetchall()]
 
-def get_detection_results_for_sbid(cur, sid, mode):
+def get_detection_results_for_sbid(cur, sbid, mode):
     """Get result data for a specific linefinder mode, skipping the ones that haven't been run."""
     if mode == "STD":
         # skip if detection hasn't been run
-        query = "SELECT results FROM sbid WHERE id = %s and detectionF = true;"
+        query = "SELECT results FROM sbid WHERE sbid_num = %s and detectionF = true;"
     elif mode == "MASK":
-        query = "SELECT mask_results FROM sbid WHERE id = %s and mask_detectionF = true;"
+        query = "SELECT mask_results FROM sbid WHERE sbid_num = %s and mask_detectionF = true;"
     elif mode == "INVERT":
-        query = "SELECT invert_results FROM sbid WHERE id = %s and invert_detectionF = true;"
+        query = "SELECT invert_results FROM sbid WHERE sbid_num = %s and invert_detectionF = true;"
     else:
         raise ValueError(f"Unknown mode: {mode}")
-    cur.execute(query, (sid,))
+    cur.execute(query, (sbid,))
     result = cur.fetchone()
     if result is None or result[0] is None:
         return []
@@ -562,7 +560,7 @@ def get_bad_components_by_sbid():
             data = json.load(f)
             for category, sbids in data.items():
                 for sbid, components in sbids.items():
-                    components_by_sbid[sbid].extend(components)
+                    components_by_sbid[str(sbid)].extend(components)
             f.close()
     else:
         return HttpResponse(f"{bad_json_file} is not found! Please run the cronjob to generate it.")        
@@ -570,6 +568,12 @@ def get_bad_components_by_sbid():
     return components_by_sbid
 
 def linefinder_status_view(request):
+    """
+    Display health check for linefinder runs per mode (STD, INVERT, MASK) for each SBID. 
+    Shows number of components and missing components per mode.
+    Excudes SBIDs that are rejected, bad, or not validated, and detections that have not been run.
+    If there are missing components, it will link to details of the missing components for that SBID and mode.
+    """
     session_id = get_session_id(request)
     password = request.POST.get('pass')
     try:
@@ -578,64 +582,110 @@ def linefinder_status_view(request):
     except:
         return HttpResponse("Password has failed")
 
-    # Get the list of bad components for each SBID to check for bad ASCII files
+    # Get the bad components by SBID from the bad_files.json file
     bad_components_by_sbid = get_bad_components_by_sbid()
+    missing_info = defaultdict(dict)
+
     with connection.cursor() as cursor:
-        sbids = get_sbids_for_linefinder(cursor)        
-        modes = ["STD", "INVERT",  "MASK"]
-        rows = [] #rows to be displayed in the template
+        # exclude SBIDs that are rejected, bad, or not validated
+        sbids = get_sbids_for_linefinder(cursor)
+        modes = ["STD", "INVERT", "MASK"]
+        rows = []
+
         for sid, sbid_num in sbids:
             components = get_components_for_sbid(cursor, sid)
-            results = {}
+            bad_comps = bad_components_by_sbid.get(str(sbid_num))
+            mode_counts = {}
+
             for mode in modes:
-                results[mode] = get_detection_results_for_sbid(cursor, sid, mode)
-                missing = {
-                    "STD": 0,
-                    "MASK": 0,
-                    "INVERT": 0
-                }
-                
-                bad_ascii_found = "No" #true if bad_ascii exists for the sbid
-                
-                if not results[mode]: 
-                    missing[mode] = "NOT RUN"
-                else:    
+                # exludes the ones not run yet
+                results = get_detection_results_for_sbid(
+                    cursor,
+                    sbid_num,
+                    mode
+                )
+                missing_components = []
+                # Linefinder has not been run
+                if not results:
+                    mode_counts[mode] = 'Not run'
+                else:
                     for component in components:
-                        component_name = component.strip()
-                        # Remove spec_ prefix
-                        if component_name.startswith("spec_"):
-                            component_name = component_name[len("spec_"):]
-                        # Remove .fits extension
-                        if component_name.endswith(".fits"):
-                            component_name = component_name[:-len(".fits")]
+                        component_name = (
+                            component.strip()
+                            .replace("spec_", "", 1)
+                            .removesuffix(".fits")
+                        )
+                        component_number = component_name.split(
+                            "component_",
+                            1
+                        )[1]
 
-                        component_number = component_name.split("component_", 1)[1]
+                        # missing component from results
+                        if component_name not in results:
+                            missing_components.append(
+                                component_number
+                            )
+                    mode_counts[mode] = len(missing_components)
 
-                        # skip if component is of bad ascii
-                        if component_number not in bad_components_by_sbid[sbid_num]:
-                            for mode in modes:
-                                component_found = False
-                                for row in results[mode]:
-                                    # Skip possible header row
-                                    if row.lower().startswith("name"):
-                                        continue                                
-                                    # Match component name against result row
-                                    if component_name in row:
-                                        component_found = True
-                                        break
-                                if not component_found:
-                                    missing[mode] += 1  
-                        else:
-                            bad_ascii_found = "Yes"
-                rows.append({
-                    "sbid": sbid_num,
-                    "components": len(components),
-                    "bad_ascii": bad_ascii_found,
-                    "STD": missing['STD'],
-                    "INVERT": missing['INVERT'],
-                    "MASK": missing['MASK']
-                })
-    return render(request, "linefinder_status.html", {"session_id": session_id, "rows": rows})
+                # for the href linking to more details per mode
+                missing_info[str(sbid_num)][mode] = {
+                    "bad_ascii": bad_comps,
+                    "missing": missing_components
+                }
+
+            rows.append({
+                "sbid": sbid_num,
+                "components": len(components),
+                "STD": mode_counts["STD"],
+                "INVERT": mode_counts["INVERT"],
+                "MASK": mode_counts["MASK"]
+            })
+
+    # Save the information needed by the show_missing_components view in the session
+    request.session["missing_info"] = dict(missing_info)
+    request.session.modified = True
+
+    return render(
+        request,
+        "linefinder_status.html",
+        {
+            "session_id": session_id,
+            "rows": rows
+        }
+    )
+
+def show_missing_components(request):
+    """Show the missing components for a specific SBID and mode linked to a row in linefinder_status.html"""
+    session_id = get_session_id(request)
+    sbid = request.GET.get("sbid")
+    mode = request.GET.get("mode")
+
+    # info with missing components from bad ascii and the rest
+    missing_info = request.session.get("missing_info", {})
+
+    info = (
+        missing_info
+        .get(str(sbid), {})
+        .get(mode)
+    )
+
+    if info is None:
+        return HttpResponse(
+            "No missing component information found",
+            status=404
+        )
+
+    return render(
+        request,
+        "missing_components.html",
+        {
+            "session_id": session_id,
+            "sbid": sbid,
+            "mode": mode,
+            "bad_components": info["bad_ascii"],
+            "missing_components": info["missing"]
+        }
+    )
 
 def bad_ascii_view(request):
     session_id = get_session_id(request)
