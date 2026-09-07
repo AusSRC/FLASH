@@ -557,12 +557,8 @@ def get_detection_results_for_sbid(cur, sbid, mode):
     cur.execute(query, (sbid,))
     result = cur.fetchone()
     if result is None or result[0] is None:
-        return []
-    return [
-        line.strip() 
-        for line in result[0].split("\n")
-        if line.strip()
-    ]
+        return None
+    return result[0]
 
 def get_bad_components_by_sbid():
     """Get all the component names with bad ascii grouped by sbid"""
