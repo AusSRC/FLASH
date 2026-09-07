@@ -675,6 +675,8 @@ def show_missing_components(request):
             status=404
         )
 
+    actually_missing = [x for x in info["missing"] if x not in info["bad_ascii"]]
+
     return render(
         request,
         "missing_components.html",
@@ -683,7 +685,7 @@ def show_missing_components(request):
             "sbid": sbid,
             "mode": mode,
             "bad_components": info["bad_ascii"],
-            "missing_components": info["missing"]
+            "missing_components": actually_missing
         }
     )
 
