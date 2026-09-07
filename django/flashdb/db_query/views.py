@@ -534,11 +534,13 @@ def get_detection_results_for_sbid(cur, sbid, mode):
     """Get result data for a specific linefinder mode, skipping the ones that haven't been run."""
     if mode == "STD":
         # skip if detection hasn't been run
-        query = "SELECT results FROM sbid WHERE sbid_num = %s and detectionF = true;"
+        query = "SELECT results FROM sbid WHERE sbid_num = %s and detectionf = true;"
     elif mode == "MASK":
-        query = "SELECT mask_results FROM sbid WHERE sbid_num = %s and mask_detectionF = true;"
+        query = "SELECT mask_results FROM sbid WHERE sbid_num = %s and mask_detectionf = true;"
     elif mode == "INVERT":
-        query = "SELECT invert_results FROM sbid WHERE sbid_num = %s and invert_detectionF = true;"
+        query = "SELECT invert_results FROM sbid WHERE sbid_num = %s and invert_detectionf = true;"
+    elif mode == "INVMASK":
+        query = "SELECT mask_invert_results FROM sbid WHERE sbid_num = %s and mask_invertf = true;"
     else:
         raise ValueError(f"Unknown mode: {mode}")
     cur.execute(query, (sbid,))
@@ -569,7 +571,7 @@ def get_bad_components_by_sbid():
 
 def linefinder_status_view(request):
     """
-    Display health check for linefinder runs per mode (STD, INVERT, MASK) for each SBID. 
+    Display health check for linefinder runs per mode (STD, INVERT, MASK, INVMASK) for each SBID. 
     Shows number of components and missing components per mode.
     Excudes SBIDs that are rejected, bad, or not validated, and detections that have not been run.
     If there are missing components, it will link to details of the missing components for that SBID and mode.
@@ -589,7 +591,7 @@ def linefinder_status_view(request):
     with connection.cursor() as cursor:
         # exclude SBIDs that are rejected, bad, or not validated
         sbids = get_sbids_for_linefinder(cursor)
-        modes = ["STD", "INVERT", "MASK"]
+        modes = ["STD", "INVERT", "MASK", "INVMASK"]
         rows = []
 
         for sid, sbid_num in sbids:
@@ -607,7 +609,7 @@ def linefinder_status_view(request):
                 missing_components = []
                 # Linefinder has not been run
                 if not results:
-                    mode_counts[mode] = 'Not run'
+                    mode_counts[mode] = 'NOT RUN'
                 else:
                     for component in components:
                         component_name = (
@@ -638,7 +640,8 @@ def linefinder_status_view(request):
                 "components": len(components),
                 "STD": mode_counts["STD"],
                 "INVERT": mode_counts["INVERT"],
-                "MASK": mode_counts["MASK"]
+                "MASK": mode_counts["MASK"],
+                "INVMASK": mode_counts["INVMASK"]
             })
 
     # Save the information needed by the show_missing_components view in the session

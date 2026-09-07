@@ -35,6 +35,7 @@
           <th>Missing components (STD)</th>
           <th>Missing components (INVERT)</th>
           <th>Missing components (MASK)</th>
+          <th>Missing components (INVMASK)</th>
         </tr>
       </thead>
       <tbody>
@@ -73,6 +74,17 @@
                 </a> 
               {% else %} 
                 {{ row.MASK }} 
+              {% endif %} 
+            </td>
+            <td> 
+              {% if row.INVMASK == "NOT RUN" %} 
+                {{ row.INVMASK }} 
+              {% elif row.INVMASK > 0 %} 
+                <a href="{% url 'show_missing_components' %}?sbid={{ row.sbid }}&mode=INVMASK" target="_blank"> 
+                  {{ row.INVMASK }} 
+                </a> 
+              {% else %} 
+                {{ row.INVMASK }} 
               {% endif %} 
             </td>  
           </tr>
