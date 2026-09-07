@@ -521,14 +521,25 @@ def get_components_for_sbid(cur, sid):
     Get list of comp_id for an SBID id
     """
     query = """
-        SELECT comp_id
+        SELECT DISTINCT comp_id
         FROM component
         WHERE sbid_id = %s
         ORDER BY comp_id;
     """
     cur.execute(query, (sid,))
 
-    return [row[0] for row in cur.fetchall()]
+    comp_ids = [row[0] for row in cur.fetchall()]
+    unique_components = set() #make sure we don't count the same component multiple times
+    for comp_id in comp_ids:
+        component_number = (
+            comp_id.strip()
+                .replace("spec_", "", 1)
+                .removesuffix(".fits")
+                .split("component_", 1)[1]
+            )    
+        unique_components.add(component_number)
+
+    return unique_components
 
 def get_detection_results_for_sbid(cur, sbid, mode):
     """Get result data for a specific linefinder mode, skipping the ones that haven't been run."""
@@ -607,22 +618,14 @@ def linefinder_status_view(request):
                     mode
                 )
                 missing_components = []
+                
                 # Linefinder has not been run
                 if not results:
                     mode_counts[mode] = 'NOT RUN'
                 else:
-                    for component in components:
-                        component_name = (
-                            component.strip()
-                            .replace("spec_", "", 1)
-                            .removesuffix(".fits")
-                        )
-                        component_number = component_name.split(
-                            "component_",
-                            1
-                        )[1]
-
+                    for component_number in components:
                         # missing component from results
+                        component_name = f"component_{component_number}"
                         if component_name not in results:
                             missing_components.append(
                                 component_number
@@ -678,7 +681,10 @@ def show_missing_components(request):
             status=404
         )
 
-    actually_missing = [x for x in info["missing"] if x not in info["bad_ascii"]]
+    actually_missing = [
+        x for x in info["missing"]
+        if x not in info["bad_ascii"]
+    ]
 
     return render(
         request,
