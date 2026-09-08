@@ -9,8 +9,8 @@ python flashdb/manage.py runserver
 
 In a browser navigate to localhost:8000
 
-# Local App in Docker + Gunicorn + Nginx (80) Start (fill local_envs with values for your local db but leave db_host alone)
+# Local App in Docker + Gunicorn + Nginx (80) Start (fill local_docker_envs with values for your local db but leave db_host alone)
 docker-compose -f docker-compose-local.yml up --build
 In a browser navigate to localhost:80
 
-# Deployed App in VM Docker + Nginx (443) Start (set secrets on ansible build and let the CI do it)
+# Deployed App in VM Docker + Nginx (443) Start (set secrets.env before ansible build and let the CI do it)
