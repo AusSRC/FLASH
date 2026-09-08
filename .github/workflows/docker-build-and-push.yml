@@ -47,7 +47,6 @@ jobs:
           file: django/Dockerfile
           push: true
           tags: |
-            aussrc/flash_gui:latest
             aussrc/flash_gui:${{ needs.get_version.outputs.version }}
             aussrc/flash_gui:${{ github.sha }}
 
