@@ -56,7 +56,7 @@ WORKDIR /app
 # ---------------------------------------------------------
 
 RUN groupadd -g 2000 flash && \
-    useradd -m -u 999 -g django app
+    useradd -m -u 999 -g flash django
 
 # ---------------------------------------------------------
 # Copy application
@@ -68,9 +68,9 @@ COPY --from=builder /app /app
 # Set ownership
 # ---------------------------------------------------------
 
-RUN chown -R app:flash /app
+RUN chown -R django:flash /app
 
-USER app
+USER django
 
 # ---------------------------------------------------------
 # Start Gunicorn
