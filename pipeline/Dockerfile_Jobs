@@ -27,14 +27,14 @@ RUN pip install --no-cache-dir uv --root-user-action=ignore
 # Dependency layer (cache-friendly)
 # ---------------------------------------------------------
 
-COPY database/pyproject.toml uv.lock ./
+COPY pipeline/pyproject.toml pipeline/uv.lock ./
 
 # ---------------------------------------------------------
 # Copy source code
 # ---------------------------------------------------------
 
 COPY database ./database
-COPY cronjobs/client_platform ./cronjobs/client_platform
+COPY pipeline/cronjobs/client_platform pipeline/cronjobs/client_platform
 
 # Install local project into virtualenv
 RUN uv sync --frozen --no-dev
@@ -55,7 +55,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 # ---------------------------------------------------------
 
 RUN groupadd -g 2000 flash && \
-    useradd -m -u 999 -g flash job
+    useradd -m -u 1003 -g flash job
 
 # ---------------------------------------------------------
 # Copy application
@@ -71,6 +71,6 @@ RUN chown -R job:flash /app
 
 USER job
 
-WORKDIR app/cronjobs/client_platform
+WORKDIR app/pipeline/cronjobs/client_platform
 
 ENTRYPOINT ["bash"]

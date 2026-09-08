@@ -56,7 +56,7 @@ WORKDIR /app
 # ---------------------------------------------------------
 
 RUN groupadd -g 2000 flash && \
-    useradd -m -u 999 -g flash django
+    useradd -m -u 1004 -g flash django
 
 # ---------------------------------------------------------
 # Copy application

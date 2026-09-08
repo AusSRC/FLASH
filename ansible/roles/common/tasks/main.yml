@@ -23,6 +23,7 @@
 - name: Create deploy user
   ansible.builtin.user:
     name: "{{ deploy_user }}"
+    uid: 1002  # VM makes ubuntu as 1001
     state: present
     create_home: true
     shell: /bin/bash
@@ -30,6 +31,7 @@
 - name: Create job user
   ansible.builtin.user:
     name: "{{ job_user }}"
+    uid: 1003
     state: present
     create_home: true
     shell: /bin/bash
@@ -38,7 +40,7 @@
 - name: Create django user
   ansible.builtin.user:
     name: "{{ django_user }}"
-    uid: 999
+    uid: 1004
     state: present
     create_home: true
     shell: /bin/bash
