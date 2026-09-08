@@ -3,6 +3,7 @@ ssh_port: 22
 ssh_admin_user: ubuntu
 deploy_user: deploy
 job_user: job
+django_user: django
 
 allowed_ports:
   - 443

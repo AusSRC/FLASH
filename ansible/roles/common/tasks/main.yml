@@ -33,3 +33,12 @@
     state: present
     create_home: true
     shell: /bin/bash
+
+# Note flash user id must match whats given to flash user in dockerfile
+- name: Create django user
+  ansible.builtin.user:
+    name: "{{ django_user }}"
+    uid: 999
+    state: present
+    create_home: true
+    shell: /bin/bash

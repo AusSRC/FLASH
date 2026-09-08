@@ -12,6 +12,7 @@ media
 secrets.env
 fullchain.pem
 privkey.pem
+*_key
 
 # (optional safety: ignore any env/pem variants)
 *.env

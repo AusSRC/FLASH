@@ -2,7 +2,6 @@
 
 
 #######################################################################################################
-source $HOME/set_local_flash_env.sh
 
 echo "Checking for bad ascii files on HPC"
 

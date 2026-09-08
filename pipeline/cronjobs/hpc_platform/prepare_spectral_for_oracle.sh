@@ -29,6 +29,7 @@ for SBID in "${SBIDARRAY[@]}"; do
     # the complete mark for it is not present
     echo "Removing old ${WORKDIR} and its complete flag in staging area"
     rm -f $WORKDIR
+    rm -f "${WORKDIR}.tar.gz"
     rm -f "$(dirname "$WORKDIR")/$(basename "$WORKDIR").complete"
 
     # Make the needed folders & everything down to them

@@ -12,3 +12,4 @@
     - secrets
     - ssl
     - psql
+    - oci

@@ -40,7 +40,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build and push
+      - name: Build and push Service Image
         uses: docker/build-push-action@v7
         with:
           context: django
@@ -50,6 +50,16 @@ jobs:
             aussrc/flash_gui:latest
             aussrc/flash_gui:${{ needs.get_version.outputs.version }}
             aussrc/flash_gui:${{ github.sha }}
+
+      - name: Build and push Jobs Image
+        uses: docker/build-push-action@v7
+        with:
+          context: django
+          file: pipeline/Dockerfile_Jobs
+          push: true
+          tags: |
+            aussrc/flash_jobs:${{ needs.get_version.outputs.version }}
+            aussrc/flash_jobs:${{ github.sha }}
 
   deploy:
     runs-on: ubuntu-latest
