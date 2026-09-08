@@ -1,6 +1,7 @@
 cron_job_runner: >-
   docker compose
-  --env-file /srv/flash/jobs/.env
+  -f /home/job/docker-compose-jobs.yml
+  --env-file /etc/flashdb/secrets.env
   run --rm submit-hpc-job
 
 cron_jobs:

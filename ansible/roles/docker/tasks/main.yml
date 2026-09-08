@@ -70,7 +70,7 @@
 - name: Copy docker-compose-jobs.yml to Job user home directory
   copy:
     src: "docker-compose-jobs.yml"
-    dest: "/home/{{ deploy_user }}/docker-compose-jobs.yml"
+    dest: "/home/{{ job_user }}/docker-compose-jobs.yml"
     owner: "{{ job_user }}"
     group: "{{ job_user }}"
     mode: "0644"

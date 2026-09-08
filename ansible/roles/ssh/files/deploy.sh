@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 0002
 
 # Prefer explicit argument if passed
-TAG="${SSH_ORIGINAL_COMMAND##* }"
+if [[ $# -ge 1 ]]; then
+  TAG="$1"
+else
+  TAG="${SSH_ORIGINAL_COMMAND##* }"
+fi
 
 # Safety check for missing tag
 if [[ -z "$TAG" ]]; then
@@ -18,6 +23,7 @@ if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 export FLASH_IMAGE_TAG="$TAG"
+echo "FLASH_JOB_IMAGE_TAG=$TAG" > /etc/flashdb/job_version.env
 
 # Pull the docker image
 docker compose pull
