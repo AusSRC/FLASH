@@ -53,7 +53,7 @@ jobs:
       - name: Build and push Jobs Image
         uses: docker/build-push-action@v7
         with:
-          context: pipeline
+          context: .
           file: pipeline/Dockerfile_Jobs
           push: true
           tags: |
