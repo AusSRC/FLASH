@@ -36,7 +36,8 @@ rm -rf /srv/flashdb/staticfiles/*
 rm -rf /srv/flashdb/media/*
 
 # Create new static files using the docker container
-docker compose run --rm web python manage.py collectstatic --noinput
+docker compose run --rm web \
+  sh -c 'umask 0002 && python manage.py collectstatic --noinput'
 
 # Start up the nginx and django services and clear up old ones
 docker compose up -d --remove-orphans

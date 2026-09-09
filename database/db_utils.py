@@ -50,6 +50,8 @@ DETECTFLAGS = {"45762":{"STD":False, "INVERT":False, "MASK":False}} # Dictionary
 ############ - FLASHDB details ################################################################################
 HOST = "10.0.2.225"
 PORT = 5432
+DATABASE = "flashdb"
+USER = "flash"
 
 #HOST = "146.118.64.208"
 #PORT = 2095
@@ -72,7 +74,13 @@ def set_parser():
             help='database host ip (default: %(default)s)')    
     parser.add_argument('-pt', '--port',
             default="5432",
-            help='database host port (default: %(default)s)')    
+            help='database host port (default: %(default)s)')
+    parser.add_argument('-db', '--database',
+            default="flashdb",
+            help='database name (default: %(default)s)')
+    parser.add_argument('-dbu', '--database_user',
+            default="flash",
+            help='database username (default: %(default)s)')
     parser.add_argument('-d', '--sbid_dir',
             default=SBIDDIR,
             help='Specify local directory to use (default: %(default)s)')   
@@ -109,7 +117,7 @@ def set_parser():
 
 def set_mode_and_values(args):
     global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, DUMMY, REJECTED, CASDA_EMAIL
-    global HOST, PORT, PASSWD, MODE
+    global HOST, PORT, PASSWD, MODE, USER, DATABASE
 
     RUN_TYPE = args.mode.strip().upper()
     SBIDDIR = args.sbid_dir.strip()
@@ -134,10 +142,11 @@ def set_mode_and_values(args):
     PASSWD = args.flashpw
     HOST = args.host.strip()
     PORT = args.port.strip()
+    DATABASE = args.database.strip()
+    USER = args.user.strip()
 
 
-
-def connect(db="flashdb",user="flash",host=HOST,port=PORT,password=None):
+def connect(db=DATABASE,user=USER,host=HOST,port=PORT,password=None):
 
     if not password:
         password = PASSWD

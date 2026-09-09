@@ -4,7 +4,6 @@ services:
 
     env_file:
       - /etc/flashdb/secrets.env
-      - /etc/flashdb/job_version.env
     volumes:
       - /srv/flashdb/job-data:/data
       - /home/job/.ssh/setonix:/home/app/.ssh/setonix:ro

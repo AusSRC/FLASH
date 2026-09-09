@@ -14,7 +14,9 @@ services:
       - /srv/flashdb/staticfiles:/app/staticfiles
     env_file:
       - /etc/flashdb/secrets.env
-    command: gunicorn flashdb.wsgi:application --bind 0.0.0.0:8000
+    command: >
+      sh -c 'umask 0002 &&
+             gunicorn flashdb.wsgi:application --bind 0.0.0.0:8000'
 
   nginx:
     image: nginx:stable-alpine
