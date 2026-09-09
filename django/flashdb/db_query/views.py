@@ -4,7 +4,6 @@ import shutil
 import re
 import tarfile
 
-from collections import defaultdict
 from django.utils import timezone
 from pathlib import Path
 import psycopg2
@@ -506,27 +505,50 @@ def get_bad_file_description(name):
             return category["description"]
     return None
 
-def get_sbids_for_linefinder(cursor):
+def get_sbids_and_linefinder_results_count(cursor):
     """Get all SBID IDs that are not rejected, bad, or not validated."""
     cursor.execute("""
-        SELECT id, sbid_num
+        SELECT sbid_num,
+            CASE
+                WHEN results IS NULL THEN 0
+                ELSE (length(results) - length(replace(results, 'component', '')))
+                     / length('component')
+            END AS std_count,
+        
+            CASE
+                WHEN invert_results IS NULL THEN 0
+                ELSE (length(invert_results) - length(replace(invert_results, 'component', '')))
+                     / length('component')
+            END AS invert_count,
+        
+            CASE
+                WHEN mask_results IS NULL THEN 0
+                ELSE (length(mask_results) - length(replace(mask_results, 'component', '')))
+                     / length('component')
+            END AS mask_count,
+        
+            CASE
+                WHEN mask_invert_results IS NULL THEN 0
+                ELSE (length(mask_invert_results) - length(replace(mask_invert_results, 'component', '')))
+                     / length('component')
+            END AS invmask_count
         FROM sbid
         WHERE quality not in ('REJECTED', 'BAD', 'NOT_VALIDATED')
-        ORDER BY sbid_num;
+        ORDER BY std_count;
     """)
-    return [(row[0], row[1]) for row in cursor.fetchall()]
+    return [(row[0], row[1], row[2], row[3], row[4]) for row in cursor.fetchall()]
 
-def get_components_for_sbid(cur, sid):
+def get_components_for_sbid(cur, sbid_num):
     """
-    Get list of comp_id for an SBID id
+    Get list of comp_id for an SBID number
     """
     query = """
         SELECT DISTINCT comp_id
         FROM component
-        WHERE sbid_id = %s
+        WHERE sbid_id = (SELECT id FROM sbid WHERE sbid_num = %s)
         ORDER BY comp_id;
     """
-    cur.execute(query, (sid,))
+    cur.execute(query, (sbid_num,))
 
     comp_ids = [row[0] for row in cur.fetchall()]
     unique_components = set() #make sure we don't count the same component multiple times
@@ -544,14 +566,13 @@ def get_components_for_sbid(cur, sid):
 def get_detection_results_for_sbid(cur, sbid, mode):
     """Get result data for a specific linefinder mode, skipping the ones that haven't been run."""
     if mode == "STD":
-        # skip if detection hasn't been run
-        query = "SELECT results FROM sbid WHERE sbid_num = %s and detectionf = true;"
+        query = "SELECT results FROM sbid WHERE sbid_num = %s;"
     elif mode == "MASK":
-        query = "SELECT mask_results FROM sbid WHERE sbid_num = %s and mask_detectionf = true;"
+        query = "SELECT mask_results FROM sbid WHERE sbid_num = %s;"
     elif mode == "INVERT":
-        query = "SELECT invert_results FROM sbid WHERE sbid_num = %s and invert_detectionf = true;"
+        query = "SELECT invert_results FROM sbid WHERE sbid_num = %s;"
     elif mode == "INVMASK":
-        query = "SELECT mask_invert_results FROM sbid WHERE sbid_num = %s and mask_invertf = true;"
+        query = "SELECT mask_invert_results FROM sbid WHERE sbid_num = %s;"
     else:
         raise ValueError(f"Unknown mode: {mode}")
     cur.execute(query, (sbid,))
@@ -560,29 +581,29 @@ def get_detection_results_for_sbid(cur, sbid, mode):
         return None
     return result[0]
 
-def get_bad_components_by_sbid():
-    """Get all the component names with bad ascii grouped by sbid"""
-    components_by_sbid = defaultdict(list)
-    bad_json_file = os.environ["BAD_FILES_JSON"]
+def get_bad_components_by_sbid(sbid_num):
+    """Get all the component names with bad ascii grouped for supplied sbid"""
+    bad_components = []    
+    bad_json_file = settings.BASE_DIR/"../../pipeline/detection/bad_files.json"  
 
     if os.path.exists(bad_json_file):
         with open(bad_json_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            for category, sbids in data.items():
-                for sbid, components in sbids.items():
-                    components_by_sbid[str(sbid)].extend(components)
+            sbid_num = str(sbid_num)
+            for category in data.values():
+                bad_components.extend(category.get(sbid_num, []))
             f.close()
     else:
-        return HttpResponse(f"{bad_json_file} is not found! Please run the cronjob to generate it.")        
+        return HttpResponse(f"{bad_json_file} is  not found! Please run the cronjob to generate it.")        
 
-    return components_by_sbid
+    return bad_components
 
 def linefinder_status_view(request):
     """
     Display health check for linefinder runs per mode (STD, INVERT, MASK, INVMASK) for each SBID. 
-    Shows number of components and missing components per mode.
+    Shows number of rows currently found in the results for each mode.
     Excudes SBIDs that are rejected, bad, or not validated, and detections that have not been run.
-    If there are missing components, it will link to details of the missing components for that SBID and mode.
+    If there the results aren't empty, it will link to details of the missing components for that SBID and mode.
     """
     session_id = get_session_id(request)
     password = request.POST.get('pass')
@@ -592,61 +613,20 @@ def linefinder_status_view(request):
     except:
         return HttpResponse("Password has failed")
 
-    # Get the bad components by SBID from the bad_files.json file
-    bad_components_by_sbid = get_bad_components_by_sbid()
-    missing_info = defaultdict(dict)
 
     with connection.cursor() as cursor:
         # exclude SBIDs that are rejected, bad, or not validated
-        sbids = get_sbids_for_linefinder(cursor)
-        modes = ["STD", "INVERT", "MASK", "INVMASK"]
+        sbids = get_sbids_and_linefinder_results_count(cursor)
         rows = []
 
-        for sid, sbid_num in sbids:
-            components = get_components_for_sbid(cursor, sid)
-            bad_comps = bad_components_by_sbid.get(str(sbid_num))
-            mode_counts = {}
-
-            for mode in modes:
-                # exludes the ones not run yet
-                results = get_detection_results_for_sbid(
-                    cursor,
-                    sbid_num,
-                    mode
-                )
-                missing_components = []
-                
-                # Linefinder has not been run
-                if not results:
-                    mode_counts[mode] = 'NOT RUN'
-                else:
-                    for component_number in components:
-                        # missing component from results
-                        component_name = f"component_{component_number}"
-                        if component_name not in results:
-                            missing_components.append(
-                                component_number
-                            )
-                    mode_counts[mode] = len(missing_components)
-
-                # for the href linking to more details per mode
-                missing_info[str(sbid_num)][mode] = {
-                    "bad_ascii": bad_comps,
-                    "missing": missing_components
-                }
-
+        for sbid_num, std_count, invert_count, mask_count, invmask_count in sbids:
             rows.append({
                 "sbid": sbid_num,
-                "components": len(components),
-                "STD": mode_counts["STD"],
-                "INVERT": mode_counts["INVERT"],
-                "MASK": mode_counts["MASK"],
-                "INVMASK": mode_counts["INVMASK"]
+                "STD": std_count,
+                "INVERT": invert_count,
+                "MASK": mask_count,
+                "INVMASK": invmask_count
             })
-
-    # Save the information needed by the show_missing_components view in the session
-    request.session["missing_info"] = dict(missing_info)
-    request.session.modified = True
 
     return render(
         request,
@@ -667,25 +647,25 @@ def show_missing_components(request):
     if not sbid:
         return HttpResponseBadRequest("Error: 'sbid' cannot be blank or None.")
 
-    # info with missing components from bad ascii and the rest
-    missing_info = request.session.get("missing_info", {})
+    with connection.cursor() as cursor:
+        components = get_components_for_sbid(cursor, sbid)
+        bad_comps = get_bad_components_by_sbid(sbid)
 
-    info = (
-        missing_info
-        .get(str(sbid), {})
-        .get(mode)
-    )
-
-    if info is None:
-        return HttpResponse(
-            "No missing component information found",
-            status=404
-        )
-
-    actually_missing = [
-        x for x in info["missing"]
-        if x not in info["bad_ascii"]
-    ]
+        #excludes the ones not run yet
+        results = get_detection_results_for_sbid(
+                    cursor,
+                    sbid,
+                    mode
+                )
+        missing_components = [] # missing component from results
+        for component_number in components:
+            component_name = f"component_{component_number}"
+            if component_name not in results:
+                # don't count the bad ascii components as missing
+                if component_number not in bad_comps:
+                    missing_components.append(
+                        component_number
+                    )
 
     return render(
         request,
@@ -694,8 +674,8 @@ def show_missing_components(request):
             "session_id": session_id,
             "sbid": sbid,
             "mode": mode,
-            "bad_components": info["bad_ascii"],
-            "missing_components": actually_missing
+            "bad_components": bad_comps,
+            "missing_components": missing_components
         }
     )
 
