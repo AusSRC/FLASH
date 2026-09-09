@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FLASHDB</title>
+  <style>
+  div {
+    border: 2px solid black;
+    padding: 4px;
+  }
+  table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+    padding: 15px;
+  }
+  </style>
+</head>
+<body style="background-color:#ABB2B9;">
+  <div class="container-fluid" style="background-color:aquamarine;">
+    <H1 style="text-align: center;">Linefinder Status Check</H1>
+    {% load static %}
+    <img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
+    <img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
+    <br>
+    <br>* Exludes SBIDs that have been marked REJECTED, BAD, or NOT_VALIDATED. 
+    <form action="/">
+        <input type="submit" value="Return to Main page"/>
+    </form>
+  </div>
+  <div class="container-fluid">       
+    <table style="background-color:white">
+      <thead>
+        <tr>
+          <th>SBID</th>
+          <th>Number of Components</th>
+          <th>Missing components (STD)</th>
+          <th>Missing components (INVERT)</th>
+          <th>Missing components (MASK)</th>
+          <th>Missing components (INVMASK)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.sbid }}</td>
+            <td>{{ row.components }}</td>
+            <td> 
+              {% if row.STD == "NOT RUN" %} 
+                {{ row.STD }} 
+              {% elif row.STD > 0 %} 
+                <a href="{% url 'show_missing_components' %}?sbid={{ row.sbid }}&mode=STD" target="_blank">
+                  {{ row.STD }} 
+                </a> 
+              {% else %} 
+                {{ row.STD }} 
+              {% endif %} 
+            </td>
+            <td> 
+              {% if row.INVERT == "NOT RUN" %} 
+                {{ row.INVERT }} 
+              {% elif row.INVERT > 0 %} 
+                <a href="{% url 'show_missing_components' %}?sbid={{ row.sbid }}&mode=INVERT" target="_blank"> 
+                  {{ row.INVERT }} 
+                </a> 
+              {% else %} 
+                {{ row.INVERT }} 
+              {% endif %}
+            </td>
+            <td> 
+              {% if row.MASK == "NOT RUN" %} 
+                {{ row.MASK }} 
+              {% elif row.MASK > 0 %} 
+                <a href="{% url 'show_missing_components' %}?sbid={{ row.sbid }}&mode=MASK" target="_blank"> 
+                  {{ row.MASK }} 
+                </a> 
+              {% else %} 
+                {{ row.MASK }} 
+              {% endif %} 
+            </td>
+            <td> 
+              {% if row.INVMASK == "NOT RUN" %} 
+                {{ row.INVMASK }} 
+              {% elif row.INVMASK > 0 %} 
+                <a href="{% url 'show_missing_components' %}?sbid={{ row.sbid }}&mode=INVMASK" target="_blank"> 
+                  {{ row.INVMASK }} 
+                </a> 
+              {% else %} 
+                {{ row.INVMASK }} 
+              {% endif %} 
+            </td>  
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

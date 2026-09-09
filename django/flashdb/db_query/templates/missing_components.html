@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Missing Components</title>
+
+    <style>
+        div {
+            border: 2px solid black;
+            padding: 4px;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            padding: 15px;
+        }
+    </style>
+</head>
+
+<body style="background-color:#ABB2B9;">
+
+    <div style="background-color:aquamarine;">
+
+        <h1 style="text-align:center;">
+            Missing Components
+        </h1>
+
+        <p>
+            <strong>SBID:</strong> {{ sbid }}<br>
+            <strong>Mode:</strong> {{ mode }}
+        </p>
+
+    </div>
+
+    <div style="background-color:white;">
+
+        <h2>Missing Due to Bad ASCII</h2>
+        {% if bad_components %}
+            Total count: {{ bad_components|length }}
+            <ul>
+                {% for component in bad_components %}
+                    <li>{{ component }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>None</p>
+        {% endif %}
+
+        <h2>Missing Due to Other Reasons</h2>
+        {% if missing_components %}
+            Total count: {{ missing_components|length }}
+            <ul>
+                {% for component in missing_components %}
+                    <li>{{ component }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>None</p>
+        {% endif %}
+    </div>
+</body>
+</html>
