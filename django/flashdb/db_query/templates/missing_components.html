@@ -35,7 +35,6 @@
     <div style="background-color:white;">
 
         <h2>Missing Due to Bad ASCII</h2>
-
         {% if bad_components %}
             Total count: {{ bad_components|length }}
             <ul>
@@ -47,7 +46,7 @@
             <p>None</p>
         {% endif %}
 
-        <h2>Genuinely Missing Components</h2>
+        <h2>Missing Due to Other Reasons</h2>
         {% if missing_components %}
             Total count: {{ missing_components|length }}
             <ul>
