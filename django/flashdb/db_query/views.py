@@ -516,54 +516,123 @@ def get_sbids_for_linefinder(cursor):
     """)
     return [(row[0], row[1]) for row in cursor.fetchall()]
 
-def get_components_for_sbid(cur, sid):
+def get_components_for_sbids(cursor, sid_list):
     """
-    Get list of comp_id for an SBID id
-    """
-    query = """
-        SELECT DISTINCT comp_id
-        FROM component
-        WHERE sbid_id = %s
-        ORDER BY comp_id;
-    """
-    cur.execute(query, (sid,))
+    Get component numbers for all SBIDs in one query.
 
-    comp_ids = [row[0] for row in cur.fetchall()]
-    unique_components = set() #make sure we don't count the same component multiple times
-    for comp_id in comp_ids:
+    Returns:
+        {
+            sid: {"1", "2", "3", ...},
+            ...
+        }
+    """
+
+    if not sid_list:
+        return {}
+
+    placeholders = ", ".join(["%s"] * len(sid_list))
+
+    query = f"""
+        SELECT DISTINCT sbid_id, comp_id
+        FROM component
+        WHERE sbid_id IN ({placeholders})
+        ORDER BY sbid_id, comp_id;
+    """
+
+    cursor.execute(query, sid_list)
+
+    components_by_sid = defaultdict(set)
+
+    for sid, comp_id in cursor.fetchall():
         component_number = (
             comp_id.strip()
                 .replace("spec_", "", 1)
                 .removesuffix(".fits")
                 .split("component_", 1)[1]
-            )    
-        unique_components.add(component_number)
+        )
 
-    return unique_components
+        components_by_sid[sid].add(component_number)
 
-def get_detection_results_for_sbid(cur, sbid, mode):
-    """Get result data for a specific linefinder mode, skipping the ones that haven't been run."""
-    if mode == "STD":
-        # skip if detection hasn't been run
-        query = "SELECT results FROM sbid WHERE sbid_num = %s and detectionf = true;"
-    elif mode == "MASK":
-        query = "SELECT mask_results FROM sbid WHERE sbid_num = %s and mask_detectionf = true;"
-    elif mode == "INVERT":
-        query = "SELECT invert_results FROM sbid WHERE sbid_num = %s and invert_detectionf = true;"
-    elif mode == "INVMASK":
-        query = "SELECT mask_invert_results FROM sbid WHERE sbid_num = %s and mask_invertf = true;"
-    else:
-        raise ValueError(f"Unknown mode: {mode}")
-    cur.execute(query, (sbid,))
-    result = cur.fetchone()
-    if result is None or result[0] is None:
-        return None
-    return result[0]
+    return components_by_sid
+
+def get_detection_results_for_sbids(cursor, sbid_nums):
+    """
+    Get all linefinder results for all SBIDs in one query.
+
+    Returns:
+        {
+            sbid_num: {
+                "STD": results or None,
+                "INVERT": results or None,
+                "MASK": results or None,
+                "INVMASK": results or None,
+            },
+            ...
+        }
+    """
+
+    if not sbid_nums:
+        return {}
+
+    placeholders = ", ".join(["%s"] * len(sbid_nums))
+
+    query = f"""
+        SELECT
+            sbid_num,
+            results,
+            invert_results,
+            mask_results,
+            mask_invert_results,
+            detectionf,
+            invert_detectionf,
+            mask_detectionf,
+            mask_invertf
+        FROM sbid
+        WHERE sbid_num IN ({placeholders});
+    """
+
+    cursor.execute(query, sbid_nums)
+
+    results_by_sbid = {}
+
+    for row in cursor.fetchall():
+        (
+            sbid_num,
+            results,
+            invert_results,
+            mask_results,
+            mask_invert_results,
+            detectionf,
+            invert_detectionf,
+            mask_detectionf,
+            mask_invertf,
+        ) = row
+
+        results_by_sbid[sbid_num] = {
+            "STD": results if detectionf and results is not None else None,
+            "INVERT": (
+                invert_results
+                if invert_detectionf and invert_results is not None
+                else None
+            ),
+            "MASK": (
+                mask_results
+                if mask_detectionf and mask_results is not None
+                else None
+            ),
+            "INVMASK": (
+                mask_invert_results
+                if mask_invertf and mask_invert_results is not None
+                else None
+            ),
+        }
+
+    return results_by_sbid
 
 def get_bad_components_by_sbid():
     """Get all the component names with bad ascii grouped by sbid"""
     components_by_sbid = defaultdict(list)
-    bad_json_file = os.environ["BAD_FILES_JSON"]
+    bad_json_file = "/home/flash/src/FLASH/pipeline/detection/bad_files.json"
 
     if os.path.exists(bad_json_file):
         with open(bad_json_file, 'r', encoding='utf-8') as f:
@@ -585,51 +654,65 @@ def linefinder_status_view(request):
     If there are missing components, it will link to details of the missing components for that SBID and mode.
     """
     session_id = get_session_id(request)
-    password = request.POST.get('pass')
+    password = request.POST.get("pass")
+
     try:
         conn = connect(password=password)
         conn.close()
     except:
         return HttpResponse("Password has failed")
 
-    # Get the bad components by SBID from the bad_files.json file
     bad_components_by_sbid = get_bad_components_by_sbid()
     missing_info = defaultdict(dict)
 
     with connection.cursor() as cursor:
-        # exclude SBIDs that are rejected, bad, or not validated
+
+        # 1. Get eligible SBIDs
         sbids = get_sbids_for_linefinder(cursor)
-        modes = ["STD", "INVERT", "MASK", "INVMASK"]
+
+        # 2. Get all components in one query
+        sid_list = [sid for sid, _ in sbids]
+        components_by_sid = get_components_for_sbids(
+            cursor,
+            sid_list
+        )
+
+        # 3. Get all detection results in one query
+        sbid_nums = [sbid_num for _, sbid_num in sbids]
+        results_by_sbid = get_detection_results_for_sbids(
+            cursor,
+            sbid_nums
+        )
+
         rows = []
-
+        modes = ["STD", "INVERT", "MASK", "INVMASK"]
         for sid, sbid_num in sbids:
-            components = get_components_for_sbid(cursor, sid)
+            components = components_by_sid.get(sid, set())
             bad_comps = bad_components_by_sbid.get(str(sbid_num))
-            mode_counts = {}
+            results_for_sbid = results_by_sbid.get(
+                sbid_num,
+                {}
+            )
 
+            mode_counts = {}
             for mode in modes:
-                # exludes the ones not run yet
-                results = get_detection_results_for_sbid(
-                    cursor,
-                    sbid_num,
-                    mode
-                )
+                results = results_for_sbid.get(mode)
                 missing_components = []
-                
                 # Linefinder has not been run
-                if not results:
-                    mode_counts[mode] = 'NOT RUN'
+                if results is None:
+                    mode_counts[mode] = "NOT RUN"
                 else:
+                    # Convert to set for fast membership testing
+                    results = set(results)
                     for component_number in components:
-                        # missing component from results
                         component_name = f"component_{component_number}"
                         if component_name not in results:
                             missing_components.append(
                                 component_number
                             )
+
                     mode_counts[mode] = len(missing_components)
 
-                # for the href linking to more details per mode
                 missing_info[str(sbid_num)][mode] = {
                     "bad_ascii": bad_comps,
                     "missing": missing_components
@@ -643,8 +726,6 @@ def linefinder_status_view(request):
                 "MASK": mode_counts["MASK"],
                 "INVMASK": mode_counts["INVMASK"]
             })
-
-    # Save the information needed by the show_missing_components view in the session
     request.session["missing_info"] = dict(missing_info)
     request.session.modified = True
 
