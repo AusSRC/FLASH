@@ -30,6 +30,9 @@ export TMPDIR
 CRONDIR=$HOME/src/cronjobs
 export CRONDIR
 
+BAD_FILES_JSON=$CRONDIR/../detection/bad_files.json
+export BAD_FILES_JSON
+
 # Client machine paths (eg Oracle VM)
 CLIENTTMP=/mnt/db/data/tmp
 export CLIENTTMP

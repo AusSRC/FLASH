@@ -11,7 +11,7 @@ import psycopg2
 from django.conf import settings
 from django.contrib.sessions.models import Session
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.db import connection
 
 #######################################################################################
@@ -563,7 +563,8 @@ def get_detection_results_for_sbid(cur, sbid, mode):
 def get_bad_components_by_sbid():
     """Get all the component names with bad ascii grouped by sbid"""
     components_by_sbid = defaultdict(list)
-    bad_json_file = settings.BASE_DIR/"../../pipeline/detection/bad_files.json"
+    bad_json_file = os.environ["BAD_FILES_JSON"]
+
     if os.path.exists(bad_json_file):
         with open(bad_json_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -661,6 +662,10 @@ def show_missing_components(request):
     session_id = get_session_id(request)
     sbid = request.GET.get("sbid")
     mode = request.GET.get("mode")
+
+    # Check if the needed input is missing or empty
+    if not sbid:
+        return HttpResponseBadRequest("Error: 'sbid' cannot be blank or None.")
 
     # info with missing components from bad ascii and the rest
     missing_info = request.session.get("missing_info", {})
