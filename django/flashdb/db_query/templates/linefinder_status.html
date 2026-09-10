@@ -31,22 +31,18 @@
       <thead>
         <tr>
           <th>SBID</th>
-          <th>Number of Components</th>
-          <th>Missing components (STD)</th>
-          <th>Missing components (INVERT)</th>
-          <th>Missing components (MASK)</th>
-          <th>Missing components (INVMASK)</th>
+          <th>Number of results (STD)</th>
+          <th>Number of results (INVERT)</th>
+          <th>Number of results (MASK)</th>
+          <th>Number of results (INVMASK)</th>
         </tr>
       </thead>
       <tbody>
         {% for row in rows %}
           <tr>
             <td>{{ row.sbid }}</td>
-            <td>{{ row.components }}</td>
             <td> 
-              {% if row.STD == "NOT RUN" %} 
-                {{ row.STD }} 
-              {% elif row.STD > 0 %} 
+              {% if row.STD > 0 %} 
                 <a href="{% url 'show_missing_components' %}?sbid={{ row.sbid }}&mode=STD" target="_blank">
                   {{ row.STD }} 
                 </a> 
@@ -55,9 +51,7 @@
               {% endif %} 
             </td>
             <td> 
-              {% if row.INVERT == "NOT RUN" %} 
-                {{ row.INVERT }} 
-              {% elif row.INVERT > 0 %} 
+              {% if row.INVERT > 0 %} 
                 <a href="{% url 'show_missing_components' %}?sbid={{ row.sbid }}&mode=INVERT" target="_blank"> 
                   {{ row.INVERT }} 
                 </a> 
@@ -66,9 +60,7 @@
               {% endif %}
             </td>
             <td> 
-              {% if row.MASK == "NOT RUN" %} 
-                {{ row.MASK }} 
-              {% elif row.MASK > 0 %} 
+              {% if row.MASK > 0 %} 
                 <a href="{% url 'show_missing_components' %}?sbid={{ row.sbid }}&mode=MASK" target="_blank"> 
                   {{ row.MASK }} 
                 </a> 
@@ -77,9 +69,7 @@
               {% endif %} 
             </td>
             <td> 
-              {% if row.INVMASK == "NOT RUN" %} 
-                {{ row.INVMASK }} 
-              {% elif row.INVMASK > 0 %} 
+              {% if row.INVMASK > 0 %} 
                 <a href="{% url 'show_missing_components' %}?sbid={{ row.sbid }}&mode=INVMASK" target="_blank"> 
                   {{ row.INVMASK }} 
                 </a> 
