@@ -534,7 +534,7 @@ def get_sbids_and_linefinder_results_count(cursor):
             END AS invmask_count
         FROM sbid
         WHERE quality not in ('REJECTED', 'BAD', 'NOT_VALIDATED')
-        ORDER BY std_count;
+        ORDER BY sbid_num;
     """)
     return [(row[0], row[1], row[2], row[3], row[4]) for row in cursor.fetchall()]
 
