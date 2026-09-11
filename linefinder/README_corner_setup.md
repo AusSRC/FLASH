@@ -16,17 +16,17 @@ After the `pawseyenv` swap, two issues appeared:
    is missing its `__init__.py`, leaving only the compiled `.so` extension.
    This makes Python treat it as a broken namespace package with no public
    API exposed. This appears to be a genuine bug in the shared Spack install
-   and has not been reported to Pawsey as of writing.
+   but has not been reported to Pawsey as of writing (Aug 2026).
 
 Both issues are worked around locally under `$FLASHHOME`, so that any user
-with their own `$FLASHHOME` can reproduce the fix without editing
+with their own `$FLASHHOME` can reproduce the fix without needing to edit
 `plotting.py`.
 
 ## Setup for a new `$FLASHHOME`
 
-### 1. `corner` package
+### 1. `corner` package - Do this on Setonix
 
-Copy the working `corner` package into `$FLASHHOME/corner/`:
+Copy the working `corner` package from ger063's software folder into your local `$FLASHHOME/corner/`:
 
 ```bash
 cp -r /software/projects/ja3/ger063/setonix/python/lib/python3.11/site-packages/corner \
@@ -77,7 +77,7 @@ module load py-scipy/1.11.3
 module load py-numpy/1.24.4
 ```
 
-## `plotting.py` path setup
+## `plotting.py` path setup - Note: this is already done in the FLASH repo
 
 Near the top of `plotting.py`, before `import corner`:
 
