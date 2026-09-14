@@ -696,6 +696,8 @@ def bad_ascii_view(request):
             data = json.load(f)
             for category in ['flux', 'noise', 'malformed', 'stalled']:
                 category_data = data.get(category)
+                if (category_data is None): #skip if category is empty
+                    continue
                 description = get_bad_file_description(category)
                 for sbid,sources in category_data.items():
                     if sbid not in sbid_source_dict:
