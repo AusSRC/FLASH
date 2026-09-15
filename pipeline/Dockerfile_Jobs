@@ -49,6 +49,11 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/app/.venv/bin:$PATH"
 
+# Install ssh & scp
+RUN apt-get update && apt-get install -y \
+    openssh-client \
+    && rm -rf /var/lib/apt/lists/*
+
 # ---------------------------------------------------------
 # Create non-root user thats forced to UID 999 and Group flash which
 # exists on the VM as flash with gui 2000
