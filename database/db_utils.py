@@ -143,7 +143,7 @@ def set_mode_and_values(args):
     HOST = args.host.strip()
     PORT = args.port.strip()
     DATABASE = args.database.strip()
-    USER = args.user.strip()
+    USER = args.database_user.strip()
 
 
 def connect(db=DATABASE,user=USER,host=HOST,port=PORT,password=None):
