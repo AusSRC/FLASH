@@ -66,16 +66,16 @@ RUN groupadd -g 2000 flash && \
 # Copy application
 # ---------------------------------------------------------
 
-COPY --from=builder /app /app
+COPY --from=builder /app /job
 
 # ---------------------------------------------------------
 # Set ownership
 # ---------------------------------------------------------
 
-RUN chown -R job:flash /app
+RUN chown -R job:flash /job
 
 USER job
 
-WORKDIR app/pipeline/cronjobs/client_platform
+WORKDIR job/pipeline/cronjobs/client_platform
 
 ENTRYPOINT ["bash"]

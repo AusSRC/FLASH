@@ -7,3 +7,4 @@ services:
     volumes:
       - /srv/flashdb/job-data:/data
       - /home/job/.ssh/setonix:/home/app/.ssh/setonix:ro
+      - /home/job/.ssh/known_hosts:/home/app/.ssh/known_hosts:ro
