@@ -96,7 +96,15 @@
 
 - name: Create job to service shared dir
   file:
-    path: /srv/flashdb/job
+    path: /srv/flashdb/job_data
+    state: directory
+    owner: "{{ job_user }}"
+    group: flash
+    mode: "2775"
+
+- name: Create shared job/service blacklist dir
+  file:
+    path: /srv/flashdb/job_data/casda/blacklist_sbids
     state: directory
     owner: "{{ job_user }}"
     group: flash

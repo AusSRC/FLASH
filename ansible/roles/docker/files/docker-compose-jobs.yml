@@ -8,3 +8,4 @@ services:
       - /srv/flashdb/job_data:/home/job/data
       - /home/job/.ssh/setonix:/home/job/.ssh/setonix:ro
       - /home/job/.ssh/known_hosts:/home/job/.ssh/known_hosts:ro
+      - /home/job/.ssh/config:/home/job/.ssh/config:ro

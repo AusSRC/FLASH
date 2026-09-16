@@ -6,6 +6,7 @@ django/flashdb/db_query/static/db_query/*
 *.venv
 staticfiles
 media
+*.pub
 *.DS_Store
 
 # exclude real secrets

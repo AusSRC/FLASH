@@ -83,3 +83,15 @@
     owner: "{{ job_user }}"
     group: "{{ job_user }}"
     mode: '0600'
+
+- name: Add Setonix SSH configuration
+  ansible.builtin.blockinfile:
+    path: /home/{{ job_user }}/.ssh/config
+    create: true
+    owner: "{{ job_user }}"
+    group: "{{ job_user }}"
+    mode: "0600"
+    block: |
+      Host setonix.pawsey.org.au
+          IdentityFile ~/.ssh/setonix
+          UpdateHostKeys no
