@@ -146,19 +146,21 @@ def set_mode_and_values(args):
     USER = args.database_user.strip()
 
 
-def connect(db=DATABASE,user=USER,host=HOST,port=PORT,password=None):
+def connect(db=None, user=None, host=None, port=None, password=None):
 
-    if not password:
-        password = PASSWD
-    conn = psycopg2.connect(
-        database = db,
-        user = user,
-        password = password,
-        host = host,
-        port = port
+    db = DATABASE if db is None else db
+    user = USER if user is None else user
+    host = HOST if host is None else host
+    port = PORT if port is None else port
+    password = PASSWD if password is None else password
+
+    return psycopg2.connect(
+        database=db,
+        user=user,
+        password=password,
+        host=host,
+        port=port
     )
-    #print(conn.get_dsn_parameters(),"\n")
-    return conn
 
 def get_cursor(conn):
 
