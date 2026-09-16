@@ -6,9 +6,9 @@ FROM python:3.10.12-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+ENV UV_PROJECT_ENVIRONMENT=/job/.venv
 
-WORKDIR /app
+WORKDIR /job
 # ---------------------------------------------------------
 # System build dependencies
 # ---------------------------------------------------------
@@ -47,7 +47,7 @@ FROM python:3.10.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/job/.venv/bin:$PATH"
 
 # Install ssh & scp
 RUN apt-get update && apt-get install -y \
@@ -63,10 +63,10 @@ RUN groupadd -g 2000 flash && \
     useradd -m -u 1003 -g flash job
 
 # ---------------------------------------------------------
-# Copy application
+# Copy job
 # ---------------------------------------------------------
 
-COPY --from=builder /app /job
+COPY --from=builder /job /job
 
 # ---------------------------------------------------------
 # Set ownership
