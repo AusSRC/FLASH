@@ -21,6 +21,11 @@
 #
 # If further args are given, they are assumed to be sbid numbers (space separated). If this is the
 # case, the database is not checked for sbids to process.
+#
+# GWHG, Sept 2026
+# This script now uses a checksum to check the ascii tarball sent to the HPC. If the 
+# checksum fails, it falls back to sending each ascii file individually. If the checksum
+# for that fails, it errors and exits without starting any processing.
 ################################################################################################
 # Client platform details: : edit these as appropiate
 source $HOME/set_local_flash_env.sh
@@ -159,21 +164,78 @@ for SBID1 in ${SBIDARRAY[@]}; do
     echo "Downloading $SBID1 spectral ascii files from database"
     cd $SBID1
     python3 $FLASHDB/db_download.py -m ASCII -s $SBID1 -ht $HOST -pt $PORT -d $TMPDIR/$SBID1 -pw $FLASHPASS
-    if [ "$MODE" != "TEST" ]; then
+if [ "$MODE" != "TEST" ]; then
         echo "Sending $SBID1 ASCII tarball to $HPC_PLATFORM"
-        ssh $HPC_USER@$HPC_PLATFORM "mkdir -p $HPC_SCRATCH/$SBID1/spectra_ascii; mkdir -p $HPC_SCRATCH/$SBID1/config; rm $HPC_SCRATCH/$SBID1/spectra_ascii/* $HPC_SCRATCH/$SBID1/config/*;"
-        scp $TMPDIR/$SBID1/*$SBID1*.tar.gz $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/spectra_ascii
+        
+        # Prepare remote directories
+        ssh $HPC_USER@$HPC_PLATFORM "mkdir -p $HPC_SCRATCH/$SBID1/spectra_ascii; mkdir -p $HPC_SCRATCH/$SBID1/config; rm -rf $HPC_SCRATCH/$SBID1/spectra_ascii/* $HPC_SCRATCH/$SBID1/config/*;"
+
+        # Save current directory
+        ORIG_DIR=$(pwd)
+        
+        # Navigate to the tarball directory to ensure md5sum uses relative paths
+        cd "$TMPDIR/$SBID1" || exit 1
+
+        # Generate checksum for the tarball
+        md5sum *$SBID1*.tar.gz > tarball.md5
+
+        # Transfer the tarball and its checksum file
+        scp *$SBID1*.tar.gz tarball.md5 $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/spectra_ascii/
+
+        # Test tarball checksum on Setonix
+        echo "Verifying tarball checksum on $HPC_PLATFORM..."
+        if ssh $HPC_USER@$HPC_PLATFORM "cd $HPC_SCRATCH/$SBID1/spectra_ascii && md5sum -c tarball.md5 --quiet"; then
+            echo "Tarball checksum verified successfully."
+        else
+            echo "WARNING: Tarball checksum failed! Falling back to uncompressed transfer..."
+
+	    # First remove the failed files on the HPC:
+	    ssh $HPC_USER@$HPC_PLATFORM "cd $HPC_SCRATCH/$SBID1/spectra_ascii; rm -rf *.md5 *.tar.gz"
+            
+            # Create a local extraction directory
+            mkdir -p extracted_files
+            tar -xzf *$SBID1*.tar.gz -C extracted_files/
+            
+            # Navigate in and generate checksums for individual files (saving the hash list one folder up)
+            cd extracted_files
+            find . -type f -exec md5sum {} + > ../files.md5
+            
+            # Transfer the individual files and the new checksum list
+            scp -r * $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/spectra_ascii/
+            scp ../files.md5 $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/spectra_ascii/
+            
+            # 3. Verify individual files on Setonix
+            echo "Verifying individual files checksum on $HPC_PLATFORM..."
+            if ssh $HPC_USER@$HPC_PLATFORM "cd $HPC_SCRATCH/$SBID1/spectra_ascii && md5sum -c files.md5 --quiet"; then
+                echo "Individual files verified successfully."
+            else
+                echo "ERROR: Fallback file transfer also failed checksum. Exiting."
+                cd "$ORIG_DIR"
+                exit 1
+            fi
+            
+            # Move back out of the extracted directory and delete it
+            cd ..
+	    rm -rf extracted_files
+        fi
+        
+        # Restore original working directory
+        cd "$ORIG_DIR"
+
+	# Remove the checksum file on the HPC:
+	 ssh $HPC_USER@$HPC_PLATFORM "cd $HPC_SCRATCH/$SBID1/spectra_ascii; rm -rf *.md5"
 
         # If masking, we need to transfer the mask file to the HPC:
         if [[ "$MODE" =~ ^("MASK"|"INVMASK")$ ]]; then
             scp ~/src/cronjobs/masks/*"$SBID1"_mask.txt $HPC_USER@$HPC_PLATFORM:$HPC_SCRATCH/$SBID1/config/mask.txt
             echo "Sent mask file to HPC platform $HPC_PLATFORM"
         fi
-    
+        
         echo "triggering detection_processing.sh on $HPC_PLATFORM"
         ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; ./detection_processing.sh $MODE $SBID1 > ~/src/cronjobs/'$MODE'_detection_$SBID1.log"
         scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/${MODE}_detection_${SBID1}.log $CRONDIR
         ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; rm ${MODE}_detection_${SBID1}.log"
+
     fi
     cd ../
 done
