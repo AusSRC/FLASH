@@ -176,6 +176,22 @@ if [ "$MODE" != "TEST" ]; then
         # Navigate to the tarball directory to ensure md5sum uses relative paths
         cd "$TMPDIR/$SBID1" || exit 1
 
+	# Check tarball integrity:
+	for tar_file in *$SBID1*.tar.gz; do
+            if [ ! -f "$tar_file" ]; then
+                echo "ERROR: No tarball found matching *$SBID1*.tar.gz in $TMPDIR/$SBID1. Exiting."
+                cd "$ORIG_DIR"
+                exit 1
+            fi
+            
+            echo "Verifying local integrity of $tar_file..."
+            if ! tar -tzf "$tar_file" >/dev/null 2>&1; then
+                echo "ERROR: Local tarball $tar_file is invalid or corrupted on Oracle VM. Exiting."
+                cd "$ORIG_DIR"
+                exit 1
+            fi
+        done	
+
         # Generate checksum for the tarball
         md5sum *$SBID1*.tar.gz > tarball.md5
 
