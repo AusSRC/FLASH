@@ -53,13 +53,22 @@ def readOldJson(fname):
 
     return data
 
-def _appendData(dat,old_data,new_data):
-    for line in new_data[dat]:
-        # Check if sbid in old data
-        if line in old_data[dat]:
-            for val in old_data[dat][line]:
-                if val not in new_data[dat][line]:
-                    new_data[dat][line].append(val)
+def _appendData(dat, old_data, new_data):
+    if dat not in old_data:
+        return new_data
+
+    if dat not in new_data:
+        new_data[dat] = {}
+
+    for sbid, old_components in old_data[dat].items():
+        if sbid not in new_data[dat]:
+            new_data[dat][sbid] = old_components.copy()
+        else:
+            for component in old_components:
+                # Check if sbid in old data
+                if component not in new_data[dat][sbid]:
+                    new_data[dat][sbid].append(component)
+
     return new_data
 
 def appendToJson(old_data,new_data):

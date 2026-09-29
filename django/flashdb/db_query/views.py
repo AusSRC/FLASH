@@ -10,7 +10,7 @@ import psycopg2
 from django.conf import settings
 from django.contrib.sessions.models import Session
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.db import connection
 
 
@@ -124,7 +124,6 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
 
     # get the corresponding sbid id for the sbid_num:version
     sid,version = get_max_sbid_version(cur,sbid,version)
-    #print(f"For {sbid}:{version} ...")
     # min val for ln_mean:
     try:
         ln_mean = float(LN_MEAN)
@@ -236,21 +235,18 @@ def get_results_for_sbid(cur,sbid,version,LN_MEAN,order,reverse,dir_download,inv
         f.write("#Component_name,comp_id,modenum,ra_hms_cont,dec_dms_cont,ra_deg_cont,dec_deg_cont,flux_peak,flux_int,x0_1_maxl,dx_1_maxl,y0_1_maxl,abs_peakz_median,abs_peakz_siglo,abs_peakz_sighi,abs_peakopd_median,abs_peakopd_siglo,abs_peakopd_sighi,abs_intopd_median(km/s),abs_intopd_siglo(km/s),abs_intopd_sighi(km/s),abs_width_median(km/s),abs_width_siglo(km/s),abs_width_sighi(km/s),ln(B)_mean,ln(B)_sigma,chisq_mean,chisq_sigma,field\n")
     #print()
     outputs = []
-    alt_outputs = []
     for result in results:
         comp_id = "component" + result[1].split("_component")[1].split(".")[0]
-        if verbose:
-            comp= "component" + result[1].split("_component")[1].split(".")[0]
-            linefinder_data = results_dict[comp]
-            for line in linefinder_data:
-                vals = line.split()
-                if float(vals[17]) > ln_mean:
-                    f.write(f"{result[0]},{comp},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{vals[2]},{vals[3]},{vals[4]},{vals[5]},{vals[6]},{vals[7]},{vals[8]},{vals[9]},{vals[10]},{vals[11]},{vals[12]},{vals[13]},{vals[14]},{vals[15]},{vals[16]},{vals[17]},{vals[18]},{vals[19]},{vals[20]},{pointing}\n")
-                alt_outputs.append([result[0],comp_id,result[4],result[5],vals[5],vals[8],vals[11],vals[14],result[9],result[10],pointing])
-        outputs.append([result[0],comp_id,result[2],result[3],result[4],result[5],result[9],result[10],pointing])
+        linefinder_data = results_dict[comp_id]
+        for line in linefinder_data:
+            vals = line.split()
+            if float(vals[17]) > ln_mean:
+                if verbose:
+                    f.write(f"{result[0]},{comp_id},{vals[1]},{result[2]},{result[3]},{result[4]},{result[5]},{result[6]},{result[7]},{vals[2]},{vals[3]},{vals[4]},{vals[5]},{vals[6]},{vals[7]},{vals[8]},{vals[9]},{vals[10]},{vals[11]},{vals[12]},{vals[13]},{vals[14]},{vals[15]},{vals[16]},{vals[17]},{vals[18]},{vals[19]},{vals[20]},{pointing}\n")
+                outputs.append([result[0],comp_id,result[2],result[3],result[4],result[5],vals[1],vals[17],pointing])
     if verbose:
         f.close()
-    return outputs,alt_outputs
+    return outputs
 
 ##################################################################################################
 def get_ascii_files_tarball(conn, cur, sid, sbid, static_dir, version, password=None):
@@ -545,6 +541,180 @@ def get_bad_file_description(name):
             return category["description"]
     return None
 
+def get_sbids_and_linefinder_results_count(cursor):
+    """Get all SBID IDs that are not rejected, bad, or not validated."""
+    cursor.execute("""
+        SELECT sbid_num,
+            CASE
+                WHEN results IS NULL THEN 0
+                ELSE (length(results) - length(replace(results, 'component', '')))
+                     / length('component')
+            END AS std_count,
+        
+            CASE
+                WHEN invert_results IS NULL THEN 0
+                ELSE (length(invert_results) - length(replace(invert_results, 'component', '')))
+                     / length('component')
+            END AS invert_count,
+        
+            CASE
+                WHEN mask_results IS NULL THEN 0
+                ELSE (length(mask_results) - length(replace(mask_results, 'component', '')))
+                     / length('component')
+            END AS mask_count,
+        
+            CASE
+                WHEN mask_invert_results IS NULL THEN 0
+                ELSE (length(mask_invert_results) - length(replace(mask_invert_results, 'component', '')))
+                     / length('component')
+            END AS invmask_count
+        FROM sbid
+        WHERE quality not in ('REJECTED', 'BAD', 'NOT_VALIDATED')
+        ORDER BY sbid_num;
+    """)
+    return [(row[0], row[1], row[2], row[3], row[4]) for row in cursor.fetchall()]
+
+def get_components_for_sbid(cur, sbid_num):
+    """
+    Get list of comp_id for an SBID number
+    """
+    query = """
+        SELECT DISTINCT comp_id
+        FROM component
+        WHERE sbid_id = (SELECT id FROM sbid WHERE sbid_num = %s)
+        ORDER BY comp_id;
+    """
+    cur.execute(query, (sbid_num,))
+
+    comp_ids = [row[0] for row in cur.fetchall()]
+    unique_components = set() #make sure we don't count the same component multiple times
+    for comp_id in comp_ids:
+        component_number = (
+            comp_id.strip()
+                .replace("spec_", "", 1)
+                .removesuffix(".fits")
+                .split("component_", 1)[1]
+            )
+        unique_components.add(component_number)
+
+    return unique_components
+
+def get_detection_results_for_sbid(cur, sbid, mode):
+    """Get result data for a specific linefinder mode, skipping the ones that haven't been run."""
+    if mode == "STD":
+        query = "SELECT results FROM sbid WHERE sbid_num = %s;"
+    elif mode == "MASK":
+        query = "SELECT mask_results FROM sbid WHERE sbid_num = %s;"
+    elif mode == "INVERT":
+        query = "SELECT invert_results FROM sbid WHERE sbid_num = %s;"
+    elif mode == "INVMASK":
+        query = "SELECT mask_invert_results FROM sbid WHERE sbid_num = %s;"
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
+    cur.execute(query, (sbid,))
+    result = cur.fetchone()
+    if result is None or result[0] is None:
+        return None
+    return result[0]
+
+def get_bad_components_by_sbid(sbid_num):
+    """Get all the component names with bad ascii grouped for supplied sbid"""
+    bad_components = []
+    bad_json_file = settings.BASE_DIR/"../../pipeline/detection/bad_files.json"
+
+    if os.path.exists(bad_json_file):
+        with open(bad_json_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            sbid_num = str(sbid_num)
+            for category in data.values():
+                bad_components.extend(category.get(sbid_num, []))
+            f.close()
+    else:
+        return HttpResponse(f"{bad_json_file} is  not found! Please run the cronjob to generate it.")
+
+    return bad_components
+
+def linefinder_status_view(request):
+    """
+    Display health check for linefinder runs per mode (STD, INVERT, MASK, INVMASK) for each SBID.
+    Shows number of rows currently found in the results for each mode.
+    Excudes SBIDs that are rejected, bad, or not validated, and detections that have not been run.
+    If there the results aren't empty, it will link to details of the missing components for that SBID and mode.
+    """
+    session_id = get_session_id(request)
+    password = request.POST.get('pass')
+    try:
+        conn = connect(password=password)
+        conn.close()
+    except:
+        return HttpResponse("Password has failed")
+
+
+    with connection.cursor() as cursor:
+        # exclude SBIDs that are rejected, bad, or not validated
+        sbids = get_sbids_and_linefinder_results_count(cursor)
+        rows = []
+
+        for sbid_num, std_count, invert_count, mask_count, invmask_count in sbids:
+            rows.append({
+                "sbid": sbid_num,
+                "STD": std_count,
+                "INVERT": invert_count,
+                "MASK": mask_count,
+                "INVMASK": invmask_count
+            })
+
+    return render(
+        request,
+        "linefinder_status.html",
+        {
+            "session_id": session_id,
+            "rows": rows
+        }
+    )
+
+def show_missing_components(request):
+    """Show the missing components for a specific SBID and mode linked to a row in linefinder_status.html"""
+    session_id = get_session_id(request)
+    sbid = request.GET.get("sbid")
+    mode = request.GET.get("mode")
+
+    # Check if the needed input is missing or empty
+    if not sbid:
+        return HttpResponseBadRequest("Error: 'sbid' cannot be blank or None.")
+
+    with connection.cursor() as cursor:
+        components = get_components_for_sbid(cursor, sbid)
+        bad_comps = get_bad_components_by_sbid(sbid)
+
+        #excludes the ones not run yet
+        results = get_detection_results_for_sbid(
+                    cursor,
+                    sbid,
+                    mode
+                )
+        missing_components = [] # missing component from results
+        for component_number in components:
+            component_name = f"component_{component_number}"
+            if component_name not in results:
+                # don't count the bad ascii components as missing
+                if component_number not in bad_comps:
+                    missing_components.append(
+                        component_number
+                    )
+
+    return render(
+        request,
+        "missing_components.html",
+        {
+            "session_id": session_id,
+            "sbid": sbid,
+            "mode": mode,
+            "bad_components": bad_comps,
+            "missing_components": missing_components
+        }
+    )
+
 def bad_ascii_view(request):
     session_id = get_session_id(request)
     password = request.POST.get('pass')
@@ -555,13 +725,15 @@ def bad_ascii_view(request):
         return HttpResponse("Password has failed")
 
     # Load the bad_files.json file
-    bad_json_file = settings.BASE_DIR/"../../../cronjobs/bad_files/bad_files.json"
+    bad_json_file = settings.BASE_DIR/"../../pipeline/detection/bad_files.json"
     sbid_source_dict = {}
     if os.path.exists(bad_json_file):
         with open(bad_json_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
             for category in ['flux', 'noise', 'malformed', 'stalled']:
-                category_data = data[category]
+                category_data = data.get(category)
+                if (category_data is None): #skip if category is empty
+                    continue
                 description = get_bad_file_description(category)
                 for sbid,sources in category_data.items():
                     if sbid not in sbid_source_dict:
@@ -741,7 +913,7 @@ def query_database(request):
             media_dir.mkdir(parents=True, exist_ok=True)
             version = None
             # Screen outputs:
-            outputs,alt_outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,media_dir,inverted,masked,inverted_masked)
+            outputs = get_results_for_sbid(cursor,sbid_val,version,lmean,order,reverse,media_dir,inverted,masked,inverted_masked)
 
         # Full tarball of results - here we need to open a psycopg2 connection to access the lob:
         if outputs:
@@ -759,8 +931,8 @@ def query_database(request):
             else:
                 csv_file = f"{settings.MEDIA_URL}linefinder/{session_id}/{sbid_val}_linefinder_outputs.csv"
             return render(request, 'linefinder.html', {'session_id': session_id, 'sbid': sbid_val, 'lmean': lmean,\
-                'outputs': outputs, 'csv_file': csv_file, 'alt_outputs': alt_outputs, 'num_outs': len(outputs), \
-                'tarball': tarball, 'inverted': inverted, 'masked': masked, 'inverted_masked': inverted_masked})
+                'outputs': outputs, 'csv_file': csv_file, 'num_outs': len(outputs), \
+                'tarball': tarball, 'inverted': inverted, 'masked': masked})
         else:
             return HttpResponse(f"No Linefinder results for sbid {sbid_val}")
 

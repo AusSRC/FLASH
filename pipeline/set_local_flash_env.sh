@@ -30,6 +30,7 @@ export TMPDIR
 CRONDIR=$HOME/src/cronjobs
 export CRONDIR
 
+
 # Client machine paths (eg Oracle VM)
 CLIENTTMP=/mnt/db/data/tmp
 export CLIENTTMP
@@ -39,6 +40,8 @@ CLIENTIP="152.67.97.254"
 export CLIENTIP
 CLIENTKEY="~/.ssh/oracle_flash_vm.key"
 export CLIENTKEY
+BAD_FILES_JSON=$FLASHHOME/pipeline/detection/bad_files.json
+export BAD_FILES_JSON
 
 # Other HPC machine paths (eg setonix)
 HPC_PLATFORM="setonix.pawsey.org.au"

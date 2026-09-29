@@ -65,6 +65,10 @@ elif [ "$MODE" = "MASK" ]; then
     mkdir -p "$1"/masked_outputs
     srun -K1 python3 $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/masked_outputs \
 --mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder.ini
+elif [ "$MODE" = "INVMASK" ]; then
+    mkdir -p "$1"/inv_masked_outputs
+    srun -K1 python3 $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/inv_masked_outputs \
+--mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder_inverted.ini
 fi
 
 exit 0

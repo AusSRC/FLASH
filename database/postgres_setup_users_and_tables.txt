@@ -90,7 +90,7 @@ alter table detect_run add column mask_invertf boolean;
 #
 #       ascii_tar - tarball of spectral processsing output ascii files (as an lob)
 #
-# These two will be depricated in favour of the byte array versions:
+# These three will be depricated in favour of the byte array versions:
 #       detect_tar - tarball of detection processsing output stats,results and small plot files (as an lob)
 #       invert_detect_tar - tarball of inverted-spectra detection processsing output stats,results and small plot files (as an lob)
 #       mask_detect_tar - tarball of masked detection processsing output stats,results and small plot files (as an lob)
@@ -159,7 +159,7 @@ alter table SBID add constraint check_types check (quality in ('GOOD','BAD','UNC
 #       dec_dms - declination in degrees min sec
 #       ra_deg_cont - right ascention in decimal degrees
 #       dec_deg_cont - declination in decimal degrees
-#       processState - one of 'spectral', 'detection', 'inverted_detection' or 'masked_detection'
+#       processState - one of 'spectral', 'detection', 'inverted_detection', 'masked_detection' or 'inverted_masked_detection'
 #       opd_plotname - name of the associated optical density plot file
 #       flux_plotname - name of the associated flux plot file
 #       fluxfilter - min flux in mJy that was processed (this should be in SBID, as it's the same for all sources)

@@ -39,6 +39,8 @@ if [ "$MODE" = "INVERT" ]; then
     DETECTLOG="find_invert_detection.log"
 elif [ "$MODE" = "MASK" ]; then
     DETECTLOG="find_mask_detection.log"
+elif [ "$MODE" = "INVMASK" ]; then
+    DETECTLOG="find_inv_mask_detection.log"
 fi
 
 # Check if we were passed an sbid to process - if not it is read from the 'find_detection' logfile
@@ -54,6 +56,8 @@ if [ "$#" -gt 1 ]; then
         printf "For inversion:\nSBIDS that need detection analysis\n[" > $DETECTLOG
     elif [ "$MODE" = "MASK" ]; then
         printf "For masked detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
+    elif [ "$MODE" = "INVMASK" ]; then
+        printf "For inverted masked detection:\nSBIDS that need detection analysis\n[" > $DETECTLOG
     fi
     for SBID1 in ${SBIDARRAY[@]}; do
         printf "$SBID1, " >> $DETECTLOG
@@ -118,17 +122,19 @@ for SBID1 in ${SBIDARRAY[@]}; do
     PARENT1="$PARENT_DIR/$SBID1"
     MASKDIR="$DETECTDIR/masks"
     DIR1="$PARENT1/spectra_ascii"
+    mkdir "$PARENT1/config"
+    mkdir -p "$DIR1"
 
-    if [ "$MODE" = "MASK" ]; then
-        # Check that the mask file exists
+    # If masking, check that the mask file exists and copy it to SLURM directory
+    if [[ "$MODE" =~ ^("MASK"|"INVMASK")$ ]]; then
         if ! ls $MASKDIR/*$SBID1_mask.txt 1> /dev/null 2>&1; then
             echo "$SBID1 mask file not found!! Skipping"
             continue
+        else
+            cp $MASKDIR/*$SBID1_mask.txt "${PARENT1}/config/mask.txt"
         fi
     fi 
 
-    mkdir "$PARENT1/config"
-    mkdir -p "$DIR1"
     # Untar ASCII tarball
     cd $DIR1; tar -zxf $SBID*.tar.gz;rm $SBID*.tar.gz
 
@@ -144,6 +150,8 @@ for SBID1 in ${SBIDARRAY[@]}; do
         SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 08:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_inverted.log --error $PARENT1/logs/err_inverted.log --job-name INV_$SBID1"
     elif [ "$MODE" = "MASK" ]; then
         SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 08:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_masked.log --error $PARENT1/logs/err_masked.log --job-name MSK_$SBID1"
+    elif [ "$MODE" = "INVMASK" ]; then
+        SBATCHARGS="--exclude=nid00[2024-2055],nid00[2792-2823] --time 08:00:00 --ntasks 100 --ntasks-per-node 20 --no-requeue --output $PARENT1/logs/out_inv_masked.log --error $PARENT1/logs/err_inv_masked.log --job-name INVMSK_$SBID1"
     fi
 
     jid2=$(sbatch $SBATCHARGS $FINDER/slurm_run_flashfinder.sh $PARENT1 spectra_ascii $BAD_FILES_DIR $SBID1 $MODE)

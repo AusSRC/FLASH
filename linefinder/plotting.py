@@ -1,3 +1,5 @@
+import os
+import sys
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -7,6 +9,9 @@ from matplotlib import rc
 # rc('font',**{'family':'serif','serif':['serif'],'size':20})
 from conversions import *
 from model import *
+
+sys.path.insert(0, os.path.join(os.environ["FLASHHOME"], "contourpy_fix"))
+sys.path.insert(0, os.environ["FLASHHOME"])
 import corner
 
 # Make graphical plots of the best-fitting spectra for each mode
