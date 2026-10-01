@@ -39,7 +39,12 @@ esac
 
 for SBID1 in "${SBIDARRAY[@]}"; do
     echo "Tarring $SBID1 ${MSG_DESC} linefinder results"
-    cd $DATA/$SBID1/$OUTDIR_NAME; tar -zcvf $TAR_NAME results* *stats.dat *.pdf; mv $TAR_NAME ../
+    cd $DATA/$SBID1/$OUTDIR_NAME
+
+    # Some runs do not have output pdf files; this way of calling tar ensures it doesn't fail if certain files are not found:
+    find . -maxdepth 1 \( -name "results*" -o -name "*stats.dat" -o -name "*.pdf" \) -print0 | tar -zcvf "$TAR_NAME" --null -T -
+    
+    mv $TAR_NAME ../
     echo "Verifying local integrity of $TAR_NAME..."
     if ! tar -tzf ../"$TAR_NAME" >/dev/null 2>&1; then
         echo "ERROR: Local tarball $TAR_NAME is invalid or corrupted on HPC platform. Exiting."

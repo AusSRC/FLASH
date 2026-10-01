@@ -79,7 +79,7 @@ esac
 # Execute the SBID loop
 for SBID1 in "${SBIDARRAY[@]}"; do
     INDIR="$DATA/$SBID1/spectra_ascii"
-    echo "Uploading $SBID1 ${MSG_DESC}linefinder results via client to database"
+    echo "Preparing: $SBID1 ${MSG_DESC}linefinder results via client to database"
 
     # Find how many sources were processed and add to log file
     OUTDIR="$DATA/$SBID1/$OUTDIR_NAME"
@@ -111,8 +111,8 @@ for SBID1 in "${SBIDARRAY[@]}"; do
         echo "WARNING: Tarball checksum failed! Exiting"
         exit 1
     fi
-
     # Extract tarball and start a db_upload session at client
+    echo "Uploading data from client to FLASH db for sbid $SBID1"
     ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID1/$OUTDIR_NAME; tar -zxvf $TAR_NAME; rm $TAR_NAME"
     ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh;cd ~/src/FLASH/database; python3 db_upload.py -m $DB_MODE -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -l $LOG_NAME -e $ERR_NAME -o $OUTDIR_NAME -C '$DB_COMMENT' >> $PARENTDIR/$SBID1/'$SBID1'_${DB_LOG_SUFFIX} 2>&1"
 
