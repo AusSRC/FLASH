@@ -410,7 +410,7 @@ def remove_sbids_from_detection(conn,selected_sbids,versions=None,runid=None,mod
                 detect_stat = "UPDATE detect_run SET SBIDS = %s where id = %s;"
                 cur.execute(detect_stat,(sbids,runflagid))
                 print(f"    -- Updated detection {runflagid}")
-       if mode in ("STD","INVMASK") and invmaskF:
+        if mode in ("STD","INVMASK") and invmaskF:
             # There is no lob for inverted mask jobs - data is only stored as a bytea
             print(" -- Deleting INVERTED MASK detection data")
             if not runid:
@@ -482,19 +482,19 @@ def remove_detection_from_components(conn,cur,sbids,versions,mode=None):
         elif mode == "INVERT":
             # delete all invert detection variables from components of this sbid
             # Set the detection state correctly
-            detect_state = determin_process_state(stdF,invertF,maskF,invmaskF)
+            detect_state = determine_process_state(stdF,invertF,maskF,invmaskF)
             delete_detection = "UPDATE component SET processState = %s,invert_mode_num = NULL,invert_ln_mean = NULL,invert_detection_date = NULL where sbid_id = %s"
             cur.execute(delete_detection,(detect_state,sbid_id))
         elif mode == "MASK":
             # delete all mask detection variables from components of this sbid
             # Set the detection state correctly
-            detect_state = determin_process_state(stdF,invertF,maskF,invmaskF)
+            detect_state = determine_process_state(stdF,invertF,maskF,invmaskF)
             delete_detection = "UPDATE component SET processState = %s,mask_mode_num = NULL,mask_ln_mean = NULL,mask_detection_date = NULL where sbid_id = %s"
             cur.execute(delete_detection,(detect_state,sbid_id))
         elif mode == "INVMASK":
             # delete all inverted mask detection variables from components of this sbid
             # Set the detection state correctly
-            detect_state = determin_process_state(stdF,invertF,maskF,invmaskF)
+            detect_state = determine_process_state(stdF,invertF,maskF,invmaskF)
             delete_detection = "UPDATE component SET processState = %s,invert_mask_mode_num = NULL,invert_mask_ln_mean = NULL,mask_inverted_date = NULL where sbid_id = %s"
             cur.execute(delete_detection,(detect_state,sbid_id))
     return cur
