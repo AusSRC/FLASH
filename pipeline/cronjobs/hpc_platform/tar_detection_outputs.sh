@@ -13,21 +13,25 @@ case "$MODE" in
     "STD")
         MSG_DESC="standard"
         OUTDIR_NAME="outputs"
+        LOG_NAME="out.log"
         TAR_NAME="linefinder.tar.gz"
         ;;
     "INVERT")
         MSG_DESC="inverted "
         OUTDIR_NAME="inverted_outputs"
+        LOG_NAME="out_inverted.log"
         TAR_NAME="inverted_linefinder.tar.gz"
         ;;
     "MASK")
         MSG_DESC="masked "
         OUTDIR_NAME="masked_outputs"
+        LOG_NAME="out_masked.log"
         TAR_NAME="masked_linefinder.tar.gz"
         ;;
     "INVMASK")
         MSG_DESC="inverted masked "
         OUTDIR_NAME="inv_masked_outputs"
+        LOG_NAME="out_inv_masked.log"
         TAR_NAME="inv_masked_linefinder.tar.gz"
         ;;
     *)
@@ -38,6 +42,16 @@ esac
 
 
 for SBID1 in "${SBIDARRAY[@]}"; do
+    # Find how many sources were processed and add to log file
+    OUTDIR="$DATA/$SBID1/$OUTDIR_NAME"
+    LOGFILE="$DATA/$SBID1/logs/$LOG_NAME"
+    
+    INPUT_COUNT=$(find "$INDIR" -maxdepth 1 -type f -name "*opd.dat" 2>/dev/null | wc -l)
+    PROCESSED_COUNT=$(find "$OUTDIR" -maxdepth 1 -type f -name "*resume.dat" 2>/dev/null | wc -l)
+    
+    echo "Found $INPUT_COUNT ascii files " >> "$LOGFILE"
+    echo "Found $PROCESSED_COUNT output files " >> "$LOGFILE"
+
     echo "Tarring $SBID1 ${MSG_DESC} linefinder results"
     cd $DATA/$SBID1/$OUTDIR_NAME
 

@@ -81,16 +81,6 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     INDIR="$DATA/$SBID1/spectra_ascii"
     echo "Preparing: $SBID1 ${MSG_DESC}linefinder results via client to database"
 
-    # Find how many sources were processed and add to log file
-    OUTDIR="$DATA/$SBID1/$OUTDIR_NAME"
-    LOGFILE="$DATA/$SBID1/logs/$LOG_NAME"
-    
-    INPUT_COUNT=$(find "$INDIR" -maxdepth 1 -type f -name "*opd.dat" 2>/dev/null | wc -l)
-    PROCESSED_COUNT=$(find "$OUTDIR" -maxdepth 1 -type f -name "*resume.dat" 2>/dev/null | wc -l)
-    
-    echo "Found $INPUT_COUNT ascii files " >> "$LOGFILE"
-    echo "Found $PROCESSED_COUNT output files " >> "$LOGFILE"
-
     # set up directories on client VM
     ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR; rm -R $SBID1/$OUTDIR_NAME $SBID1/logs $SBID1/config $TMPDIR/$SBID1* 2>/dev/null || true; mkdir -p $SBID1/config $SBID1/logs $SBID1/$OUTDIR_NAME;"
     
