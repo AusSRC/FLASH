@@ -43,6 +43,7 @@ esac
 
 for SBID1 in "${SBIDARRAY[@]}"; do
     # Find how many sources were processed and add to log file
+    INDIR="$DATA/$SBID1/spectra_ascii"
     OUTDIR="$DATA/$SBID1/$OUTDIR_NAME"
     LOGFILE="$DATA/$SBID1/logs/$LOG_NAME"
     
@@ -56,18 +57,34 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     cd $DATA/$SBID1/$OUTDIR_NAME
 
     # Some runs do not have output pdf files; this way of calling tar ensures it doesn't fail if certain files are not found:
-    find . -maxdepth 1 \( -name "results*" -o -name "*stats.dat" -o -name "*.pdf" \) -print0 | tar -zcvf "$TAR_NAME" --null -T -
-    
-    mv $TAR_NAME ../
-    echo "Verifying local integrity of $TAR_NAME..."
-    if ! tar -tzf ../"$TAR_NAME" >/dev/null 2>&1; then
-        echo "ERROR: Local tarball $TAR_NAME is invalid or corrupted on HPC platform. Exiting."
-        rm $tar_file
-	# if one fails, then we exit the whole process, so no dependencies will be run.
-        exit 1
+    # Enable nullglob
+    shopt -s nullglob
+    FILES=(results* *stats.dat *.pdf)
+
+    if [ ${#FILES[@]} -gt 0 ]; then
+        # Create the tarball in the parent directory
+        tar -zcvf ../"$TAR_NAME" "${FILES[@]}"
+        
+        shopt -u nullglob
+
+        # Force Lustre to flush I/O buffers so the file is fully written before we read it
+        sync
+
+        echo "Verifying local integrity of $TAR_NAME (this may take a long time for large files)..."
+        
+        if ! tar -tzf ../"$TAR_NAME"; then
+            echo "ERROR: Local tarball $TAR_NAME is invalid or corrupted. Exiting."
+            rm -f ../"$TAR_NAME"
+            exit 1
+        else
+            echo "$TAR_NAME verification complete and ok!"
+        fi
     else
-	echo "$TAR_NAME ok!"
+        echo "Warning: No files found to archive for $TAR_NAME"
+        shopt -u nullglob
     fi
+
 
 done
 exit 0
+    

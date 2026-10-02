@@ -104,10 +104,12 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     # Extract tarball and start a db_upload session at client
     echo "Uploading data from client to FLASH db for sbid $SBID1"
     ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR/$SBID1/$OUTDIR_NAME; tar -zxvf $TAR_NAME; rm $TAR_NAME"
+    echo "Untarred results on client"
     ssh -i $ORACLE_KEY flash@$CLIENT "source ~/set_local_flash_env.sh;cd ~/src/FLASH/database; python3 db_upload.py -m $DB_MODE -s $SBID1 -t $TMPDIR -d $PARENTDIR -pw $FLASHPASS -cs config -l $LOG_NAME -e $ERR_NAME -o $OUTDIR_NAME -C '$DB_COMMENT' >> $PARENTDIR/$SBID1/'$SBID1'_${DB_LOG_SUFFIX} 2>&1"
+    echo "Uploaded to db"
 
-    # Stash the SLURM logs
-    mv slurm-*.out $DATA/tmp/
+    # Stash the SLURM logs - disable this until /scratch issues are resolved
+    #mv slurm-*.out $DATA/tmp/
 done
 exit 0
 
