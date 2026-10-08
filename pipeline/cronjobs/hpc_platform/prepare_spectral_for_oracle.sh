@@ -28,8 +28,9 @@ for SBID in "${SBIDARRAY[@]}"; do
     # If we are working in this folder, ensure the folder for it and especially
     # the complete mark for it is not present
     echo "Removing old ${WORKDIR} and its complete flag in staging area"
-    rm -f $WORKDIR
+    rm -rf $WORKDIR
     rm -f "${WORKDIR}.tar.gz"
+    rm -f "${WORKDIR}.sha256"
     rm -f "$(dirname "$WORKDIR")/$(basename "$WORKDIR").complete"
 
     # Make the needed folders & everything down to them
@@ -69,11 +70,17 @@ for SBID in "${SBIDARRAY[@]}"; do
     else
         QUALITY="NOT_VALIDATED"
     fi
+
     # Make a JSON of Metadata
-printf '{\n  "SBID": "%s",\n  "QUALITY": "%s",\n  "COMMENT": "%s",\n  "RUN_TYPE": "%s"\n}\n' "$SBID" "$QUALITY" "$COMMENT" "$RUN_TYPE" > "$WORKDIR/metadata.json"
+    printf '{\n  "SBID": "%s",\n  "QUALITY": "%s",\n  "COMMENT": "%s",\n  "RUN_TYPE": "%s"\n}\n' "$SBID" "$QUALITY" "$COMMENT" "$RUN_TYPE" > "$WORKDIR/metadata.json"
+
     # Zip it all up for transfer
     echo "Zipping ${WORKDIR} in staging area"
     tar -czf "${WORKDIR}.tar.gz" -C "$(dirname "$WORKDIR")" "$(basename "$WORKDIR")" && rm -rf "$WORKDIR"
+
+    # Create Checksum for Zipped workdir
+    sha256sum "${WORKDIR}.tar.gz" \
+        > "${WORKDIR}.sha256"
 
     # Mark it as complete for the poller
     echo "Marking zip in staging area as ready to transfer"

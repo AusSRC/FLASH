@@ -1,8 +1,10 @@
 """
-Push Detection to Oracle & Push Spectral to Oracle are modified to move all
+Prepare Detection for Oracle & Prepare Spectral for Oracle move all
 relevant files for a run into a folder, make a metadata.txt containing the
 run info such as sbid, quality_flag, run type etc., zip it into a single zip
-for transfer, move it into the transfer folder and mark it as complete
+for transfer, move it into the transfer folder and mark it as complete. This
+script just checks that folder for complete zips and archives them once it's
+uploaded them to the database.
 """
 
 from pathlib import Path
@@ -19,22 +21,17 @@ from enum import Enum, auto
 
 HOST = str(os.environ['HPC_PLATFORM'])
 USERNAME = str(os.environ['HPC_USER'])
-REMOTE_DIR = Path(os.environ['HPC_SCRATCH'] / "outputs_to_transfer")
-REMOTE_ARCHIVE_DIR = Path(os.environ['HPC_SCRATCH'] / "uploaded_outputs")
+REMOTE_DIR = Path(os.environ['HPC_SCRATCH']) / "outputs_to_transfer"
+REMOTE_ARCHIVE_DIR = Path(os.environ['HPC_SCRATCH']) / "uploaded_outputs"
 TMPDIR = Path(os.environ['TMPDIR'])
 DATADIR = Path(os.environ['DATA'])
 CONFIGPATH = "config"
 FLASHPASS = str(os.environ['FLASHPASS'])
-CLIENT = paramiko.SSHClient()
-CLIENT.load_system_host_keys()
-CLIENT.set_missing_host_key_policy(paramiko.RejectPolicy())
-CLIENT.connect(HOST, username=USERNAME)
-SFTP = CLIENT.open_sftp()
 
 
 class RunType(Enum):
     """Controls the run types allowed, should probably be used everywhere but
-    its needed here and much of the codebase is bash"""
+    its needed here and much of the codebase is Bash"""
     SPECTRAL = auto()
     DETECTION = auto()
     MASKED = auto()
@@ -52,55 +49,48 @@ def sha256_file(path: Path) -> str:
 
 
 def fetch_completed_outputs(
-    client: paramiko.SSHClient,
     sftp: paramiko.SFTPClient,
     local_dir: Path,
     remote_dir: Path,
-) -> List[Path]:
+) -> List[Tuple[Path, Path]]:
     """ Copies all outputs from linefinder runs to local VM"""
 
-    local_zips = []
-    try:
+    zips = []
 
-        entries = sftp.listdir_attr(str(remote_dir))
+    entries = sftp.listdir_attr(str(remote_dir))
 
-        completed_outputs = sorted(
-            remote_dir / (entry.filename.removesuffix(".complete") + ".tar.gz")
-            for entry in entries
-            if entry.filename.endswith(".complete")
-        )
+    completed_outputs = sorted(
+        remote_dir / (entry.filename.removesuffix(".complete") + ".tar.gz")
+        for entry in entries
+        if entry.filename.endswith(".complete")
+    )
 
-        # Foreach completed run outputs tar
-        print(f"Found {len(completed_outputs)} outputs to transfer:")
-        for remote_path in completed_outputs:
-            print(remote_path)
-            # Make Remote Hash
-            stdin, stdout, _ = client.exec_command(
-                f"sha256sum '{remote_path}'"
-            )
-            remote_hash = stdout.readline().split()[0]
+    # Foreach completed run outputs tar
+    print(f"Found {len(completed_outputs)} outputs to transfer:")
+    for remote_path in completed_outputs:
 
-            # Set the local path to copy too & make it if its missing
-            local_path = Path(local_dir) / remote_path.name
-            local_path.parent.mkdir(parents=True, exist_ok=True)
+        # Check Remote Hash
+        checksum_file = remote_path.with_suffix("").with_suffix(".sha256")
+        with sftp.open(str(checksum_file)) as f:
+            remote_hash = f.read().decode().split()[0]
 
-            # Download from remote to local
-            sftp.get(str(remote_path), str(local_path))
+        # Set the local path to copy too & make it if its missing
+        local_path = Path(local_dir) / remote_path.name
+        local_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Make Local Hash
-            local_hash = sha256_file(local_path)
+        # Download from remote to local
+        sftp.get(str(remote_path), str(local_path))
 
-            # Compare Hashes
-            if remote_hash != local_hash:
-                raise RuntimeError(f"Hash mismatch for {remote_path.name}")
+        # Make Local Hash
+        local_hash = sha256_file(local_path)
 
-            local_zips.append(local_path)
+        # Compare Hashes
+        if remote_hash != local_hash:
+            raise RuntimeError(f"Hash mismatch for {remote_path.name}")
 
-    finally:
-        sftp.close()
-        client.close()
+        zips.append((local_path, remote_path))
 
-    return local_zips
+    return zips
 
 
 def unpack_outputs(file_path: Path, local_dir: Path) -> Path:
@@ -135,11 +125,28 @@ def extract_meta_data(path_to_unpacked: Path) -> (
     return run_type, sbid, quality, comment
 
 
-def move_outputs_to_upload_paths(path_to_unpacked: Path) -> None:
-    """The DB upload script expects the outputs to be in specific locations,
-     this function moves the various parts of the unpacked tars contents to the 
-     various locations they need to be at.
-     """
+def move_outputs_to_upload_paths(
+    path_to_unpacked: Path,
+    run_type: str
+):
+    if run_type == "SPECTRAL":
+        move_spectral_outputs(path_to_unpacked)
+
+    elif run_type in (
+        "DETECTION",
+        "MASKED",
+        "INVERTED",
+        "INVMASKED",
+    ):
+        move_detection_outputs(path_to_unpacked)
+
+    else:
+        raise ValueError(
+            f"Unknown run type {run_type}"
+        )
+
+
+def move_spectral_outputs(path_to_unpacked: Path) -> None:
 
     ascii_tarball_path = path_to_unpacked / "ascii_tarball.tar.gz"
     catalogues_path = path_to_unpacked / "catalogues"
@@ -150,8 +157,55 @@ def move_outputs_to_upload_paths(path_to_unpacked: Path) -> None:
         for path in catalogues_path.iterdir():
             if path.is_file():
                 catalogues_path = DATADIR / "catalogues"
-                catalogues_path.parent.mkdir(parents=True, exist_ok=True)
+                catalogues_path.mkdir(
+                    parents=True,
+                    exist_ok=True,
+                )
                 shutil.move(path, catalogues_path)
+
+
+def move_detection_outputs(path_to_unpacked):
+    metadata_file = path_to_unpacked / "metadata.json"
+
+    with open(metadata_file) as f:
+        metadata = json.load(f)
+
+    sbid = metadata["SBID"]
+    run_type = metadata["RUN_TYPE"]
+
+    target_dir = DATADIR / sbid
+
+    target_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    shutil.move(
+        path_to_unpacked / "config",
+        target_dir / "config",
+    )
+
+    shutil.move(
+        path_to_unpacked / "logs",
+        target_dir / "logs",
+    )
+
+    if run_type == "DETECTION":
+        output_name = "outputs"
+
+    elif run_type == "INVERTED":
+        output_name = "inverted_outputs"
+
+    elif run_type == "MASKED":
+        output_name = "masked_outputs"
+
+    elif run_type == "INVMASKED":
+        output_name = "inv_masked_outputs"
+
+    shutil.move(
+        path_to_unpacked / output_name,
+        target_dir / output_name,
+    )
 
 
 def delete_local_run_outputs(paths: list[Path]) -> None:
@@ -197,57 +251,74 @@ def run_upload(
 
 def archive_remote_output(
     sftp: paramiko.SFTPClient,
-    remote_file: Path,
+    remote_tar: Path,
     archive_dir: Path,
 ) -> None:
-    """Moves remote output files into an archive directory."""
 
     try:
         sftp.mkdir(str(archive_dir))
     except OSError:
-        # Already exists
         pass
 
-    destination = archive_dir / remote_file.name
-    sftp.rename(
-        str(remote_file),
-        str(destination),
-    )
+    base = remote_tar.with_suffix("").with_suffix("")
+
+    files_to_archive = [
+        remote_tar,
+        base.with_suffix(".sha256"),
+        base.with_suffix(".complete"),
+    ]
+
+    for source in files_to_archive:
+        destination = archive_dir / source.name
+        sftp.rename(str(source), str(destination))
 
 
 def main():
     """Main function"""
-    # Fetch any completed output tars
-    local_zips = fetch_completed_outputs(CLIENT, SFTP, TMPDIR, REMOTE_DIR)
 
-    for local_zip in local_zips:
-        # Unzip them
-        local_unzip = unpack_outputs(local_zip, TMPDIR)
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    client.connect(HOST, username=USERNAME)
+    sftp = client.open_sftp()
 
-        # Figure out the run type, quality flag etc. from the run meta-data
-        # file
-        (run_type, sbid, quality, comment) = extract_meta_data(local_unzip)
+    try:
 
-        # Place outputs in expected locations for upload
-        move_outputs_to_upload_paths(local_unzip)
+        # Fetch any completed output tars
+        zips = fetch_completed_outputs(client, sftp, TMPDIR, REMOTE_DIR)
 
-        # Upload to DB
-        run_upload(
-            run_type,
-            quality,
-            sbid,
-            TMPDIR,
-            DATADIR,
-            FLASHPASS,
-            CONFIGPATH,
-            comment
-        )
+        for local_zip, remote_zip in zips:
+            # Unzip them
+            local_unzip = unpack_outputs(local_zip, TMPDIR)
 
-        # Delete uploaded data products from the VM
-        delete_local_run_outputs([local_unzip, local_zip])
+            # Figure out the run type, quality flag etc. from the run meta-data
+            # file
+            (run_type, sbid, quality, comment) = extract_meta_data(local_unzip)
 
-        # Move zip to scratch uploaded_results folder on HPC
-        archive_remote_output(SFTP, local_unzip, REMOTE_ARCHIVE_DIR)
+            # Place outputs in expected locations for upload
+            move_outputs_to_upload_paths(local_unzip, run_type)
+
+            # Upload to DB
+            run_upload(
+                run_type,
+                quality,
+                sbid,
+                TMPDIR,
+                DATADIR,
+                FLASHPASS,
+                CONFIGPATH,
+                comment
+            )
+
+            # Delete uploaded data products from the VM
+            delete_local_run_outputs([local_unzip, local_zip])
+
+            # Move zip to scratch uploaded_results folder on HPC
+            archive_remote_output(sftp, remote_zip, REMOTE_ARCHIVE_DIR)
+
+    finally:
+        sftp.close()
+        client.close()
 
 
 if __name__ == "__main__":
