@@ -724,6 +724,10 @@ def add_component_results(cur,sbid,result_file,output_dir,version=None):
             max_ln_mean = ln_mean  
 
         last_name = name
+
+    # The above will mark components that have an entry in the linefinder results table. But there will be others (bad files)
+    # that have not been processed, or others that HAVE been processed but not written in the resutls file because 
+    # nothing was found. We need to distinguish between these two cases and update appropriately.
     return cur
 
     
