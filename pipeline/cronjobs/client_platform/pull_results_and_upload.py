@@ -16,7 +16,7 @@ import os
 import hashlib
 import tarfile
 import json
-from enum import StrEnum
+from enum import Enum, auto
 
 
 HOST = str(os.environ['HPC_PLATFORM'])
@@ -29,14 +29,14 @@ CONFIGPATH = "config"
 FLASHPASS = str(os.environ['FLASHPASS'])
 
 
-class RunType(StrEnum):
+class RunType(Enum):
     """Controls the run types allowed, should probably be used everywhere but
     its needed here and much of the codebase is Bash"""
-    SPECTRAL = "SPECTRAL"
-    DETECTION = "DETECTION"
-    MASKED = "MASKED"
-    INVERTED = "INVERTED"
-    INVMASKED = "INVMASKED"
+    SPECTRAL = auto()
+    DETECTION = auto()
+    MASKED = auto()
+    INVERTED = auto()
+    INVMASKED = auto()
 
 
 def sha256_file(path: Path) -> str:
@@ -107,17 +107,19 @@ def unpack_outputs(file_path: Path, local_dir: Path) -> Path:
     return Path(local_dir) / folder_name
 
 
-def extract_meta_data(path_to_unpacked: Path) -> (
-        Tuple[str, str, str, str]):
+def extract_meta_data(
+        path_to_unpacked: Path
+) -> Tuple[RunType, str, str, str]:
+
     """The DB upload script needs to know the runtype and quality flag of the
     outputs it is uploading. This function extracts them from the runs bundled
     metadata file.
      """
 
-    with open(f"{path_to_unpacked}/metadata.json") as f:
+    with open(path_to_unpacked / "metadata.json") as f:
         metadata = json.load(f)
 
-    run_type = RunType(metadata["RUN_TYPE"])
+    run_type = RunType[metadata["RUN_TYPE"]]
     sbid = str(metadata["SBID"])
     quality = str(metadata["QUALITY"])
     comment = str(metadata["COMMENT"])
@@ -127,7 +129,7 @@ def extract_meta_data(path_to_unpacked: Path) -> (
 
 def move_outputs_to_upload_paths(
     path_to_unpacked: Path,
-    run_type: str
+    run_type: RunType,
 ):
     if run_type == RunType.SPECTRAL:
         move_spectral_outputs(path_to_unpacked)
@@ -138,7 +140,7 @@ def move_outputs_to_upload_paths(
             RunType.INVERTED,
             RunType.INVMASKED,
     ):
-        move_detection_outputs(path_to_unpacked)
+        move_detection_outputs(path_to_unpacked, run_type)
 
     else:
         raise ValueError(
@@ -164,14 +166,13 @@ def move_spectral_outputs(path_to_unpacked: Path) -> None:
                 shutil.move(path, catalogues_path)
 
 
-def move_detection_outputs(path_to_unpacked):
+def move_detection_outputs(path_to_unpacked, run_type: RunType) -> None:
     metadata_file = path_to_unpacked / "metadata.json"
 
     with open(metadata_file) as f:
         metadata = json.load(f)
 
     sbid = metadata["SBID"]
-    run_type = metadata["RUN_TYPE"]
 
     target_dir = DATADIR / sbid
 
@@ -238,7 +239,7 @@ def run_upload(
     cmd = [
         "python3",
         "database/db_upload.py",
-        "-m", run_type,
+        "-m", run_type.name,
         "-q", quality,
         "-s", sbid,
         "-t", temp_dir,
