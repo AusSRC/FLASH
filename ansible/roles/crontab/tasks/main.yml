@@ -1,0 +1,19 @@
+- name: Ensure cron package is installed
+  ansible.builtin.apt:
+    name: cron
+    state: present
+    update_cache: yes
+
+- name: Ensure cron service is started and enabled
+  ansible.builtin.service:
+    name: cron
+    state: started
+    enabled: yes
+
+- name: Install cron jobs
+  ansible.builtin.template:
+    src: jobs.cron.j2
+    dest: /etc/cron.d/flash-jobs
+    owner: root
+    group: root
+    mode: "0644"

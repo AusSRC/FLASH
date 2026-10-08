@@ -1,13 +1,14 @@
 #!/usr/bin/python
-################################################################################################################
+##############################################################################
 #
 #       NOTE: FLASH project code is AS209
-#       NOTE: casda ivoa.obscore defines 'obs_collection' as 'FLASH' for survey, and 'ASKAP Pilot Survey for FLASH' for pilot
+#       NOTE: casda ivoa.obscore defines 'obs_collection' as 'FLASH' for
+#       survey, and 'ASKAP Pilot Survey for FLASH' for pilot
 #       NOTE: FLASH Pilot 1 dates are: before 11/2021
 #       NOTE: FLASH Pilot 2 dates are: 11/2021 ~ 08/2022
 #       NOTE: FLASH Survey dates are: 11/2022 on
 #
-################################################################################################################
+##############################################################################
 # Imports
 import astroquery as aq
 from astroquery.utils.tap.core import TapPlus
@@ -19,12 +20,32 @@ from glob import glob
 import getpass
 from argparse import ArgumentParser, RawTextHelpFormatter
 from packaging.version import parse
+from keyring.backend import KeyringBackend
+import keyring
 
 UNTAR = True
 DATADIR = "/scratch/ja3/ger063/data/casda" # The expected structure is subdirs under here for sbids
 CATDIR = "/scratch/ja3/ger063/data/casda/catalogues" # directory that holds catalogues
 
-################################################################################################################
+##############################################################################
+
+
+class EnvKeyring(KeyringBackend):
+    """Needed because astroquery requires the use of keyrings to match best
+    practises so that people don't commit passwords to git, all well and good
+    except containers (especially on k8) don't generally use keyrings"""
+    priority = 9
+
+    def get_password(self, servicename, username):
+        print(f"Getting password for {servicename=} {username=}")
+        return os.environ.get("CASDA_PWD")
+
+    def set_password(self, servicename, username, password):
+        pass
+
+    def delete_password(self, servicename, username):
+        pass
+
 
 def set_parser():
     # Set up the argument parser
@@ -72,6 +93,7 @@ def authenticate(args):
     else:
     # New authentication for astroquery 0.4.7:
         print("Ensure the keyring is set for user ",username)
+        keyring.set_keyring(EnvKeyring())
         casda = Casda()
         casda.login(username=username)
     casdatap = TapPlus(url="https://casda.csiro.au/casda_vo_tools/tap")

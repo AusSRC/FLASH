@@ -1,0 +1,28 @@
+# roles/firewall/tasks/main.yml
+
+- name: Default deny incoming
+  ufw:
+    direction: incoming
+    policy: deny
+
+- name: Default allow outgoing
+  ufw:
+    direction: outgoing
+    policy: allow
+
+- name: Allow SSH first
+  ufw:
+    rule: allow
+    port: "{{ ssh_port }}"
+    proto: tcp
+
+- name: Allow required ports
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ allowed_ports }}"
+
+- name: Enable UFW
+  ufw:
+    state: enabled

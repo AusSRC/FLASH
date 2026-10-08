@@ -1,0 +1,24 @@
+
+- name: Install gnupg and lsb-release
+  ansible.builtin.apt:
+    name: [gnupg, lsb-release]
+    state: present
+    update_cache: true
+
+- name: Add PostgreSQL GPG key
+  ansible.builtin.get_url:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    dest: /usr/share/keyrings/pgdg.asc
+    mode: '0644'
+
+- name: Add PostgreSQL repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/pgdg.asc] http://apt.postgresql.org/pub/repos/apt {{ ansible_facts['distribution_release'] }}-pgdg main"
+    state: present
+    filename: pgdg
+
+- name: Install PostgreSQL 14 client
+  ansible.builtin.apt:
+    name: postgresql-client-14
+    state: present
+    update_cache: true

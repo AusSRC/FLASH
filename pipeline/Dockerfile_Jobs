@@ -1,0 +1,81 @@
+# =========================================================
+# Builder
+# =========================================================
+
+FROM python:3.10.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV UV_PROJECT_ENVIRONMENT=/job/.venv
+
+WORKDIR /job
+# ---------------------------------------------------------
+# System build dependencies
+# ---------------------------------------------------------
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------
+# Install uv
+# ---------------------------------------------------------
+
+RUN pip install --no-cache-dir uv --root-user-action=ignore
+
+# ---------------------------------------------------------
+# Dependency layer (cache-friendly)
+# ---------------------------------------------------------
+
+COPY pipeline/pyproject.toml pipeline/uv.lock ./
+
+# ---------------------------------------------------------
+# Copy source code
+# ---------------------------------------------------------
+
+COPY database ./database
+COPY pipeline/cronjobs/client_platform pipeline/cronjobs/client_platform
+
+# Install local project into virtualenv
+RUN uv sync --frozen --no-dev
+
+# =========================================================
+# Runtime
+# =========================================================
+
+FROM python:3.10.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PATH="/job/.venv/bin:$PATH"
+
+# Install ssh & scp
+RUN apt-get update && apt-get install -y \
+    openssh-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------
+# Create non-root user thats forced to UID 999 and Group flash which
+# exists on the VM as flash with gui 2000
+# ---------------------------------------------------------
+
+RUN groupadd -g 2000 flash && \
+    useradd -m -u 1003 -g flash job
+
+# ---------------------------------------------------------
+# Copy job
+# ---------------------------------------------------------
+
+COPY --from=builder /job /job
+
+# ---------------------------------------------------------
+# Set ownership
+# ---------------------------------------------------------
+
+RUN chown -R job:flash /job
+
+USER job
+
+WORKDIR job/pipeline/cronjobs/client_platform
+
+ENTRYPOINT ["bash"]

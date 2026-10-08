@@ -27,7 +27,7 @@
     {% load static %}
 	function getCSV () {
 	  // (PART A) FETCH CSV FROM SERVER
-	  Papa.parse("{% static csv_file %}", {
+	  Papa.parse("{{ csv_file }}", {
 	    download: true,
 	    skipEmptyLines: true,
 
