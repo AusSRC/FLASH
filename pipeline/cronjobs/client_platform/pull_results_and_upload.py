@@ -16,7 +16,7 @@ import os
 import hashlib
 import tarfile
 import json
-from enum import Enum, auto
+from enum import StrEnum
 
 
 HOST = str(os.environ['HPC_PLATFORM'])
@@ -29,14 +29,14 @@ CONFIGPATH = "config"
 FLASHPASS = str(os.environ['FLASHPASS'])
 
 
-class RunType(Enum):
+class RunType(StrEnum):
     """Controls the run types allowed, should probably be used everywhere but
     its needed here and much of the codebase is Bash"""
-    SPECTRAL = auto()
-    DETECTION = auto()
-    MASKED = auto()
-    INVERTED = auto()
-    INVMASKED = auto()
+    SPECTRAL = "SPECTRAL"
+    DETECTION = "DETECTION"
+    MASKED = "MASKED"
+    INVERTED = "INVERTED"
+    INVMASKED = "INVMASKED"
 
 
 def sha256_file(path: Path) -> str:
@@ -117,7 +117,7 @@ def extract_meta_data(path_to_unpacked: Path) -> (
     with open(f"{path_to_unpacked}/metadata.json") as f:
         metadata = json.load(f)
 
-    run_type = str(metadata['RUN_TYPE'])
+    run_type = RunType(metadata["RUN_TYPE"])
     sbid = str(metadata["SBID"])
     quality = str(metadata["QUALITY"])
     comment = str(metadata["COMMENT"])
@@ -129,14 +129,14 @@ def move_outputs_to_upload_paths(
     path_to_unpacked: Path,
     run_type: str
 ):
-    if run_type == "SPECTRAL":
+    if run_type == RunType.SPECTRAL:
         move_spectral_outputs(path_to_unpacked)
 
     elif run_type in (
-        "DETECTION",
-        "MASKED",
-        "INVERTED",
-        "INVMASKED",
+            RunType.DETECTION,
+            RunType.MASKED,
+            RunType.INVERTED,
+            RunType.INVMASKED,
     ):
         move_detection_outputs(path_to_unpacked)
 
@@ -190,17 +190,22 @@ def move_detection_outputs(path_to_unpacked):
         target_dir / "logs",
     )
 
-    if run_type == "DETECTION":
+    if run_type == RunType.DETECTION:
         output_name = "outputs"
 
-    elif run_type == "INVERTED":
+    elif run_type == RunType.INVERTED:
         output_name = "inverted_outputs"
 
-    elif run_type == "MASKED":
+    elif run_type == RunType.MASKED:
         output_name = "masked_outputs"
 
-    elif run_type == "INVMASKED":
+    elif run_type == RunType.INVMASKED:
         output_name = "inv_masked_outputs"
+
+    else:
+        raise ValueError(
+            f"Unknown run type {run_type}"
+        )
 
     shutil.move(
         path_to_unpacked / output_name,
@@ -285,7 +290,7 @@ def main():
     try:
 
         # Fetch any completed output tars
-        zips = fetch_completed_outputs(client, sftp, TMPDIR, REMOTE_DIR)
+        zips = fetch_completed_outputs(sftp, TMPDIR, REMOTE_DIR)
 
         for local_zip, remote_zip in zips:
             # Unzip them

@@ -32,7 +32,6 @@
 # case, the database is not checked for sbids to process.
 ################################################################################################
 # Client platform details: : edit these as appropiate
-#source $HOME/set_local_flash_env.sh
 
 # For masked detection, provide the directory that holds the mask files
 MASKDIR="$CRONDIR/masks"
