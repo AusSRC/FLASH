@@ -146,8 +146,11 @@ def set_mode_and_values(args):
     DB_PASSWORD = args.flashpw
     DB_HOST = args.host.strip()
     DB_PORT = args.port.strip()
-    DB_NAME = args.database.strip()
-    DB_USER = args.database_user.strip()
+    if args.database is not None:
+        DB_NAME = args.database.strip()
+
+    if args.database_user is not None:
+        DB_USER = args.database_user.strip()
 
 
 def connect(db=None, user=None, host=None, port=None, password=None):
