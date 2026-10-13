@@ -26,7 +26,6 @@ REMOTE_ARCHIVE_DIR = Path(os.environ['HPC_SCRATCH']) / "uploaded_outputs"
 TMPDIR = Path(os.environ['TMPDIR'])
 DATADIR = Path(os.environ['DATA'])
 CONFIGPATH = "config"
-FLASHPASS = str(os.environ['FLASHPASS'])
 
 
 class RunType(Enum):
@@ -229,7 +228,6 @@ def run_upload(
     sbid,
     temp_dir,
     parent_dir,
-    db_password,
     config_file_path,
     comment
 ):
@@ -244,7 +242,6 @@ def run_upload(
         "-s", sbid,
         "-t", temp_dir,
         "-d", parent_dir,
-        "-pw", db_password,
         "-cs", config_file_path,
         "-C", comment,
     ]
@@ -311,7 +308,6 @@ def main():
                 sbid,
                 TMPDIR,
                 DATADIR,
-                FLASHPASS,
                 CONFIGPATH,
                 comment
             )
