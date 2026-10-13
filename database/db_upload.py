@@ -128,10 +128,10 @@ def set_parser():
     parser.add_argument('-r', '--results',
             default=LINEFINDER_SUMMARY_FILE,
             help='Path to linefinder final results file (default: %(default)s)')
-    parser.add_argument('db', '--database',
+    parser.add_argument('-db', '--database',
             default=None,
             help = 'The database name you are connecting to (default: %(default)s)')
-    parser.add_argument('dbu', '--database_user',
+    parser.add_argument('-dbu', '--database_user',
             default=None,
             help = 'The database user you are connecting as (default: %(default)s)')
     args = parser.parse_args()
