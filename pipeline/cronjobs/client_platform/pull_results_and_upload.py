@@ -6,7 +6,7 @@ for transfer, move it into the transfer folder and mark it as complete. This
 script just checks that folder for complete zips and archives them once it's
 uploaded them to the database.
 """
-
+import socket
 from pathlib import Path
 from typing import List, Tuple
 import shutil
@@ -17,7 +17,6 @@ import hashlib
 import tarfile
 import json
 from enum import Enum, auto
-
 
 HOST = str(os.environ['HPC_PLATFORM'])
 USERNAME = str(os.environ['HPC_USER'])
@@ -48,9 +47,9 @@ def sha256_file(path: Path) -> str:
 
 
 def fetch_completed_outputs(
-    sftp: paramiko.SFTPClient,
-    local_dir: Path,
-    remote_dir: Path,
+        sftp: paramiko.SFTPClient,
+        local_dir: Path,
+        remote_dir: Path,
 ) -> List[Tuple[Path, Path]]:
     """ Copies all outputs from linefinder runs to local VM"""
 
@@ -109,7 +108,6 @@ def unpack_outputs(file_path: Path, local_dir: Path) -> Path:
 def extract_meta_data(
         path_to_unpacked: Path
 ) -> Tuple[RunType, str, str, str]:
-
     """The DB upload script needs to know the runtype and quality flag of the
     outputs it is uploading. This function extracts them from the runs bundled
     metadata file.
@@ -127,8 +125,8 @@ def extract_meta_data(
 
 
 def move_outputs_to_upload_paths(
-    path_to_unpacked: Path,
-    run_type: RunType,
+        path_to_unpacked: Path,
+        run_type: RunType,
 ):
     if run_type == RunType.SPECTRAL:
         move_spectral_outputs(path_to_unpacked)
@@ -148,7 +146,6 @@ def move_outputs_to_upload_paths(
 
 
 def move_spectral_outputs(path_to_unpacked: Path) -> None:
-
     ascii_tarball_path = path_to_unpacked / "ascii_tarball.tar.gz"
     catalogues_path = path_to_unpacked / "catalogues"
 
@@ -223,13 +220,13 @@ def delete_local_run_outputs(paths: list[Path]) -> None:
 
 
 def run_upload(
-    run_type,
-    quality,
-    sbid,
-    temp_dir,
-    parent_dir,
-    config_file_path,
-    comment
+        run_type,
+        quality,
+        sbid,
+        temp_dir,
+        parent_dir,
+        config_file_path,
+        comment
 ):
     """
     Runs the db upload script to load the run data & meta-data into the DB
@@ -253,11 +250,10 @@ def run_upload(
 
 
 def archive_remote_output(
-    sftp: paramiko.SFTPClient,
-    remote_tar: Path,
-    archive_dir: Path,
+        sftp: paramiko.SFTPClient,
+        remote_tar: Path,
+        archive_dir: Path,
 ) -> None:
-
     try:
         sftp.mkdir(str(archive_dir))
     except OSError:
@@ -278,30 +274,47 @@ def archive_remote_output(
 
 def main():
     """Main function"""
-
+    print('Starting ssh client')
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
-    client.connect(HOST, username=USERNAME)
+
+    sock = socket.create_connection(
+        (HOST, 22),
+        timeout=5,
+    )
+
+    client.connect(
+        hostname="setonix.pawsey.org.au",
+        username=USERNAME,
+        key_filename="/home/job/.ssh/setonix",
+        sock=sock,
+    )
+    print('Starting sftp client')
     sftp = client.open_sftp()
 
     try:
-
+        print('Fetching completed zips')
         # Fetch any completed output tars
         zips = fetch_completed_outputs(sftp, TMPDIR, REMOTE_DIR)
 
         for local_zip, remote_zip in zips:
             # Unzip them
+            print(f'Unpacking {local_zip} to {TMPDIR}')
             local_unzip = unpack_outputs(local_zip, TMPDIR)
 
             # Figure out the run type, quality flag etc. from the run meta-data
             # file
+            print(f'Extracting Metadata from {local_zip}')
             (run_type, sbid, quality, comment) = extract_meta_data(local_unzip)
 
             # Place outputs in expected locations for upload
+            print(f'Handling {local_unzip} outputs as {run_type}')
             move_outputs_to_upload_paths(local_unzip, run_type)
 
             # Upload to DB
+            print(f'Uploading {sbid} outputs to database with '
+                  f'using {run_type, quality, TMPDIR, DATADIR, CONFIGPATH, comment}')
             run_upload(
                 run_type,
                 quality,
@@ -313,12 +326,15 @@ def main():
             )
 
             # Delete uploaded data products from the VM
+            print(f'Tidying up local copies')
             delete_local_run_outputs([local_unzip, local_zip])
 
             # Move zip to scratch uploaded_results folder on HPC
+            print(f'Archiving {remote_zip} to {REMOTE_ARCHIVE_DIR}')
             archive_remote_output(sftp, remote_zip, REMOTE_ARCHIVE_DIR)
 
     finally:
+        print('Closing sftp')
         sftp.close()
         client.close()
 
