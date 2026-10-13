@@ -34,7 +34,7 @@ COPY pipeline/pyproject.toml pipeline/uv.lock ./
 # ---------------------------------------------------------
 
 COPY database ./database
-COPY pipeline/cronjobs/client_platform pipeline/cronjobs/client_platform
+COPY pipeline/cronjobs/client_platform .
 
 # Install local project into virtualenv
 RUN uv sync --frozen --no-dev
@@ -76,6 +76,6 @@ RUN chown -R job:flash /job
 
 USER job
 
-WORKDIR job/pipeline/cronjobs/client_platform
+WORKDIR /job
 
 ENTRYPOINT ["bash"]

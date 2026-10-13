@@ -54,7 +54,8 @@ def fetch_completed_outputs(
     """ Copies all outputs from linefinder runs to local VM"""
 
     zips = []
-
+    print(type(remote_dir))
+    print(f"Checking remote dir: {remote_dir}")
     entries = sftp.listdir_attr(str(remote_dir))
 
     completed_outputs = sorted(
@@ -220,13 +221,13 @@ def delete_local_run_outputs(paths: list[Path]) -> None:
 
 
 def run_upload(
-        run_type,
-        quality,
-        sbid,
-        temp_dir,
-        parent_dir,
-        config_file_path,
-        comment
+    run_type,
+    quality,
+    sbid,
+    temp_dir,
+    parent_dir,
+    config_file_path,
+    comment
 ):
     """
     Runs the db upload script to load the run data & meta-data into the DB
@@ -279,11 +280,12 @@ def main():
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
 
+    print('Opening socket')
     sock = socket.create_connection(
         (HOST, 22),
         timeout=5,
     )
-
+    print('Client connecting')
     client.connect(
         hostname="setonix.pawsey.org.au",
         username=USERNAME,
@@ -313,8 +315,7 @@ def main():
             move_outputs_to_upload_paths(local_unzip, run_type)
 
             # Upload to DB
-            print(f'Uploading {sbid} outputs to database with '
-                  f'using {run_type, quality, TMPDIR, DATADIR, CONFIGPATH, comment}')
+            print(f'Uploading SBID {sbid} to database')
             run_upload(
                 run_type,
                 quality,
