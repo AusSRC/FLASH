@@ -49,14 +49,11 @@ import db_utils as dbu
 # These are the default values (overridden by command line args):
 
 DATA_DIR = os.environ["DATA"]
-DBHOST = ""
-DBPORT = ""
 DETECTMODE = "STD"
 ERROR_LOG = "err.log"
 LINEFINDER_CONFIG_DIR = ""
 LINEFINDER_OUTPUT_DIR = ""
 LINEFINDER_SUMMARY_FILE = "results.dat"
-PASSWD = ""
 PLATFORM = "setonix.pawsey.org.au"
 QUALITY = "UNCERTAIN"
 RUN_TAG = "FLASH survey 1"
@@ -68,6 +65,12 @@ STDOUT_LOG = "out.log"
 TMP_TAR_DIR = os.environ["TMPDIR"]
 VERSIONS = []
 
+# Configure the connection using env vars
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT", default="5432")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 # These are the allowed command line overrides:
 
@@ -130,9 +133,10 @@ def set_parser():
 
 def set_mode_and_values(args):
 
-    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT, PASSWD
+    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT
     global SPECTRAL_CONFIG_DIR,LINEFINDER_CONFIG_DIR,LINEFINDER_OUTPUT_DIR,LINEFINDER_SUMMARY_FILE, QUALITY
-    global DBHOST, DBPORT, DETECTMODE
+    global DETECTMODE
+    global DB_HOST, DB_PORT, DB_PASSWORD, MODE, DB_USER, DB_NAME
 
     RUN_TYPE = args.mode.strip().upper()
     if RUN_TYPE == "QUALITY":
@@ -164,9 +168,11 @@ def set_mode_and_values(args):
     RUN_TAG = args.name_tag.strip()
     SBID_COMMENT = args.comment.strip()
     QUALITY = args.quality.strip()
-    PASSWD = args.flashpw
-    DBHOST = args.host.strip()
-    DBPORT = args.port.strip()
+    DB_PASSWORD = args.flashpw
+    DB_HOST = args.host.strip()
+    DB_PORT = args.port.strip()
+    DB_NAME = args.database.strip()
+    DB_USER = args.database_user.strip()
     if RUN_TYPE == "DETECTION":
         DETECTMODE = "STD"
     elif RUN_TYPE == "INVERTED":
@@ -202,19 +208,21 @@ NOISE_PATH = ""
 ########################## DO NOT EDIT FURTHER #####################################################################
 ####################################################################################################################
 
-def connect(db="flashdb",user="flash",password=None):
+def connect(db=None, user=None, host=None, port=None, password=None):
 
-    if not password:
-        password = PASSWD
-    conn = psycopg2.connect(
-        database = db,
-        user = user,
-        password = password,
-        host = DBHOST,
-        port = DBPORT
+    db = DB_NAME if db is None else db
+    user = DB_USER if user is None else user
+    host = DB_HOST if host is None else host
+    port = DB_PORT if port is None else port
+    password = DB_PASSWORD if password is None else password
+
+    return psycopg2.connect(
+        database=db,
+        user=user,
+        password=password,
+        host=host,
+        port=port
     )
-    #print(conn.get_dsn_parameters(),"\n")
-    return conn
 
 def get_cursor(conn):
 

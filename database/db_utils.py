@@ -43,18 +43,17 @@ ONLY_CATS = True # Only download catalogues - not spectral and noise data
 DUMMY=False # Set to true to only query - don't download or upload anything.
 REJECTED=True # If set, process sbids even if marked as 'REJECTED'.
 CASDA_EMAIL = ""
-PASSWD = ""
 DETECTFLAGS = {"45762":{"STD":False, "INVERT":False, "MASK":False, "INVMASK":False}} # Dictionary holding the detection status flags 
 
 ###############################################################################################################
 ############ - FLASHDB details ################################################################################
-HOST = "10.0.2.225"
-PORT = 5432
-DATABASE = "flashdb"
-USER = "flash"
 
-#HOST = "146.118.64.208"
-#PORT = 2095
+# Configure the connection using env vars
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT", default="5432")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 ####################################################################################################################
 ########################## DO NOT EDIT FURTHER #####################################################################
@@ -117,7 +116,7 @@ def set_parser():
 
 def set_mode_and_values(args):
     global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, DUMMY, REJECTED, CASDA_EMAIL
-    global HOST, PORT, PASSWD, MODE, USER, DATABASE
+    global DB_HOST, DB_PORT, DB_PASSWORD, MODE, DB_USER, DB_NAME
 
     RUN_TYPE = args.mode.strip().upper()
     SBIDDIR = args.sbid_dir.strip()
@@ -139,20 +138,20 @@ def set_mode_and_values(args):
     ADD_CAT = args.add_cat
     DUMMY = args.no_action
     REJECTED = args.rejected
-    PASSWD = args.flashpw
-    HOST = args.host.strip()
-    PORT = args.port.strip()
-    DATABASE = args.database.strip()
-    USER = args.database_user.strip()
+    DB_PASSWORD = args.flashpw
+    DB_HOST = args.host.strip()
+    DB_PORT = args.port.strip()
+    DB_NAME = args.database.strip()
+    DB_USER = args.database_user.strip()
 
 
 def connect(db=None, user=None, host=None, port=None, password=None):
 
-    db = DATABASE if db is None else db
-    user = USER if user is None else user
-    host = HOST if host is None else host
-    port = PORT if port is None else port
-    password = PASSWD if password is None else password
+    db = DB_NAME if db is None else db
+    user = DB_USER if user is None else user
+    host = DB_HOST if host is None else host
+    port = DB_PORT if port is None else port
+    password = DB_PASSWORD if password is None else password
 
     return psycopg2.connect(
         database=db,

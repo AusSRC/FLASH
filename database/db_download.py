@@ -24,9 +24,13 @@ BRIGHT = "-1"
 LN_MEAN = "-1"
 SQL = ""
 UNTAR = False
-PASSWD = ""
-DBHOST = ""
-DBPORT = ""
+
+# Configure the connection using env vars
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT", default="5432")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 #######################################################################################
 def set_parser():
@@ -76,13 +80,16 @@ def set_parser():
 
 def set_mode_and_values(args):
 
-    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN, SQL, UNTAR, PASSWD, SOURCE, DBHOST, DBPORT
+    global MODE, SBID, VERSION, DIR, BRIGHT, LN_MEAN, SQL, UNTAR, SOURCE
+    global DB_HOST, DB_PORT, DB_PASSWORD, DB_USER, DB_NAME
 
     MODE = args.mode.strip().upper()
     DIR = args.dir.strip()
-    PASSWD = args.flashpw
-    DBHOST = args.host.strip()
-    DBPORT = args.port.strip()
+    DB_PASSWORD = args.flashpw
+    DB_HOST = args.host.strip()
+    DB_PORT = args.port.strip()
+    DB_NAME = args.database.strip()
+    DB_USER = args.database_user.strip()
 
     if MODE == "SQL":
         SQL = args.sql_stat.strip()
@@ -114,19 +121,21 @@ def set_mode_and_values(args):
 
 #######################################################################################
 
-def connect(db="flashdb",user="flash",password=None):
+def connect(db=None, user=None, host=None, port=None, password=None):
 
-    if not password:
-        password = PASSWD
-    conn = psycopg2.connect(
-        database = db,
-        user = user,
-        password = password,
-        host = DBHOST,
-        port = DBPORT
+    db = DB_NAME if db is None else db
+    user = DB_USER if user is None else user
+    host = DB_HOST if host is None else host
+    port = DB_PORT if port is None else port
+    password = DB_PASSWORD if password is None else password
+
+    return psycopg2.connect(
+        database=db,
+        user=user,
+        password=password,
+        host=host,
+        port=port
     )
-    #print(conn.get_dsn_parameters(),"\n")
-    return conn
 
 def get_cursor(conn):
 
