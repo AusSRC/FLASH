@@ -25,6 +25,7 @@ REMOTE_ARCHIVE_DIR = Path(os.environ['HPC_SCRATCH']) / "uploaded_outputs"
 TMPDIR = Path(os.environ['TMPDIR'])
 DATADIR = Path(os.environ['DATA'])
 CONFIGPATH = "config"
+KEYNAME = "/home/job/.ssh/setonix"
 
 
 class RunType(Enum):
@@ -287,9 +288,9 @@ def main():
     )
     print('Client connecting')
     client.connect(
-        hostname="setonix.pawsey.org.au",
+        hostname=HOST,
         username=USERNAME,
-        key_filename="/home/job/.ssh/setonix",
+        key_filename=KEYNAME,
         sock=sock,
     )
     print('Starting sftp client')
