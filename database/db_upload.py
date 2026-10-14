@@ -91,22 +91,13 @@ def set_parser():
             help='Specify the sbid list eg 11346,11348,41050:1,50332 (default: %(default)s)')  
     parser.add_argument('-d', '--parent_dir',
             default=DATA_DIR,
-            help='Specify local directory to use (default: %(default)s)')    
-    parser.add_argument('-ht', '--host',
-            default="10.0.2.225",
-            help='database host ip (default: %(default)s)')    
-    parser.add_argument('-pt', '--port',
-            default="5432",
-            help='database host port (default: %(default)s)')    
+            help='Specify local directory to use (default: %(default)s)')
     parser.add_argument('-t', '--tmp_dir',
             default=TMP_TAR_DIR,
             help='Specify local directory to use as tmp (default: %(default)s)')    
     parser.add_argument('-p', '--platform',
             default=PLATFORM,
-            help='Specify the compute platform used (default: %(default)s)')    
-    parser.add_argument('-pw', '--flashpw',
-            default=None,
-            help='Specify the password for login to FLASHDB (default: %(default)s)')    
+            help='Specify the compute platform used (default: %(default)s)')
     parser.add_argument('-cs', '--config_spectral',
             default=SPECTRAL_CONFIG_DIR,
             help='Specify spectral config directory used for processing (default: %(default)s)')
@@ -134,6 +125,15 @@ def set_parser():
     parser.add_argument('-dbu', '--database_user',
             default=None,
             help = 'The database user you are connecting as (default: %(default)s)')
+    parser.add_argument('-ht', '--host',
+            default=None,
+            help='database host ip (default: %(default)s)')
+    parser.add_argument('-pt', '--port',
+            default=None,
+            help='database host port (default: %(default)s)')
+    parser.add_argument('-pw', '--flashpw',
+            default=None,
+            help='Specify the password for login to FLASHDB (default: %(default)s)')
     args = parser.parse_args()
     return args,parser
 
@@ -174,9 +174,15 @@ def set_mode_and_values(args):
     RUN_TAG = args.name_tag.strip()
     SBID_COMMENT = args.comment.strip()
     QUALITY = args.quality.strip()
-    DB_PASSWORD = args.flashpw
-    DB_HOST = args.host.strip()
-    DB_PORT = args.port.strip()
+
+    if args.flashpw is not None:
+        DB_PASSWORD = args.flashpw
+
+    if args.host is not None:
+        DB_HOST = args.host.strip()
+
+    if args.port is not None:
+        DB_PORT = args.port.strip()
 
     if args.database is not None:
         DB_NAME = args.database.strip()
