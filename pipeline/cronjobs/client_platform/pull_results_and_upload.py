@@ -215,6 +215,7 @@ def move_detection_outputs(path_to_unpacked, run_type: RunType) -> None:
 def delete_local_run_outputs(paths: list[Path]) -> None:
     """Deletes local output files and directories."""
     for path in paths:
+        print(f"Deleting {path}")
         if path.is_dir():
             shutil.rmtree(path)
         else:
