@@ -264,10 +264,10 @@ def createDataDict(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH
     sbidsDict = {"data_path":data_path}
     for sbid in sbids:
         sbidsDict[sbid] = {"components":[],"plots":[],"ascii":[]}
-        component_path = f"{data_path}/{sbid}/{component_dir}"
-        plots_path = f"{data_path}/{sbid}/{plot_dir}"
-        ascii_path = f"{data_path}/{sbid}/{ascii_dir}"
-        output_path = f"{data_path}/{sbid}/{outputs}"
+        component_path = f"{data_path}/{component_dir}"
+        plots_path = f"{data_path}/{plot_dir}"
+        ascii_path = f"{data_path}/{ascii_dir}"
+        output_path = f"{data_path}/{outputs}"
 
         sbidsDict[sbid]["component_path"] = component_path
         sbidsDict[sbid]["plots_path"] = plots_path
@@ -284,7 +284,7 @@ def createDataDict(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH
             asciis = None
         if RUN_TYPE not in ["DETECTION","INVERTED","MASKED","INVMASKED"]:
             # Get the name of the SourceSpectra tarball, so we can extract the pointing field value
-            sspectraname = [f for f in os.listdir(f'{data_path}/{sbid}') if f.startswith("SourceSpectra-image")][0]
+            sspectraname = [f for f in os.listdir(f'{data_path}') if f.startswith("SourceSpectra-image")][0]
             try:
                 pointing_field = "FLASH_" + sspectraname.split("FLASH_")[1].split(".")[0]
             except IndexError:
@@ -458,7 +458,7 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
         flux = None
         config_data = None
         if config_dir:
-            config_tardir = f"{DATA_DIR}/{sbid}/{config_dir}"
+            config_tardir = f"{DATA_DIR}/{config_dir}"
             config_tarball = f"{TMP_TAR_DIR}/{sbid}_spectral_config.tar.gz"
             tar_dir(config_tarball,config_tardir,pattern="config.py")
             config_data = None
@@ -792,7 +792,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
     output_tarball = f"{TMP_TAR_DIR}/{sbid}_linefinder_output.tar.gz"
     if not os.path.isfile(output_tarball):
         print(f"Creating tarball {output_tarball}")
-        count = tar_dir(output_tarball,f"{sbid}/{LINEFINDER_OUTPUT_DIR}",pattern=["stats.dat","result",".pdf"])
+        count = tar_dir(output_tarball,f"{TMP_TAR_DIR}/{LINEFINDER_OUTPUT_DIR}",pattern=["stats.dat","result",".pdf"])
         print(f"   -- {count} files in tarball")
     with open(output_tarball,'rb') as f:
         detect_data = f.read()
