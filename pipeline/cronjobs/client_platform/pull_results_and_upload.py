@@ -23,7 +23,6 @@ USERNAME = str(os.environ['HPC_USER'])
 REMOTE_DIR = Path(os.environ['HPC_SCRATCH']) / "outputs_to_transfer"
 REMOTE_ARCHIVE_DIR = Path(os.environ['HPC_SCRATCH']) / "uploaded_outputs"
 TMPDIR = Path(os.environ['TMPDIR'])
-DATADIR = Path(os.environ['DATA'])
 CONFIGPATH = "config"
 KEYNAME = "/home/job/.ssh/setonix"
 
@@ -156,7 +155,7 @@ def move_spectral_outputs(path_to_unpacked: Path) -> None:
     if catalogues_path.is_dir():
         for path in catalogues_path.iterdir():
             if path.is_file():
-                catalogues_path = DATADIR / "catalogues"
+                catalogues_path = TMPDIR / "catalogues"
                 catalogues_path.mkdir(
                     parents=True,
                     exist_ok=True,
@@ -172,7 +171,7 @@ def move_detection_outputs(path_to_unpacked, run_type: RunType) -> None:
 
     sbid = metadata["SBID"]
 
-    target_dir = DATADIR / sbid
+    target_dir = TMPDIR / sbid
 
     target_dir.mkdir(
         parents=True,
@@ -314,7 +313,7 @@ def main():
 
             # Place outputs in expected locations for upload
             print(f'Handling {local_unzip} outputs as {run_type}')
-            move_outputs_to_upload_paths(local_unzip, run_type)
+            #move_outputs_to_upload_paths(local_unzip, run_type)
 
             # Upload to DB
             print(f'Uploading SBID {sbid} to database')
@@ -322,8 +321,8 @@ def main():
                 run_type,
                 quality,
                 sbid,
-                TMPDIR,
-                DATADIR,
+                local_unzip,
+                local_unzip,
                 CONFIGPATH,
                 comment
             )
