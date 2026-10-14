@@ -536,7 +536,7 @@ def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_di
     # Add each of the processed SBIDS
     for i,sbid in enumerate(sbids):
         if not DATA_DIR in result_file:
-            result_file = f"{DATA_DIR}/{sbid}/{output_dir}/{result_file}"
+            result_file = f"{DATA_DIR}/{output_dir}/{result_file}"
         # Create the results file
         results = ""
         with open(result_file,'r') as f:
@@ -545,7 +545,7 @@ def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_di
                 results = results + line.strip() + "\n"
 
         if not DATA_DIR in config_dir:
-            config_dir = f"{DATA_DIR}/{sbid}/{config_dir}"
+            config_dir = f"{DATA_DIR}/{config_dir}"
         version = versions[i]
         sbid_id = None
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
@@ -814,7 +814,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),new_oid,psycopg2.Binary(config),results,sbid_id))
     elif DETECTMODE == "MASK":
         # There is an additional 'mask' file for masked detections, so we need to store its contents
-        maskfile = f"{DATA_DIR}/{sbid}/config/mask.txt"
+        maskfile = f"{DATA_DIR}/config/mask.txt"
         mask_contents = ""
         with open(maskfile,'r') as f:
             for line in f:
@@ -823,7 +823,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),psycopg2.Binary(config),results,mask_contents,sbid_id))
     elif DETECTMODE == "INVMASK":
         # There is an additional 'mask' file for masked detections, so we need to store its contents
-        maskfile = f"{DATA_DIR}/{sbid}/config/mask.txt"
+        maskfile = f"{DATA_DIR}/config/mask.txt"
         mask_contents = ""
         with open(maskfile,'r') as f:
             for line in f:
@@ -838,7 +838,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
 
     # Update the component table with the detection, first find the components (sources) used
     components = []
-    sources = glob.glob(f"{DATA_DIR}/{sbid}/outputs/*{sbid}*opd_spectline_stats.dat")
+    sources = glob.glob(f"{DATA_DIR}/outputs/*{sbid}*opd_spectline_stats.dat")
     #for comp in dataDict["ascii"]:
     for source in sources:
         comp_number = source.split("component_")[1].split("_")[0]
