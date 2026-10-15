@@ -23,7 +23,7 @@ for SBID in "${SBIDARRAY[@]}"; do
     # they are bundled here for convenience in the polled fetch
 
     # Define where we will be working
-    WORKDIR=$DATA/outputs_to_transfer/$SBID\_$RUN_TYPE
+    WORKDIR=$DATA/outputs_to_transfer/${SBID}_${RUN_TYPE}
 
     # If we are working in this folder, ensure the folder for it and especially
     # the complete mark for it is not present

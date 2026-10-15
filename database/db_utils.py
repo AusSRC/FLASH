@@ -74,12 +74,6 @@ def set_parser():
     parser.add_argument('-pt', '--port',
             default="5432",
             help='database host port (default: %(default)s)')
-    parser.add_argument('-db', '--database',
-            default="flashdb",
-            help='database name (default: %(default)s)')
-    parser.add_argument('-dbu', '--database_user',
-            default="flash",
-            help='database username (default: %(default)s)')
     parser.add_argument('-d', '--sbid_dir',
             default=SBIDDIR,
             help='Specify local directory to use (default: %(default)s)')   
