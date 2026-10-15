@@ -24,9 +24,9 @@ else
 fi
 
 if [ "$TESTING" != "-t" ]; then
-    scp new_sbids.log $HPC_USER@$HPC_PLATFORM:~/src/cronjobs
+    scp new_sbids.log $HPC_USER@$HPC_PLATFORM:$FLASHHOME/cronjobs
 
     # Trigger spectral processing on HPC
-    ssh $HPC_USER@$HPC_PLATFORM "cd ~/src/cronjobs; ./casda_download_and_spectral.sh &> spectral.log;" 
-    scp $HPC_USER@$HPC_PLATFORM:~/src/cronjobs/spectral.log $CRONDIR
+    ssh $HPC_USER@$HPC_PLATFORM "cd $FLASHHOME/cronjobs; ./casda_download_and_spectral.sh &> ~/spectral.log;"
+    scp $HPC_USER@$HPC_PLATFORM:~/spectral.log $CRONDIR
 fi
