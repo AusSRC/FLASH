@@ -18,10 +18,8 @@
 		margin-right: auto;
 	}
 	.fixed {
-		position:fixed;
+		position:sticky;
 		top: 0;
-		left: 0;
-		right: 0;
 	}
 
 
@@ -31,21 +29,33 @@
 	<div class="fixed" style="background-color:aquamarine;">
 	<H1 style="text-align: center;">FLASH Database Linefinder Results</H1>
 	{% load static %}
-        {% if inverted == True %} <h2 style="text-align: center;">For INVERTED-spectra detection</h2> {% endif %}
-		{% if masked == True %} <h2 style="text-align: center;">For MASKED-spectra detection</h2> {% endif %}
+        {% if inverted %}
+          <h2 style="text-align: center;">For INVERTED-spectra detection</h2>
+        {% elif masked %}
+          <h2 style="text-align: center;">For MASKED-spectra detection</h2>
+        {% elif inverted_masked %}
+          <h2 style="text-align: center;">For INVERTED-MASKED-spectra detection</h2>
+        {% endif %}
 	<img src="{% static 'db_query/SKAO_ausSRC_logo_colour_white_bg.png' %}" alt="AusSRC" style="position:absolute; top:20px; right:30px;" width="200" height="100">
 	<img src="{% static 'db_query/flash.jpeg' %}" alt="FLASH" style="position:absolute; top:20px; left:30px;" width="180" height="100">
 	<p style="text-align: center;"> Query for SBID = {{ sbid }}, ln_mean cutoff = {{ lmean }}</p>
 	<p  style="text-align: center;"> Total number of records returned: <strong> {{ num_outs }} </strong> </p>
-	<p  style="text-align: left;"> <a href="{% static tarball %}" download>Download</a> the complete linefinder results + small plots in a tar archive</p>
-	<p  style="text-align: left;"> <a href="{% static csv_file %}" download>Download</a> the linefinder results.dat file in a csv file</p>
-	<form action=/db_query/show_csv/ method="post" target="_blank">
+	<p style="text-align: left;">
+        <a href="{{ tarball }}">Download</a>
+        the complete linefinder results + small plots in a tar archive
+    </p>
+    <p style="text-align: left;">
+        <a href="{{ csv_file }}">Download</a>
+        the linefinder results.dat file in a csv file
+    </p>
+        <form action=/db_query/show_csv/ method="post" target="_blank">
 			{% csrf_token %}
 			<input type="hidden" id="csv" name="csv" value={{ csv_file }}>
 			<input type="hidden" id="sbid" name="sbid" value={{ sbid }}>
 			<input type="hidden" id="lnmean" name="lnmean" value={{ lmean }}>
 			<input type="hidden" id="invert" name="invert" value={{ inverted }}>
 			<input type="hidden" id="masked" name="masked" value={{ masked }}>
+            <input type="hidden" id="inverted_masked" name="inverted_masked" value={{ inverted_masked }}>
 				OR view in new page <input type="submit" value="Full linefinder results.dat table"/>
 			</form></p>
 	<form action="/">
@@ -53,7 +63,7 @@
 	</form>
 
 	</div>
-	<div class="slim" style="position:relative; top: 280px; left:200px; right: 200px;">
+	<div class="slim" style="margin-left:200px; margin-right:200px;">
 	<table style="background-color:white; opacity:1">
 	    <thead>
 		<tr>

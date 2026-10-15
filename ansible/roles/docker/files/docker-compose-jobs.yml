@@ -1,0 +1,11 @@
+services:
+  submit-hpc-job:
+    image: aussrc/flash_jobs:${FLASH_JOB_IMAGE_TAG}
+
+    env_file:
+      - /etc/flashdb/secrets.env
+    volumes:
+      - /srv/flashdb/job_data:/home/job/data
+      - /home/job/.ssh/setonix:/home/job/.ssh/setonix:ro
+      - /home/job/.ssh/known_hosts:/home/job/.ssh/known_hosts:ro
+      - /home/job/.ssh/config:/home/job/.ssh/config:ro

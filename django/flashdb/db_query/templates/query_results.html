@@ -38,8 +38,8 @@
 		<input type="submit" value="Return to Main page"/>
 	</form>
 	</div>
-	<div class="slim" style="position:relative; top: 180px; left:200px; right: 200px;">
-	<table style="background-color:white">
+	<div class="slim" style="margin-top:180px; display:flex; justify-content:center;">
+	<table style="background-color:white; margin:auto;">
 	    <thead>
 		<tr>
 		    <th>date</th>
@@ -50,13 +50,15 @@
 		    <th>Linefinder Run</th>
 		    <th>INVERTED Run</th>
 		    <th>Masked Run</th>
+            <th>Masked INVERTED Run</th>
 		    <th>Mask File</th>
 		    <th>Field</th>
 		    <th>Comment</th>
+            <th>Public</th>
 		</tr>
 	    </thead>
 	    <tbody>
-		{% for row in rows %}
+		{% for row, mask_file in rows_with_masks %}
 		<tr>
 		    <td>{{ row.0 }}</td>
 		    <td style="text-align: center; padding:0 15px 0 15px;"><b>{{ row.1 }}</b></td>
@@ -66,15 +68,18 @@
 		    <td style="text-align: center;">{% if row.5 == True %} Run {% else %} No {% endif %}</td>
 		    <td style="text-align: center;">{% if row.6 == True %} Run {% else %} No {% endif %}</td>
 		    <td style="text-align: center;">{% if row.7 == True %} Run {% else %} No {% endif %}</td>
+            <td style="text-align: center;">{% if row.8 == True %} Run {% else %} No {% endif %}</td>
 		    <!-- If the mask file is available, provide a link to it -->
-		    <td style="text-align: center; padding:0 15px 0 15px;">
-				{% load extras %}
-		        {% with mask_file=mask_files|index:forloop.counter0 %}
-		        {% if mask_file %}<a href="{% static mask_file %}">Download mask file</a>{% endif %}
-				{% endwith %}
-		    </td>
-		    <td style="text-align: center; padding:0 15px 0 15px;">{{ row.8 }}</td>
-		    <td>{{ row.9 }}</td>
+            <td style="text-align: center; padding:0 15px 0 15px;">
+                {% if mask_file %}
+                    <a href="{{ mask_file }}" download>
+                        Download mask file
+                    </a>
+                {% endif %}
+            </td>
+		    <td style="text-align: center; padding:0 15px 0 15px;">{{ row.9 }}</td>
+		    <td>{{ row.10 }}</td>
+            <td style="text-align: center;">{{ row.11 }}</td>
 		</tr>
 		{% empty %}
 		<tr>

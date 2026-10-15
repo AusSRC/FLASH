@@ -43,16 +43,17 @@ ONLY_CATS = True # Only download catalogues - not spectral and noise data
 DUMMY=False # Set to true to only query - don't download or upload anything.
 REJECTED=True # If set, process sbids even if marked as 'REJECTED'.
 CASDA_EMAIL = ""
-PASSWD = ""
 DETECTFLAGS = {"45762":{"STD":False, "INVERT":False, "MASK":False, "INVMASK":False}} # Dictionary holding the detection status flags 
 
 ###############################################################################################################
 ############ - FLASHDB details ################################################################################
-HOST = "10.0.2.225"
-PORT = 5432
 
-#HOST = "146.118.64.208"
-#PORT = 2095
+# Configure the connection using env vars
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT", default="5432")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 ####################################################################################################################
 ########################## DO NOT EDIT FURTHER #####################################################################
@@ -72,7 +73,7 @@ def set_parser():
             help='database host ip (default: %(default)s)')    
     parser.add_argument('-pt', '--port',
             default="5432",
-            help='database host port (default: %(default)s)')    
+            help='database host port (default: %(default)s)')
     parser.add_argument('-d', '--sbid_dir',
             default=SBIDDIR,
             help='Specify local directory to use (default: %(default)s)')   
@@ -103,13 +104,18 @@ def set_parser():
             default=False,
             action='store_true',
             help='If set, process sbids even if marked as "REJECTED". (default: %(default)s)')  
-  
+    parser.add_argument('-db', '--database',
+            default=None,
+            help = 'The database name you are connecting to (default: %(default)s)')
+    parser.add_argument('-dbu', '--database_user',
+            default=None,
+            help = 'The database user you are connecting as (default: %(default)s)')
     args = parser.parse_args()
     return args
 
 def set_mode_and_values(args):
     global RUN_TYPE, SBIDDIR, DATADIR, CATDIR, SBIDS, VERSIONS, ONLY_CATS, ADD_CAT, DUMMY, REJECTED, CASDA_EMAIL
-    global HOST, PORT, PASSWD, MODE
+    global DB_HOST, DB_PORT, DB_PASSWORD, MODE, DB_USER, DB_NAME
 
     RUN_TYPE = args.mode.strip().upper()
     SBIDDIR = args.sbid_dir.strip()
@@ -131,25 +137,31 @@ def set_mode_and_values(args):
     ADD_CAT = args.add_cat
     DUMMY = args.no_action
     REJECTED = args.rejected
-    PASSWD = args.flashpw
-    HOST = args.host.strip()
-    PORT = args.port.strip()
+    DB_PASSWORD = args.flashpw
+    DB_HOST = args.host.strip()
+    DB_PORT = args.port.strip()
+    if args.database is not None:
+        DB_NAME = args.database.strip()
+
+    if args.database_user is not None:
+        DB_USER = args.database_user.strip()
 
 
+def connect(db=None, user=None, host=None, port=None, password=None):
 
-def connect(db="flashdb",user="flash",host=HOST,port=PORT,password=None):
+    db = DB_NAME if db is None else db
+    user = DB_USER if user is None else user
+    host = DB_HOST if host is None else host
+    port = DB_PORT if port is None else port
+    password = DB_PASSWORD if password is None else password
 
-    if not password:
-        password = PASSWD
-    conn = psycopg2.connect(
-        database = db,
-        user = user,
-        password = password,
-        host = host,
-        port = port
+    return psycopg2.connect(
+        database=db,
+        user=user,
+        password=password,
+        host=host,
+        port=port
     )
-    #print(conn.get_dsn_parameters(),"\n")
-    return conn
 
 def get_cursor(conn):
 

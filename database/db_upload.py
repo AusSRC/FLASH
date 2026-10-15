@@ -49,14 +49,11 @@ import db_utils as dbu
 # These are the default values (overridden by command line args):
 
 DATA_DIR = os.environ["DATA"]
-DBHOST = ""
-DBPORT = ""
 DETECTMODE = "STD"
 ERROR_LOG = "err.log"
 LINEFINDER_CONFIG_DIR = ""
 LINEFINDER_OUTPUT_DIR = ""
 LINEFINDER_SUMMARY_FILE = "results.dat"
-PASSWD = ""
 PLATFORM = "setonix.pawsey.org.au"
 QUALITY = "UNCERTAIN"
 RUN_TAG = "FLASH survey 1"
@@ -68,6 +65,12 @@ STDOUT_LOG = "out.log"
 TMP_TAR_DIR = os.environ["TMPDIR"]
 VERSIONS = []
 
+# Configure the connection using env vars
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT", default="5432")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 # These are the allowed command line overrides:
 
@@ -88,22 +91,13 @@ def set_parser():
             help='Specify the sbid list eg 11346,11348,41050:1,50332 (default: %(default)s)')  
     parser.add_argument('-d', '--parent_dir',
             default=DATA_DIR,
-            help='Specify local directory to use (default: %(default)s)')    
-    parser.add_argument('-ht', '--host',
-            default="10.0.2.225",
-            help='database host ip (default: %(default)s)')    
-    parser.add_argument('-pt', '--port',
-            default="5432",
-            help='database host port (default: %(default)s)')    
+            help='Specify local directory to use (default: %(default)s)')
     parser.add_argument('-t', '--tmp_dir',
             default=TMP_TAR_DIR,
             help='Specify local directory to use as tmp (default: %(default)s)')    
     parser.add_argument('-p', '--platform',
             default=PLATFORM,
-            help='Specify the compute platform used (default: %(default)s)')    
-    parser.add_argument('-pw', '--flashpw',
-            default=None,
-            help='Specify the password for login to FLASHDB (default: %(default)s)')    
+            help='Specify the compute platform used (default: %(default)s)')
     parser.add_argument('-cs', '--config_spectral',
             default=SPECTRAL_CONFIG_DIR,
             help='Specify spectral config directory used for processing (default: %(default)s)')
@@ -124,15 +118,31 @@ def set_parser():
             help='Path to SLURM stderr logfile (default: %(default)s)')
     parser.add_argument('-r', '--results',
             default=LINEFINDER_SUMMARY_FILE,
-            help='Path to linefinder final results file  (default: %(default)s)')
+            help='Path to linefinder final results file (default: %(default)s)')
+    parser.add_argument('-db', '--database',
+            default=None,
+            help = 'The database name you are connecting to (default: %(default)s)')
+    parser.add_argument('-dbu', '--database_user',
+            default=None,
+            help = 'The database user you are connecting as (default: %(default)s)')
+    parser.add_argument('-ht', '--host',
+            default=None,
+            help='database host ip (default: %(default)s)')
+    parser.add_argument('-pt', '--port',
+            default=None,
+            help='database host port (default: %(default)s)')
+    parser.add_argument('-pw', '--flashpw',
+            default=None,
+            help='Specify the password for login to FLASHDB (default: %(default)s)')
     args = parser.parse_args()
     return args,parser
 
 def set_mode_and_values(args):
 
-    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT, PASSWD
+    global RUN_TYPE,SBIDS,VERSIONS,RUN_TAG,DATA_DIR,TMP_TAR_DIR,ERROR_LOG,STDOUT_LOG,PLATFORM, SBID_COMMENT
     global SPECTRAL_CONFIG_DIR,LINEFINDER_CONFIG_DIR,LINEFINDER_OUTPUT_DIR,LINEFINDER_SUMMARY_FILE, QUALITY
-    global DBHOST, DBPORT, DETECTMODE
+    global DETECTMODE
+    global DB_HOST, DB_PORT, DB_PASSWORD, MODE, DB_USER, DB_NAME
 
     RUN_TYPE = args.mode.strip().upper()
     if RUN_TYPE == "QUALITY":
@@ -164,9 +174,22 @@ def set_mode_and_values(args):
     RUN_TAG = args.name_tag.strip()
     SBID_COMMENT = args.comment.strip()
     QUALITY = args.quality.strip()
-    PASSWD = args.flashpw
-    DBHOST = args.host.strip()
-    DBPORT = args.port.strip()
+
+    if args.flashpw is not None:
+        DB_PASSWORD = args.flashpw
+
+    if args.host is not None:
+        DB_HOST = args.host.strip()
+
+    if args.port is not None:
+        DB_PORT = args.port.strip()
+
+    if args.database is not None:
+        DB_NAME = args.database.strip()
+
+    if args.database_user is not None:
+        DB_USER = args.database_user.strip()
+
     if RUN_TYPE == "DETECTION":
         DETECTMODE = "STD"
     elif RUN_TYPE == "INVERTED":
@@ -202,19 +225,21 @@ NOISE_PATH = ""
 ########################## DO NOT EDIT FURTHER #####################################################################
 ####################################################################################################################
 
-def connect(db="flashdb",user="flash",password=None):
+def connect(db=None, user=None, host=None, port=None, password=None):
 
-    if not password:
-        password = PASSWD
-    conn = psycopg2.connect(
-        database = db,
-        user = user,
-        password = password,
-        host = DBHOST,
-        port = DBPORT
+    db = DB_NAME if db is None else db
+    user = DB_USER if user is None else user
+    host = DB_HOST if host is None else host
+    port = DB_PORT if port is None else port
+    password = DB_PASSWORD if password is None else password
+
+    return psycopg2.connect(
+        database=db,
+        user=user,
+        password=password,
+        host=host,
+        port=port
     )
-    #print(conn.get_dsn_parameters(),"\n")
-    return conn
 
 def get_cursor(conn):
 
@@ -239,10 +264,10 @@ def createDataDict(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH
     sbidsDict = {"data_path":data_path}
     for sbid in sbids:
         sbidsDict[sbid] = {"components":[],"plots":[],"ascii":[]}
-        component_path = f"{data_path}/{sbid}/{component_dir}"
-        plots_path = f"{data_path}/{sbid}/{plot_dir}"
-        ascii_path = f"{data_path}/{sbid}/{ascii_dir}"
-        output_path = f"{data_path}/{sbid}/{outputs}"
+        component_path = f"{data_path}/{component_dir}"
+        plots_path = f"{data_path}/{plot_dir}"
+        ascii_path = f"{data_path}/{ascii_dir}"
+        output_path = f"{data_path}/{outputs}"
 
         sbidsDict[sbid]["component_path"] = component_path
         sbidsDict[sbid]["plots_path"] = plots_path
@@ -259,7 +284,7 @@ def createDataDict(data_path=DATA_DIR,sbids = SBIDS,component_dir=COMPONENT_PATH
             asciis = None
         if RUN_TYPE not in ["DETECTION","INVERTED","MASKED","INVMASKED"]:
             # Get the name of the SourceSpectra tarball, so we can extract the pointing field value
-            sspectraname = [f for f in os.listdir(f'{data_path}/{sbid}') if f.startswith("SourceSpectra-image")][0]
+            sspectraname = [f for f in os.listdir(f'{data_path}') if f.startswith("SourceSpectra-image")][0]
             try:
                 pointing_field = "FLASH_" + sspectraname.split("FLASH_")[1].split(".")[0]
             except IndexError:
@@ -433,7 +458,7 @@ def add_spect_run(conn,sbids,config_dir,errlog,stdlog,dataDict,platform):
         flux = None
         config_data = None
         if config_dir:
-            config_tardir = f"{DATA_DIR}/{sbid}/{config_dir}"
+            config_tardir = f"{DATA_DIR}/{config_dir}"
             config_tarball = f"{TMP_TAR_DIR}/{sbid}_spectral_config.tar.gz"
             tar_dir(config_tarball,config_tardir,pattern="config.py")
             config_data = None
@@ -511,7 +536,7 @@ def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_di
     # Add each of the processed SBIDS
     for i,sbid in enumerate(sbids):
         if not DATA_DIR in result_file:
-            result_file = f"{DATA_DIR}/{sbid}/{output_dir}/{result_file}"
+            result_file = f"{DATA_DIR}/{output_dir}/{result_file}"
         # Create the results file
         results = ""
         with open(result_file,'r') as f:
@@ -520,7 +545,7 @@ def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_di
                 results = results + line.strip() + "\n"
 
         if not DATA_DIR in config_dir:
-            config_dir = f"{DATA_DIR}/{sbid}/{config_dir}"
+            config_dir = f"{DATA_DIR}/{config_dir}"
         version = versions[i]
         sbid_id = None
         sbid_id,version = get_max_sbid_version(cur,sbid,version)
@@ -767,7 +792,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
     output_tarball = f"{TMP_TAR_DIR}/{sbid}_linefinder_output.tar.gz"
     if not os.path.isfile(output_tarball):
         print(f"Creating tarball {output_tarball}")
-        count = tar_dir(output_tarball,f"{sbid}/{LINEFINDER_OUTPUT_DIR}",pattern=["stats.dat","result",".pdf"])
+        count = tar_dir(output_tarball,f"{TMP_TAR_DIR}/{LINEFINDER_OUTPUT_DIR}",pattern=["stats.dat","result",".pdf"])
         print(f"   -- {count} files in tarball")
     with open(output_tarball,'rb') as f:
         detect_data = f.read()
@@ -789,7 +814,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),new_oid,psycopg2.Binary(config),results,sbid_id))
     elif DETECTMODE == "MASK":
         # There is an additional 'mask' file for masked detections, so we need to store its contents
-        maskfile = f"{DATA_DIR}/{sbid}/config/mask.txt"
+        maskfile = f"{DATA_DIR}/config/mask.txt"
         mask_contents = ""
         with open(maskfile,'r') as f:
             for line in f:
@@ -798,7 +823,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
         cur.execute(update_query,(runid,detectionF,psycopg2.Binary(detect_data),psycopg2.Binary(config),results,mask_contents,sbid_id))
     elif DETECTMODE == "INVMASK":
         # There is an additional 'mask' file for masked detections, so we need to store its contents
-        maskfile = f"{DATA_DIR}/{sbid}/config/mask.txt"
+        maskfile = f"{DATA_DIR}/config/mask.txt"
         mask_contents = ""
         with open(maskfile,'r') as f:
             for line in f:
@@ -813,7 +838,7 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
 
     # Update the component table with the detection, first find the components (sources) used
     components = []
-    sources = glob.glob(f"{DATA_DIR}/{sbid}/outputs/*{sbid}*opd_spectline_stats.dat")
+    sources = glob.glob(f"{DATA_DIR}/outputs/*{sbid}*opd_spectline_stats.dat")
     #for comp in dataDict["ascii"]:
     for source in sources:
         comp_number = source.split("component_")[1].split("_")[0]

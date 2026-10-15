@@ -37,7 +37,7 @@
 	<p style="text-align: center;"> uploaded: <i>{{ metadata.2 }}</i>, in <i>{{ metadata.3 }}</i>, field: <i>{{ metadata.1 }}</i></p>
 	<p  style="text-align: center;"> Number of Components (sources): <strong>{{ num_sources }}</strong> </p>
 	{% if num_sources > 0 %}
-	    <p  style="text-align: left;"> <a href="{% static tarball %}" download>Download</a> the source plots in a tar archive</p>
+	    <p  style="text-align: left;"> <a href="{{ tarball }}">Download</a> the source plots in a tar archive</p>
 	{% endif %}
 	<form action="/">
 		<input type="submit" value="Return to Main page"/>
@@ -67,10 +67,10 @@
 				<input type="hidden" id="comp" name="comp" value={{ source.0 }}>
 				OR view in <input type="submit" value="Aladin"/>
 			</form></p>
-			<img src="{% static source.0 %}" alt="Flux_img"  style="position:relative; left:0; right:0;" width="600" height="1000"></td>
+			<img src="{{ source.flux }}" alt="Flux_img"  style="position:relative; left:0; right:0;" width="600" height="1000"></td>
 		<td>
-			<p style="text-align: center;"><b>ra:</b> {{ source.2.0 }} <b>dec:</b> {{ source.2.1 }}</p><br><br><br>
-			<img src="{% static source.1 %}" alt="opd_img"  style="position:relative; left:0; right:0;" width="600" height="1000"></td>
+			<p style="text-align: center;"><b>ra:</b> {{ source.radec.0 }} <b>dec:</b> {{ source.radec.1 }}</p><br><br><br>
+			<img src="{{ source.opd }}" alt="opd_img"  style="position:relative; left:0; right:0;" width="600" height="1000"></td>
 		</tr>
 		{% endfor %}
 	    </tbody>
