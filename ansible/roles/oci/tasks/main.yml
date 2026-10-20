@@ -1,0 +1,23 @@
+# Makes it possible to pull secrets from Oracle Vault
+- name: Install OCI CLI prerequisites
+  ansible.builtin.apt:
+    name:
+      - python3-pip
+      - python3-venv
+      - jq
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install OCI CLI
+  ansible.builtin.pip:
+    name: oci-cli
+    virtualenv: /opt/oci-cli-venv
+    virtualenv_command: python3 -m venv
+    state: present
+
+- name: Create OCI CLI symlink
+  ansible.builtin.file:
+    src: /opt/oci-cli-venv/bin/oci
+    dest: /usr/local/bin/oci
+    state: link

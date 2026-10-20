@@ -1,0 +1,8 @@
+# Managed by Ansible
+
+{% for job in cron_jobs %}
+# {{ job.name }}
+{{ job.schedule }} {{ job_user }} {{ cron_job_runner }} {{ job.command }}
+{% endfor %}
+
+

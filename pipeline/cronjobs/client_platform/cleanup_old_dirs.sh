@@ -2,7 +2,6 @@
 
 
 #######################################################################################################
-source $HOME/set_local_flash_env.sh
 
 echo "Removing stale directories on client platform"
 

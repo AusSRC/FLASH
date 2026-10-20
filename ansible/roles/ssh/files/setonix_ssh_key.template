@@ -1,0 +1,3 @@
+# Create a copy of this that does not have the .template, delete this text
+from the copy and put the setonix ssh key we wish to use for HPC connections
+in it instead

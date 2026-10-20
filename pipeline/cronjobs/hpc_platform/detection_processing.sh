@@ -164,7 +164,7 @@ for SBID1 in ${SBIDARRAY[@]}; do
 
     jid3=$(sbatch --dependency=afterok:$j2 tar_detection_outputs.sh $MODE $SBID1)
     j3=$(echo $jid3 | awk '{print $4}')
-    jid4=$(sbatch --dependency=afterok:$j3 push_detection_to_oracle.sh $MODE $SBID1)
+    jid4=$(sbatch --dependency=afterok:$j3 prepare_detection_for_oracle.sh $MODE $SBID1)
 
 done
 echo "Processing started for sbids:"

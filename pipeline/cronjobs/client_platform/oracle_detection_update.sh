@@ -27,8 +27,6 @@
 # checksum fails, it falls back to sending each ascii file individually. If the checksum
 # for that fails, it errors and exits without starting any processing.
 ################################################################################################
-# Client platform details: : edit these as appropiate
-source $HOME/set_local_flash_env.sh
 
 # For masked detection, provide the directory that holds the mask files
 MASKDIR="$CRONDIR/masks"
