@@ -3,9 +3,9 @@
 ######################################################################################
 #   NOTE:   The script calling order is:
 #               1) "run_mpi_native_script.sh",  or "detection_processing.sh" which calls:
-#                   2) "slurm_run_flashfinder.sh" (this file), which directly calls the
-#                       linefinder code.
+#                   2) "slurm_run_flashfinder.sh" (this file)
 #
+#   NOTE: module loads modified after Pawsey deprecated pawseyenv - Nov 2026
 ######################################################################################
 ######################################################################################
 # Source the local env script - edit path if required
@@ -17,23 +17,25 @@ mkdir -p "$1"/logs
 cd "$1"
 
 module unload gcc-native/14.2
-module swap pawseyenv/2025.08 pawseyenv/2024.05
-module load gcc/12.2.0
+#module swap pawseyenv/2025.08 pawseyenv/2024.05
+#module load gcc/12.2.0
+module load gcc-native/12
 module load libfabric/1.15.2.0 
 
 module load python/3.11.6 
-module load py-matplotlib/3.8.1 
+module load py-matplotlib/3.8.4 
 module load py-astropy/5.1 
 module load py-mpi4py/3.1.5-py3.11.6 
-module load gcc/12.2.0 
-module load py-scipy/1.11.3 
-module load py-numpy/1.24.4 
+#module load gcc/12.2.0 
+#module load py-scipy/1.11.3 
+module load py-scipy/1.13.0 
+#module load py-numpy/1.24.4 
 
 #module load python/3.11.6
 #module load py-numpy/1.25.2
 #module load py-scipy/1.14.1
 #module load py-matplotlib/3.9.2
-#module load py-astropy/5.1   # This causes a module version change 
+#module load py-astropy/5.1
 #module load py-mpi4py/3.1.5-py3.11.6
 
 #module load py-astropy/5.1
@@ -65,10 +67,6 @@ elif [ "$MODE" = "MASK" ]; then
     mkdir -p "$1"/masked_outputs
     srun -K1 python3 $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/masked_outputs \
 --mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder.ini
-elif [ "$MODE" = "INVMASK" ]; then
-    mkdir -p "$1"/inv_masked_outputs
-    srun -K1 python3 $FINDER/flash_finder.py --data_path $1/$2 --model_path $1/config/model.txt --out_path $1/inv_masked_outputs \
---mask_path $1/config/mask.txt --sbid $4 --inifile $1/config/slurm_linefinder_inverted.ini
 fi
 
 exit 0
