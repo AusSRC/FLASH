@@ -81,6 +81,20 @@ for SBID1 in "${SBIDARRAY[@]}"; do
     INDIR="$DATA/$SBID1/spectra_ascii"
     echo "Preparing: $SBID1 ${MSG_DESC}linefinder results via client to database"
 
+    # get the number of processed files from the logs
+    { read -r var1; read -r var2; } < <(tail -n 2 $DATA/$SBID1/logs/$LOG_NAME)
+    read -r _ num_ascii _ <<< "$var1"
+    read -r _ num_output _ <<< "$var2"
+    # Add it to the bad_sources file
+    echo "Num ascii $num_ascii"
+    echo "tot_good_ascii_files: $num_ascii" >> $DATA/$SBID1/logs/bad_sources_list.txt
+    echo "Num ouputs $num_output"
+    echo "tot_processed: $num_output" >> $DATA/$SBID1/logs/bad_sources_list.txt
+
+    # Add SLURM end-state to logs:
+    $FLASHHOME/check_progress.sh $MODE s $SBID1 >> $DATA/$SBID1/logs/$LOG_NAME
+
+
     # set up directories on client VM
     ssh -i $ORACLE_KEY flash@$CLIENT "cd $PARENTDIR; rm -R $SBID1/$OUTDIR_NAME $SBID1/logs $SBID1/config $TMPDIR/$SBID1* 2>/dev/null || true; mkdir -p $SBID1/config $SBID1/logs $SBID1/$OUTDIR_NAME;"
     
