@@ -240,16 +240,42 @@ create table black_list (
 
 #######################################################################################################
 #######################################################################################################
-create table reports (
-    id int generated always as identity PRIMARY KEY,
-    name varchar(100) NOT NULL,
-    author varchar(100) NOT NULL,
-    sbid_id int,
-    spect_runid int,
-    detect_runid int,
-    report oid,
+CREATE TABLE processed (
+    id int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    sbid_id int REFERENCES SBID(id) on delete CASCADE,
+    num_components int,
+    num_bad_sources int,
+    num_good_sources int,
+    num_processed_STD int,
+    num_results_STD int;
+    num_processed_INVERT int,
+    num_results_INVERT int;
+    num_processed_MASK int,
+    num_results_MASK int;
+    num_processed_INVMASK int,
+    num_results_INVMASK int;
     date TIMESTAMP
 );
+
+# Forgot to add the 'unique' constraint!
+ALTER TABLE processed ADD CONSTRAINT unique_sbid UNIQUE (sbid_id);
+
+# Populate initially as:
+BEGIN;
+
+INSERT INTO processed (sbid_id, num_components, date)
+SELECT 
+    s.id AS sbid_id, 
+    COUNT(c.id) AS num_components,
+    CURRENT_TIMESTAMP AS date
+FROM SBID s
+LEFT JOIN component c ON s.id = c.sbid_id
+GROUP BY s.id;
+
+# If you're happy, COMMIT;, otherwise ROLLBACK;
+
+# Check values for an sbid:
+select p.* from processed p join SBID s on sbid_id = s.id where s.sbid_num = 71998;
 
 #########################################################################################
 ######### NOT USED ######################################################################
