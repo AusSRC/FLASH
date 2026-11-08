@@ -9,6 +9,7 @@ import os.path
 import tarfile
 import psycopg2
 from argparse import ArgumentParser, RawTextHelpFormatter
+from collections import deque
 import db_utils as dbu
 
 #######################################################################################
@@ -485,19 +486,21 @@ def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_di
         print("No new sbids to process - skipping")
         return cur
 
-    # Add the log files
+    # Add the log files (only last 50 lines)
     errdata = ""
     if errlog:
         with open(errlog,'r') as f:
-            for line in f:
-                line = line.replace("\"","'")
-                errdata = errdata + line.strip() + "\n"
+            errlines = dequeue(f,maxlen=50)
+        for line in errlines:
+            line = line.replace("\"","'")
+            errdata = errdata + line.strip() + "\n"
     stddata = ""
     if stdlog:
         with open(stdlog,'r') as f:
-            for line in f:
-                line = line.replace("\"","'")
-                stddata = stddata + line.strip() + "\n"
+            stdlines = dequeue(f,maxlen = 50)
+        for line in stdlines:
+            line = line.replace("\"","'")
+            stddata = stddata + line.strip() + "\n"
 
     # Get current datetime and format for postgres
     detect_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -537,13 +540,16 @@ def add_detect_run(conn,sbids,config_dir,dataDict,platform,result_file,output_di
         
         # Update the sbid if it exists:
         if sbid_id:
-            update_sbid_detection(cur,sbid=sbid,sbid_id=sbid_id,runid=runid,dataDict=dataDict[sbid],datapath=output_dir,ver=version,config=config_data,results=results,)
+            update_sbid_detection(cur,sbid=sbid,sbid_id=sbid_id,runid=runid,ver=version,config=config_data,results=results,)
 
         else:
             print(f"ERROR: sbid:version {sbid}:{version} does not exist in database!! Skipping")
+            continue
 
         # Process the results file against each component
-        cur = add_component_results(cur,sbid,result_file,output_dir,version)
+        cur,linefinder_count = add_component_results(cur,sbid,result_file,output_dir,version)
+        # add counts to the 'processed' table
+        add_processed_counts(cur,linefinder_count,sbid,sbid_id=sbid_id)
     return cur
 
 ###############################################
@@ -682,6 +688,9 @@ def add_sbid_pointing(conn,sbid,dataDict,cur=None,ver=None):
     return cur
 ###############################################
 def add_component_results(cur,sbid,result_file,output_dir,version=None):
+    # This will mark components that have an entry in the linefinder results table. But there will be others (bad files)
+    # that have not been processed, or others that HAVE been processed but not written in the resutls file because 
+    # nothing was found.
 
     print(f"Adding LINEFINDER results to components of {sbid}")
     # Get the results file
@@ -699,6 +708,7 @@ def add_component_results(cur,sbid,result_file,output_dir,version=None):
     sbid_results = results.splitlines()
     max_ln_mean = 0
     last_name = ""
+    count = 0
     for line in sbid_results[1:]:
         vals = line.split()
         name = vals[0].rsplit("_",1)[0]
@@ -722,13 +732,11 @@ def add_component_results(cur,sbid,result_file,output_dir,version=None):
             like= '%{}%'.format(name)
             cur.execute(update,(mode_num,ln_mean,detect_date,like,sbid_id))
             max_ln_mean = ln_mean  
+            count += 1
 
         last_name = name
 
-    # The above will mark components that have an entry in the linefinder results table. But there will be others (bad files)
-    # that have not been processed, or others that HAVE been processed but not written in the resutls file because 
-    # nothing was found. We need to distinguish between these two cases and update appropriately.
-    return cur
+    return cur,count
 
     
 
@@ -761,7 +769,7 @@ def add_detect_comment(conn,sbid,comment,ver=None):
     return cur
 
 ###############################################
-def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,results):
+def update_sbid_detection(cur,sbid,sbid_id,runid,ver,config,results):
 
     # Create tarball of linefinder output files:
     output_tarball = f"{TMP_TAR_DIR}/{sbid}_linefinder_output.tar.gz"
@@ -814,11 +822,108 @@ def update_sbid_detection(cur,sbid,sbid_id,runid,dataDict,datapath,ver,config,re
     # Update the component table with the detection, first find the components (sources) used
     components = []
     sources = glob.glob(f"{DATA_DIR}/{sbid}/outputs/*{sbid}*opd_spectline_stats.dat")
-    #for comp in dataDict["ascii"]:
     for source in sources:
         comp_number = source.split("component_")[1].split("_")[0]
         comp = f"SB{sbid}_component_{comp_number}_opd.dat"
         update_component_detection(cur,comp,sbid_id,processState=DETECTMODE)
+
+###############################################
+def add_processed_counts(cur,linefinder_count,sbid,sbid_id):
+    # This adds counts to the 'processed' table - number of sources in the sbid, number that were bad,
+    # number that were good, number that produced a result in the results.dat table
+
+    # Counts are stored by the HPC platform in a 'bad_sources_list.txt' file. An example:
+    # 362a
+    # 11b
+    # 1c
+    # 269a
+    # 108a
+    # 330a
+    # 294a
+    # 11a
+    # 161a
+    # 1b
+    # 1a
+    # 1d
+    # 6a
+    # 1e
+    # 343a
+    # ###
+    # tot_sources: 461
+    # tot_bad_sources: 15
+    # tot_good_ascii_files: 446
+    # tot_processed: 446
+
+    # 'tot_good_ascii_files' and 'tot_processed' should always be the same.
+    
+    # read in the appropriate bad_sources.txt file
+    with open(f"{DATA_DIR}/{sbid}/logs/bad_sources_list.txt",'r') as f:
+         bad_source_data = [line.strip() for line in f if line.strip()]
+    source_data = bad_source_data[-4:]
+    tot_sources = int(source_data[0].split()[1])
+    tot_bad_sources = int(source_data[1].split()[1])
+    tot_good_ascii = int(source_data[2].split()[1])
+    tot_processed = int(source_data[3].split()[1])
+
+    if tot_processed != tot_good_ascii:
+        print(f"WARNING !! For {sbid} {DETECTMODE} ascii files = {tot_good_ascii}, processed = {tot_processed}")
+
+    # Determine which counts to update:
+    num_processed_STD = 0 
+    num_results_STD = 0
+    num_processed_INVERT = 0 
+    num_results_INVERT = 0
+    num_processed_MASK = 0 
+    num_results_MASK = 0
+    num_processed_INVMASK = 0 
+    num_results_INVMASK = 0
+    update_query = ""
+    match DETECTMODE:
+        case "STD":
+            num_processed_STD = tot_processed
+            num_results_STD = linefinder_count
+            update_query = "update processed set num_processed_STD = %s, num_results_STD = %s, date = %s where sbid_id = %s"
+        case "INVERT":
+            num_processed_INVERT = tot_processed
+            num_results_INVERT = linefinder_count
+            update_query = "update processed set num_processed_INVERT = %s, num_results_INVERT = %s, date = %s where sbid_id = %s"
+        case "MASK":
+            num_processed_MASK = tot_processed
+            num_results_MASK = linefinder_count
+            update_query = "update processed set num_processed_MASK = %s, num_results_MASK = %s, date = %s where sbid_id = %s"
+        case "INVMASK":
+            num_processed_INVMASK = tot_processed
+            num_results_INVMASK = linefinder_count
+            update_query = "update processed set num_processed_INVMASK = %s, num_results_INVMASK = %s, date = %s where sbid_id = %s"
+        case _:
+            print(f"ERROR!! {DETECTMODE} mode is invalid")
+            return
+
+    count_date = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # decide whether to insert (new record) or update (sbid_id exists)
+    query = "select count(*) from processed where sbid_id = %s"
+    cur.execute(query,(sbid_id,))
+    count = int(cur.fetchone()[0])
+    if count == 0:
+        # insert new record
+        insert_query = "INSERT INTO processed(sbid_id, num_components, num_bad_sources, num_good_sources, num_processed_STD, num_results_STD, num_processed_INVERT, num_results_INVERT, num_processed_MASK, num_results_MASK, num_processed_INVMASK, num_results_INVMASK, date) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"
+        cur.execute(insert_query, (sbid_id,tot_sources,tot_bad_sources,tot_good_ascii,num_processed_STD, num_results_STD, num_processed_INVERT, num_results_INVERT, num_processed_MASK, num_results_MASK, num_processed_INVMASK, num_results_INVMASK,count_date))
+    else:
+        # Update existing record
+        cur.execute(update_query, (tot_processed,linefinder_count,count_date,sbid_id))
+
+    # We also use the 'bad_sources_list' to mark components that are 'bad' - ie have a greater number of NaN
+    # values than the set limit (usually 50%)
+    source_list = []
+    for line in bad_source_data:
+        cleaned = line.strip()
+        if cleaned and set(cleaned) == {"#"}:
+            break
+        source_list.append(cleaned)
+    for source in source_list:
+        update_query = "update component set processState = 'BAD' where sbid_id = %s and shortname = %s;"
+        cur.execute(update_query,(sbid_id,source))
+
 
 ###############################################
 def add_component(cur,comp,sbid_id,plot_list,plot_path,processState="spectral",fluxcutoff=None):
