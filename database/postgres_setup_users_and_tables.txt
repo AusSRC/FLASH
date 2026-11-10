@@ -247,13 +247,13 @@ CREATE TABLE processed (
     num_bad_sources int,
     num_good_sources int,
     num_processed_STD int,
-    num_results_STD int;
+    num_results_STD int,
     num_processed_INVERT int,
-    num_results_INVERT int;
+    num_results_INVERT int,
     num_processed_MASK int,
-    num_results_MASK int;
+    num_results_MASK int,
     num_processed_INVMASK int,
-    num_results_INVMASK int;
+    num_results_INVMASK int,
     date TIMESTAMP
 );
 
