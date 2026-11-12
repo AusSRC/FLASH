@@ -508,7 +508,7 @@ def get_bad_file_description(name):
 def get_sbids_and_linefinder_results_count(cursor):
     """Get all SBID IDs that are not rejected, bad, or not validated."""
     cursor.execute("""
-        SELECT sbid_num,
+        SELECT s.sbid_num,
             CASE
                 WHEN results IS NULL THEN 0
                 ELSE (length(results) - length(replace(results, 'component', '')))
@@ -531,12 +531,23 @@ def get_sbids_and_linefinder_results_count(cursor):
                 WHEN mask_invert_results IS NULL THEN 0
                 ELSE (length(mask_invert_results) - length(replace(mask_invert_results, 'component', '')))
                      / length('component')
-            END AS invmask_count
-        FROM sbid
-        WHERE quality not in ('REJECTED', 'BAD', 'NOT_VALIDATED')
-        ORDER BY sbid_num;
-    """)
-    return [(row[0], row[1], row[2], row[3], row[4]) for row in cursor.fetchall()]
+            END AS invmask_count,
+
+            p.num_good_sources,
+            p.num_bad_sources,
+            p.num_components
+        FROM sbid s
+        LEFT JOIN LATERAL (
+            SELECT num_good_sources, num_bad_sources, num_components
+            FROM processed
+            WHERE processed.sbid_id = s.id
+            ORDER BY date DESC NULLS LAST, id DESC
+            LIMIT 1
+        ) p ON true
+        WHERE s.quality NOT IN ('REJECTED', 'BAD', 'NOT_VALIDATED')
+        ORDER BY s.sbid_num;
+   """)
+    return [(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]) for row in cursor.fetchall()]
 
 def get_components_for_sbid(cur, sbid_num):
     """
@@ -619,13 +630,16 @@ def linefinder_status_view(request):
         sbids = get_sbids_and_linefinder_results_count(cursor)
         rows = []
 
-        for sbid_num, std_count, invert_count, mask_count, invmask_count in sbids:
+        for sbid_num, std_count, invert_count, mask_count, invmask_count, good_num, bad_num, tot_num in sbids:
             rows.append({
                 "sbid": sbid_num,
                 "STD": std_count,
                 "INVERT": invert_count,
                 "MASK": mask_count,
-                "INVMASK": invmask_count
+                "INVMASK": invmask_count,
+                "good_count": good_num,
+                "bad_count": bad_num,
+                "total_components": tot_num
             })
 
     return render(
