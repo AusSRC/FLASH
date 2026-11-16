@@ -718,6 +718,8 @@ def add_component_results(cur,sbid,result_file,output_dir,version=None):
         if line_sbid != int(sbid):
             continue
 
+        count += 1 # every row (mode) in the results file for this sbid, mode 0 included
+
         if name != last_name:
             max_ln_mean = 0
         if ln_mean > max_ln_mean: # we only store the modenum version with the largest ln_mean in component table
@@ -731,8 +733,7 @@ def add_component_results(cur,sbid,result_file,output_dir,version=None):
                 update = "update component set invert_mask_mode_num = %s, invert_mask_ln_mean = %s, mask_inverted_date = %s where comp_id like %s and sbid_id = %s;"
             like= '%{}%'.format(name)
             cur.execute(update,(mode_num,ln_mean,detect_date,like,sbid_id))
-            max_ln_mean = ln_mean  
-            count += 1
+            max_ln_mean = ln_mean
 
         last_name = name
 
