@@ -35,6 +35,9 @@
           <th>Number of results (INVERT)</th>
           <th>Number of results (MASK)</th>
           <th>Number of results (INVMASK)</th>
+          <th>Number of good components</th>
+          <th>Number of bad components</th>
+          <th>Total number of components</th>
         </tr>
       </thead>
       <tbody>
@@ -77,6 +80,10 @@
                 {{ row.INVMASK }} 
               {% endif %} 
             </td>  
+            
+            <td>{% if row.good_count %}{{ row.good_count }}{% else %}Unknown{% endif %}</td>
+            <td>{% if row.bad_count %}{{ row.bad_count }}{% else %}Unknown{% endif %}</td>
+            <td>{{ row.total_components }}</td>
           </tr>
         {% endfor %}
       </tbody>

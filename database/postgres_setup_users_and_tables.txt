@@ -260,6 +260,10 @@ CREATE TABLE processed (
 # Forgot to add the 'unique' constraint!
 ALTER TABLE processed ADD CONSTRAINT unique_sbid UNIQUE (sbid_id);
 
+# Add index to speed up linefinder status query
+CREATE INDEX processed_sbid_latest_idx
+    ON processed (sbid_id, date DESC NULLS LAST, id DESC);
+
 # Populate initially as:
 BEGIN;
 
